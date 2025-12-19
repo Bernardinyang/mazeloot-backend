@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Enums;
+namespace App\Domains\Memora\Enums;
 
-enum SelectionStatus: string
+enum MediaType: string
 {
-    case DRAFT = 'draft';
-    case ACTIVE = 'active';
-    case COMPLETED = 'completed';
+    case IMAGE = 'image';
+    case VIDEO = 'video';
+    case DOCUMENT = 'document';
 
     /**
      * Get all values as array
@@ -30,9 +30,9 @@ enum SelectionStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::DRAFT => 'Draft',
-            self::ACTIVE => 'Active',
-            self::COMPLETED => 'Completed',
+            self::IMAGE => 'Image',
+            self::VIDEO => 'Video',
+            self::DOCUMENT => 'Document',
         };
     }
 }

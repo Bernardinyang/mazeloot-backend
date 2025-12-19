@@ -1,6 +1,6 @@
 <?php
 
-use App\Enums\ProofingStatus;
+use App\Domains\Memora\Enums\ProofingStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;

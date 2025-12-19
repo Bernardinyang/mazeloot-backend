@@ -1,12 +1,11 @@
 <?php
 
-namespace App\Enums;
+namespace App\Domains\Memora\Enums;
 
-enum ProofingStatus: string
+enum WatermarkType: string
 {
-    case DRAFT = 'draft';
-    case ACTIVE = 'active';
-    case COMPLETED = 'completed';
+    case IMAGE = 'image';
+    case TEXT = 'text';
 
     /**
      * Get all values as array
@@ -30,9 +29,8 @@ enum ProofingStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::DRAFT => 'Draft',
-            self::ACTIVE => 'Active',
-            self::COMPLETED => 'Completed',
+            self::IMAGE => 'Image',
+            self::TEXT => 'Text',
         };
     }
 }

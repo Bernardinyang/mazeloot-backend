@@ -2,6 +2,7 @@
 
 namespace App\Domains\Memora\Models;
 
+use App\Domains\Memora\Enums\SelectionStatus;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,6 +23,7 @@ class Selection extends Model
     ];
 
     protected $casts = [
+        'status' => SelectionStatus::class,
         'selection_completed_at' => 'datetime',
         'auto_delete_date' => 'date',
     ];

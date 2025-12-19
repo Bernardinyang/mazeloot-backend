@@ -1,6 +1,6 @@
 <?php
 
-use App\Enums\MediaFeedbackType;
+use App\Domains\Memora\Enums\MediaFeedbackType;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;

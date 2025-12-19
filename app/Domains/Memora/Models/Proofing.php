@@ -2,6 +2,7 @@
 
 namespace App\Domains\Memora\Models;
 
+use App\Domains\Memora\Enums\ProofingStatus;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,6 +24,7 @@ class Proofing extends Model
     ];
 
     protected $casts = [
+        'status' => ProofingStatus::class,
         'completed_at' => 'datetime',
     ];
 

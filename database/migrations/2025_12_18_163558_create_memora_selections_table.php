@@ -1,6 +1,6 @@
 <?php
 
-use App\Enums\SelectionStatus;
+use App\Domains\Memora\Enums\SelectionStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;

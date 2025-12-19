@@ -2,6 +2,7 @@
 
 namespace App\Domains\Memora\Models;
 
+use App\Domains\Memora\Enums\MediaType;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -35,6 +36,7 @@ class Media extends Model
     ];
 
     protected $casts = [
+        'type' => MediaType::class,
         'is_selected' => 'boolean',
         'selected_at' => 'datetime',
         'is_completed' => 'boolean',

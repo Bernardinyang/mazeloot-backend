@@ -1,6 +1,6 @@
 <?php
 
-use App\Enums\ProjectStatus;
+use App\Domains\Memora\Enums\ProjectStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -16,8 +16,8 @@ return new class extends Migration {
             $table->uuid()->unique()
                 ->default(DB::raw('(UUID())'));
             $table->foreignUuid('user_uuid')->constrained('users', 'uuid')->cascadeOnDelete();
-            $table->uuid('preset_uuid')->nullable(); // No FK - table doesn't exist yet
-            $table->uuid('watermark_uuid')->nullable(); // No FK - table doesn't exist yet, fixed typo from watermark_uid
+            $table->foreign('preset_uuid')->references('uuid')->on('memora_presets')->nullOnDelete();
+            $table->foreign('watermark_uuid')->references('uuid')->on('memora_watermarks')->nullOnDelete();
             $table->string('name')->unique();
             $table->text('description')->nullable();
             $table->enum('status', ProjectStatus::values())->default(ProjectStatus::DRAFT->value);

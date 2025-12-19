@@ -2,6 +2,7 @@
 
 namespace App\Domains\Memora\Models;
 
+use App\Domains\Memora\Enums\MediaFeedbackType;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,6 +18,10 @@ class MediaFeedback extends Model
         'type',
         'content',
         'created_by',
+    ];
+
+    protected $casts = [
+        'type' => MediaFeedbackType::class,
     ];
 
     public function media(): BelongsTo

@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Enums;
+namespace App\Domains\Memora\Enums;
 
-enum ProjectStatus: string
+enum FontStyle: string
 {
-    case DRAFT = 'draft';
-    case ACTIVE = 'active';
-    case ARCHIVED = 'archived';
+    case NORMAL = 'normal';
+    case BOLD = 'bold';
+    case ITALIC = 'italic';
 
     /**
      * Get all values as array
@@ -30,9 +30,9 @@ enum ProjectStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::DRAFT => 'Draft',
-            self::ACTIVE => 'Active',
-            self::ARCHIVED => 'Archived',
+            self::NORMAL => 'Normal',
+            self::BOLD => 'Bold',
+            self::ITALIC => 'Italic',
         };
     }
 }
