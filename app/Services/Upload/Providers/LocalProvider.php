@@ -15,9 +15,14 @@ class LocalProvider implements UploadProviderInterface
 
     public function __construct()
     {
-        $this->disk = config('upload.providers.local.disk', 'local');
+        // Use 'public' disk by default for uploads that need to be accessible via URL
+        // 'local' disk is in app/private and not publicly accessible
+        $this->disk = config('upload.providers.local.disk', 'public');
     }
 
+    /**
+     * @throws UploadException
+     */
     public function upload(UploadedFile $file, array $options = []): UploadResult
     {
         $path = $this->generatePath($file, $options['path'] ?? null);
@@ -33,6 +38,11 @@ class LocalProvider implements UploadProviderInterface
 
         $fullPath = Storage::disk($this->disk)->path($storedPath);
         $url = Storage::disk($this->disk)->url($storedPath);
+
+        // Ensure URL is absolute (full URL) for validation
+        // Storage::disk('local')->url() may return relative path like '/storage/uploads/...'
+        // Storage::disk('public')->url() should return full URL if APP_URL is configured
+        $url = $this->ensureAbsoluteUrl($url);
 
         // Get image dimensions if it's an image
         $width = null;
@@ -58,6 +68,30 @@ class LocalProvider implements UploadProviderInterface
         );
     }
 
+    protected function generatePath(UploadedFile $file, ?string $basePath = null): string
+    {
+        $base = $basePath ?? 'uploads';
+        $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
+        $datePath = date('Y/m/d');
+
+        return "{$base}/{$datePath}/{$filename}";
+    }
+
+    /**
+     * Ensure URL is absolute (full URL)
+     */
+    protected function ensureAbsoluteUrl(string $url): string
+    {
+        if (filter_var($url, FILTER_VALIDATE_URL)) {
+            return $url;
+        }
+
+        // Convert relative path to absolute URL
+        $baseUrl = rtrim(config('app.url', 'http://localhost'), '/');
+        $relativePath = ltrim($url, '/');
+        return $baseUrl . '/' . $relativePath;
+    }
+
     public function delete(string $path): bool
     {
         return Storage::disk($this->disk)->delete($path);
@@ -66,20 +100,13 @@ class LocalProvider implements UploadProviderInterface
     public function getSignedUrl(string $path, int $expirationMinutes = 60): string
     {
         // Local storage doesn't need signed URLs, return public URL
-        return Storage::disk($this->disk)->url($path);
+        $relativeUrl = Storage::disk($this->disk)->url($path);
+        return $this->ensureAbsoluteUrl($relativeUrl);
     }
 
     public function getPublicUrl(string $path): string
     {
-        return Storage::disk($this->disk)->url($path);
-    }
-
-    protected function generatePath(UploadedFile $file, ?string $basePath = null): string
-    {
-        $base = $basePath ?? 'uploads';
-        $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
-        $datePath = date('Y/m/d');
-
-        return "{$base}/{$datePath}/{$filename}";
+        $relativeUrl = Storage::disk($this->disk)->url($path);
+        return $this->ensureAbsoluteUrl($relativeUrl);
     }
 }

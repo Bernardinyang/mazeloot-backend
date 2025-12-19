@@ -2,8 +2,11 @@
 
 namespace App\Domains\Memora\Controllers\V1;
 
+use App\Domains\Memora\Requests\V1\AddMediaFeedbackRequest;
+use App\Domains\Memora\Requests\V1\UploadMediaToSetRequest;
 use App\Domains\Memora\Resources\V1\MediaResource;
 use App\Domains\Memora\Services\MediaService;
+use App\Http\Controllers\Controller;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,62 +20,6 @@ class MediaController extends Controller
         $this->mediaService = $mediaService;
     }
 
-    public function getPhaseMedia(Request $request, string $phaseType, string $phaseId): JsonResponse
-    {
-        $setId = $request->query('setId');
-        $media = $this->mediaService->getPhaseMedia($phaseType, $phaseId, $setId);
-        return ApiResponse::success(MediaResource::collection($media));
-    }
-
-    public function moveBetweenPhases(Request $request): JsonResponse
-    {
-        $request->validate([
-            'mediaIds' => 'required|array',
-            'mediaIds.*' => 'uuid',
-            'fromPhase' => 'required|in:selection,proofing,collection',
-            'fromPhaseId' => 'required|uuid',
-            'toPhase' => 'required|in:selection,proofing,collection',
-            'toPhaseId' => 'required|uuid',
-        ]);
-
-        $result = $this->mediaService->moveBetweenPhases(
-            $request->input('mediaIds'),
-            $request->input('fromPhase'),
-            $request->input('fromPhaseId'),
-            $request->input('toPhase'),
-            $request->input('toPhaseId')
-        );
-
-        return ApiResponse::success([
-            'movedCount' => $result['movedCount'],
-            'media' => MediaResource::collection($result['media']),
-        ]);
-    }
-
-    public function generateLowResCopy(string $id): JsonResponse
-    {
-        $media = $this->mediaService->generateLowResCopy($id);
-        return ApiResponse::success([
-            'id' => $media->id,
-            'lowResCopyUrl' => $media->low_res_copy_url,
-            'createdAt' => $media->updated_at->toIso8601String(),
-        ]);
-    }
-
-    public function markSelected(Request $request, string $id): JsonResponse
-    {
-        $request->validate([
-            'isSelected' => 'required|boolean',
-        ]);
-
-        $media = $this->mediaService->markSelected($id, $request->input('isSelected'));
-        return ApiResponse::success([
-            'id' => $media->id,
-            'isSelected' => $media->is_selected,
-            'selectedAt' => $media->selected_at?->toIso8601String(),
-        ]);
-    }
-
     public function getRevisions(string $id): JsonResponse
     {
         $revisions = $this->mediaService->getRevisions($id);
@@ -82,27 +29,51 @@ class MediaController extends Controller
     public function markCompleted(Request $request, string $id): JsonResponse
     {
         $request->validate([
-            'isCompleted' => 'required|boolean',
+            'isCompleted' => ['required', 'boolean'],
         ]);
 
         $media = $this->mediaService->markCompleted($id, $request->input('isCompleted'));
         return ApiResponse::success([
-            'id' => $media->id,
+            'id' => $media->uuid,
             'isCompleted' => $media->is_completed,
             'completedAt' => $media->completed_at?->toIso8601String(),
         ]);
     }
 
-    public function addFeedback(Request $request, string $mediaId): JsonResponse
+    /**
+     * Upload media to a set
+     */
+    public function uploadToSet(UploadMediaToSetRequest $request, string $selectionUuid, string $setUuid): JsonResponse
     {
-        $request->validate([
-            'type' => 'required|in:text,video,audio',
-            'content' => 'required|string',
-            'createdBy' => 'nullable|string|max:255',
-        ]);
+        $media = $this->mediaService->createFromUploadUrlForSet(
+            $setUuid,
+            $request->validated()
+        );
 
+        return ApiResponse::success(MediaResource::collection($media), 201);
+    }
+
+    /**
+     * Add feedback to media in set
+     */
+    public function addFeedbackInSet(AddMediaFeedbackRequest $request, string $selectionId, string $setUuid, string $mediaId): JsonResponse
+    {
         $feedback = $this->mediaService->addFeedback($mediaId, $request->validated());
-        
+
+        return ApiResponse::success([
+            'id' => $feedback->uuid ?? $feedback->id,
+            'mediaId' => $feedback->media_uuid ?? $feedback->media_id,
+            'type' => $feedback->type,
+            'content' => $feedback->content,
+            'createdAt' => $feedback->created_at->toIso8601String(),
+            'createdBy' => $feedback->created_by,
+        ], 201);
+    }
+
+    public function addFeedback(AddMediaFeedbackRequest $request, string $mediaId): JsonResponse
+    {
+        $feedback = $this->mediaService->addFeedback($mediaId, $request->validated());
+
         return ApiResponse::success([
             'id' => $feedback->id,
             'mediaId' => $feedback->media_id,
@@ -112,5 +83,49 @@ class MediaController extends Controller
             'createdBy' => $feedback->created_by,
         ], 201);
     }
+
+    /**
+     * Delete media from a set
+     */
+    public function deleteFromSet(string $selectionId, string $setUuid, string $mediaId): JsonResponse
+    {
+        $deleted = $this->mediaService->delete($mediaId);
+
+        if ($deleted) {
+            return ApiResponse::success([
+                'message' => 'Media deleted successfully',
+            ]);
+        }
+
+        return ApiResponse::error('Failed to delete media', 'DELETE_FAILED', 500);
+    }
+
+    /**
+     * Get media for a specific set (guest access)
+     */
+    public function getSetMediaGuest(Request $request, string $id, string $setUuid): JsonResponse
+    {
+        $guestToken = $request->attributes->get('guest_token');
+
+        // Verify the token belongs to this selection
+        if ($guestToken->selection_uuid !== $id) {
+            return ApiResponse::error('Token does not match selection', 'INVALID_TOKEN', 403);
+        }
+
+        $media = $this->mediaService->getSetMedia($setUuid);
+        return ApiResponse::success(MediaResource::collection($media));
+    }
+
+    // Guest methods
+
+    /**
+     * Get media for a specific set
+     */
+    public function getSetMedia(string $selectionId, string $setUuid): JsonResponse
+    {
+        $media = $this->mediaService->getSetMedia($setUuid);
+        return ApiResponse::success(MediaResource::collection($media));
+    }
+
 }
 

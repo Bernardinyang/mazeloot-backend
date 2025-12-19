@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'api-key' => \App\Http\Middleware\ApiKeyAuth::class,
+            'guest.token' => \App\Http\Middleware\GuestTokenAuth::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

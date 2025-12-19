@@ -9,11 +9,13 @@ class MediaSetResource extends JsonResource
     public function toArray($request): array
     {
         return [
-            'id' => $this->id,
+            'id' => $this->uuid,
             'name' => $this->name,
             'description' => $this->description,
             'count' => $this->whenCounted('media', $this->media_count ?? 0),
             'order' => $this->order,
+            'createdAt' => $this->created_at->toIso8601String(),
+            'updatedAt' => $this->updated_at->toIso8601String(),
         ];
     }
 }

@@ -4,7 +4,9 @@ namespace App\Domains\Memora\Services;
 
 use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraMediaFeedback;
+use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Services\Upload\UploadService;
+use Illuminate\Support\Facades\Auth;
 
 class MediaService
 {
@@ -18,15 +20,15 @@ class MediaService
     /**
      * Get phase media
      */
-    public function getPhaseMedia(string $phaseType, string $phaseId, ?string $setId = null)
+    public function getPhaseMedia(string $phaseType, string $phaseId, ?string $setUuid = null)
     {
         $query = MemoraMedia::where('phase', $phaseType)
             ->where('phase_id', $phaseId)
             ->with('feedback')
             ->orderBy('order');
 
-        if ($setId) {
-            $query->where('set_id', $setId);
+        if ($setUuid) {
+            $query->where('set_id', $setUuid);
         }
 
         return $query->get();
@@ -177,7 +179,7 @@ class MediaService
      */
     public function getRevisions(string $id): array
     {
-        $media = MemoraMedia::findOrFail($id);
+        $media = MemoraMedia::query()->findOrFail($id);
 
         // TODO: If revisions are stored separately, query that table
         // For now, return empty array as placeholder
@@ -215,6 +217,58 @@ class MediaService
     }
 
     /**
+     * Get media for a specific set
+     */
+    public function getSetMedia(string $setUuid)
+    {
+        return MemoraMedia::where('media_set_uuid', $setUuid)
+            ->with('feedback')
+            ->orderBy('order')
+            ->get();
+    }
+
+    /**
+     * Create media from upload URL for a set
+     */
+    public function createFromUploadUrlForSet(string $setUuid, array $data): array
+    {
+        $set = MemoraMediaSet::query()->findOrFail($setUuid);
+
+        // Get the maximum order for media in this set
+        $maxOrder = MemoraMedia::query()->where('media_set_uuid', $setUuid)
+            ->max('order') ?? -1;
+
+        $medias = $data['media'];
+        $savedMedias = [];
+
+        foreach ($medias as $mediaData) {
+            $savedMedias[] = MemoraMedia::query()->create([
+                'user_uuid' => Auth::user()->uuid,
+                'media_set_uuid' => $setUuid,
+                'url' => $mediaData['url'],
+                'order' => $maxOrder + 1,
+            ]);
+        }
+
+        return $savedMedias;
+    }
+
+    /**
+     * Delete media from a set
+     */
+    public function delete(string $mediaId): bool
+    {
+        $media = MemoraMedia::where('user_uuid', Auth::user()->uuid)
+            ->where('uuid', $mediaId)
+            ->firstOrFail();
+
+        // Delete the media record
+        // Note: We don't delete the user_file record as it may be used elsewhere
+        // The user_file will remain in the database for potential recovery
+        return $media->delete();
+    }
+
+    /**
      * Create media from upload URL (domains never handle files directly)
      */
     public function createFromUploadUrl(array $data, string $uploadUrl): MemoraMedia
@@ -238,7 +292,7 @@ class MediaService
 
         // Queue image processing (thumbnails, low-res copies, etc.) for images
         if (($data['type'] ?? 'image') === 'image') {
-            \App\Domains\Memora\Jobs\ProcessImageJob::dispatch($media->id, [
+            \App\Domains\Memora\Jobs\ProcessImageJob::dispatch($media->uuid, [
                 'generateThumbnail' => !$data['thumbnail'], // Only if thumbnail not already provided
                 'generateLowRes' => true,
                 'extractExif' => true,

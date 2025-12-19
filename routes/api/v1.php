@@ -39,5 +39,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
 });
 
 // Domain routes
-require __DIR__ . '/../domains/memora.php';
+require __DIR__ . '/../domains/memora/selections.php';
+require __DIR__ . '/../domains/memora/memora.php';
 

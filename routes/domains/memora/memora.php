@@ -6,7 +6,6 @@ use App\Domains\Memora\Controllers\V1\CoverStyleController;
 use App\Domains\Memora\Controllers\V1\MediaController;
 use App\Domains\Memora\Controllers\V1\ProjectController;
 use App\Domains\Memora\Controllers\V1\ProofingController;
-use App\Domains\Memora\Controllers\V1\SelectionController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -28,17 +27,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::delete('/{id}', [ProjectController::class, 'destroy']);
         Route::get('/{id}/phases', [ProjectController::class, 'phases']);
 
-        // Selections
-        Route::prefix('{projectId}/selections')->group(function () {
-            Route::post('/', [SelectionController::class, 'store']);
-            Route::get('/{id}', [SelectionController::class, 'show']);
-            Route::patch('/{id}', [SelectionController::class, 'update']);
-            Route::post('/{id}/complete', [SelectionController::class, 'complete']);
-            Route::post('/{id}/recover', [SelectionController::class, 'recover']);
-            Route::get('/{id}/selected', [SelectionController::class, 'getSelectedMedia']);
-            Route::get('/{id}/filenames', [SelectionController::class, 'getSelectedFilenames']);
-        });
-
         // MemoraProofing
         Route::prefix('{projectId}/proofing')->group(function () {
             Route::post('/', [ProofingController::class, 'store']);
@@ -59,15 +47,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
         });
     });
 
-    // MemoraMedia
+    // MemoraMedia - General operations (not set-specific)
     Route::prefix('media')->group(function () {
         Route::get('/phase/{phaseType}/{phaseId}', [MediaController::class, 'getPhaseMedia']);
         Route::post('/move-between-phases', [MediaController::class, 'moveBetweenPhases']);
-        Route::post('/{id}/low-res-copy', [MediaController::class, 'generateLowResCopy']);
-        Route::patch('/{id}/select', [MediaController::class, 'markSelected']);
-        Route::get('/{id}/revisions', [MediaController::class, 'getRevisions']);
-        Route::patch('/{id}/complete', [MediaController::class, 'markCompleted']);
-        Route::post('/{mediaId}/feedback', [MediaController::class, 'addFeedback']);
     });
 });
 

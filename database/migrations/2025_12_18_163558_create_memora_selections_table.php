@@ -3,6 +3,7 @@
 use App\Domains\Memora\Enums\SelectionStatusEnum;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
@@ -18,9 +19,11 @@ return new class extends Migration {
             $table->foreignUuid('folder_uuid')->nullable()->constrained('memora_folders', 'uuid')->cascadeOnDelete();
             $table->foreignUuid('project_uuid')->nullable()->constrained('memora_projects', 'uuid')->cascadeOnDelete();
             $table->string('name');
-            $table->enum('status', SelectionStatusEnum::values())->default(SelectionStatusEnum::ACTIVE->value);
+            $table->enum('status', SelectionStatusEnum::values())->default(SelectionStatusEnum::DRAFT->value);
             $table->string('color', 7)->default('#10B981'); // Default green color
+            $table->string('cover_photo_url')->nullable();
             $table->timestamp('selection_completed_at')->nullable();
+            $table->string('completed_by_email')->nullable();
             $table->date('auto_delete_date')->nullable();
             $table->timestamps();
         });

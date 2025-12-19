@@ -5,6 +5,7 @@ namespace App\Domains\Memora\Models;
 use App\Domains\Memora\Enums\SelectionStatusEnum;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class MemoraSelection extends Model
@@ -31,11 +32,14 @@ class MemoraSelection extends Model
     public $incrementing = false;
 
     protected $fillable = [
+        'user_uuid',
         'project_uuid',
         'name',
         'status',
         'color',
+        'cover_photo_url',
         'selection_completed_at',
+        'completed_by_email',
         'auto_delete_date',
     ];
 
@@ -62,6 +66,11 @@ class MemoraSelection extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(MemoraProject::class, 'project_uuid', 'uuid');
+    }
+
+    public function mediaSets(): HasMany
+    {
+        return $this->hasMany(MemoraMediaSet::class, 'selection_uuid', 'uuid');
     }
 
     /**

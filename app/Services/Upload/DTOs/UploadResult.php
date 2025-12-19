@@ -2,20 +2,22 @@
 
 namespace App\Services\Upload\DTOs;
 
-class UploadResult
+readonly class UploadResult
 {
     public function __construct(
-        public readonly string $url,
-        public readonly string $provider,
-        public readonly string $path,
-        public readonly string $mimeType,
-        public readonly int $size,
-        public readonly string $checksum,
-        public readonly string $originalFilename,
-        public readonly ?string $signedUrl = null,
-        public readonly ?int $width = null,
-        public readonly ?int $height = null,
-    ) {}
+        public string  $url,
+        public string  $provider,
+        public string  $path,
+        public string  $mimeType,
+        public int     $size,
+        public string  $checksum,
+        public string  $originalFilename,
+        public ?string $signedUrl = null,
+        public ?int    $width = null,
+        public ?int    $height = null,
+    )
+    {
+    }
 
     /**
      * Convert to array for JSON response
@@ -23,9 +25,9 @@ class UploadResult
     public function toArray(): array
     {
         $data = [
-            'url' => $this->signedUrl ?? $this->url,
+            'path' => $this->path, // Relative path (primary)
+            'url' => $this->signedUrl ?? $this->url, // Full URL for immediate use
             'provider' => $this->provider,
-            'path' => $this->path,
             'mimeType' => $this->mimeType,
             'size' => $this->size,
             'checksum' => $this->checksum,

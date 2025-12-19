@@ -36,7 +36,9 @@ class MemoraMediaSet extends Model
     public $incrementing = false;
 
     protected $fillable = [
+        'user_uuid',
         'project_uuid',
+        'selection_uuid',
         'name',
         'description',
         'order',
@@ -50,6 +52,11 @@ class MemoraMediaSet extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(MemoraProject::class, 'project_uuid', 'uuid');
+    }
+
+    public function selection(): BelongsTo
+    {
+        return $this->belongsTo(MemoraSelection::class, 'selection_uuid', 'uuid');
     }
 
     public function media(): HasMany

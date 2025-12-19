@@ -2,7 +2,9 @@
 
 namespace App\Domains\Memora\Requests\V1;
 
+use App\Domains\Memora\Enums\SelectionStatusEnum;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateSelectionRequest extends FormRequest
 {
@@ -14,8 +16,10 @@ class UpdateSelectionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['sometimes', 'string', 'max:255'],
-            'status' => ['sometimes', 'in:draft,active,completed'],
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'status' => ['sometimes', Rule::enum(SelectionStatusEnum::class)],
+            'color' => ['sometimes', 'string', 'max:7'],
+            'cover_photo_url' => ['nullable', 'string', 'url'],
         ];
     }
 }

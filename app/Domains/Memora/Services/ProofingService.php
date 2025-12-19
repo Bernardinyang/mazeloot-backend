@@ -112,7 +112,7 @@ class ProofingService
     /**
      * Move media to collection
      */
-    public function moveToCollection(string $projectId, string $id, array $mediaIds, string $collectionId): array
+    public function moveToCollection(string $projectId, string $id, array $mediaIds, string $collectionUuid): array
     {
         $proofing = $this->find($projectId, $id);
 
@@ -120,13 +120,13 @@ class ProofingService
             ->where('phase', 'proofing')
             ->whereIn('id', $mediaIds)
             ->update([
-                'collection_id' => $collectionId,
+                'collection_id' => $collectionUuid,
                 'phase' => 'collection',
             ]);
 
         return [
             'movedCount' => $moved,
-            'collectionId' => $collectionId,
+            'collectionId' => $collectionUuid,
         ];
     }
 }

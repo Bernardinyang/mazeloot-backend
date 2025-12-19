@@ -28,14 +28,7 @@ return new class extends Migration {
 
             $table->foreignUuid('original_media_uuid')->nullable()->constrained('memora_media', 'uuid')->nullOnDelete();
             $table->string('url'); // From upload system
-            $table->string('thumbnail_url')->nullable();
-            $table->string('low_res_copy_url')->nullable();
-            $table->enum('type', MediaTypeEnum::values());
-            $table->string('filename');
-            $table->string('mime_type');
-            $table->integer('size');
-            $table->integer('width')->nullable();
-            $table->integer('height')->nullable();
+        
             $table->integer('order')->default(0);
             $table->timestamps();
         });

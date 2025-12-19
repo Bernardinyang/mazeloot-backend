@@ -2,11 +2,12 @@
 
 namespace App\Services\Upload;
 
+use App\Services\Quotas\QuotaService;
 use App\Services\Upload\Contracts\UploadProviderInterface;
 use App\Services\Upload\DTOs\UploadResult;
 use App\Services\Upload\Exceptions\UploadException;
-use App\Services\Quotas\QuotaService;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 
 class UploadService
 {
@@ -17,6 +18,25 @@ class UploadService
     {
         $this->provider = $provider;
         $this->quotaService = $quotaService;
+    }
+
+    /**
+     * Upload multiple files
+     *
+     * @param array<UploadedFile> $files
+     * @param array $options
+     * @return array<UploadResult>
+     * @throws UploadException
+     */
+    public function uploadMultiple(array $files, array $options = []): array
+    {
+        $results = [];
+
+        foreach ($files as $file) {
+            $results[] = $this->upload($file, $options);
+        }
+
+        return $results;
     }
 
     /**
@@ -46,85 +66,6 @@ class UploadService
     }
 
     /**
-     * Upload multiple files
-     *
-     * @param array<UploadedFile> $files
-     * @param array $options
-     * @return array<UploadResult>
-     * @throws UploadException
-     */
-    public function uploadMultiple(array $files, array $options = []): array
-    {
-        $results = [];
-
-        foreach ($files as $file) {
-            $results[] = $this->upload($file, $options);
-        }
-
-        return $results;
-    }
-
-    /**
-     * Delete a file
-     *
-     * @param string $path
-     * @return bool
-     */
-    public function delete(string $path): bool
-    {
-        return $this->provider->delete($path);
-    }
-
-    /**
-     * Delete multiple files (called by DeleteFileJob).
-     *
-     * @param string $filePath Main file path
-     * @param array|null $additionalPaths Additional related file paths (thumbnails, low-res copies, etc.)
-     * @return void
-     */
-    public function deleteFiles(string $filePath, ?array $additionalPaths = null): void
-    {
-        try {
-            // Delete the main file
-            $deleted = $this->delete($filePath);
-
-            if (!$deleted) {
-                \Illuminate\Support\Facades\Log::warning("Failed to delete file: {$filePath}");
-                // Don't throw exception, just log - file might already be deleted
-            } else {
-                \Illuminate\Support\Facades\Log::info("File deleted successfully: {$filePath}");
-            }
-
-            // Delete additional related files (thumbnails, low-res copies, etc.)
-            if ($additionalPaths) {
-                foreach ($additionalPaths as $path) {
-                    try {
-                        $this->delete($path);
-                    } catch (\Exception $e) {
-                        \Illuminate\Support\Facades\Log::warning("Failed to delete additional file {$path}: " . $e->getMessage());
-                        // Continue with other files even if one fails
-                    }
-                }
-            }
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("Error deleting file {$filePath}: " . $e->getMessage());
-            throw $e;
-        }
-    }
-
-    /**
-     * Get signed URL for a file
-     *
-     * @param string $path
-     * @param int $expirationMinutes
-     * @return string
-     */
-    public function getSignedUrl(string $path, int $expirationMinutes = 60): string
-    {
-        return $this->provider->getSignedUrl($path, $expirationMinutes);
-    }
-
-    /**
      * Validate file according to options
      *
      * @param UploadedFile $file
@@ -144,11 +85,72 @@ class UploadService
         // Check allowed file types
         if (isset($options['allowedTypes']) && is_array($options['allowedTypes'])) {
             $mimeType = $file->getMimeType();
-            if (!in_array($mimeType, $options['allowedTypes'])) {
+            if (!in_array($mimeType, $options['allowedTypes'], true)) {
                 throw UploadException::invalidFile(
                     "File type {$mimeType} is not allowed. Allowed types: " . implode(', ', $options['allowedTypes'])
                 );
             }
         }
+    }
+
+    /**
+     * Delete multiple files (called by DeleteFileJob).
+     *
+     * @param string $filePath Main file path
+     * @param array|null $additionalPaths Additional related file paths (thumbnails, low-res copies, etc.)
+     * @return void
+     * @throws \Exception
+     */
+    public function deleteFiles(string $filePath, ?array $additionalPaths = null): void
+    {
+        try {
+            // Delete the main file
+            $deleted = $this->delete($filePath);
+
+            if (!$deleted) {
+                Log::warning("Failed to delete file: {$filePath}");
+                // Don't throw exception, just log - file might already be deleted
+            } else {
+                Log::info("File deleted successfully: {$filePath}");
+            }
+
+            // Delete additional related files (thumbnails, low-res copies, etc.)
+            if ($additionalPaths) {
+                foreach ($additionalPaths as $path) {
+                    try {
+                        $this->delete($path);
+                    } catch (\Exception $e) {
+                        Log::warning("Failed to delete additional file {$path}: " . $e->getMessage());
+                        // Continue with other files even if one fails
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("Error deleting file {$filePath}: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Delete a file
+     *
+     * @param string $path
+     * @return bool
+     */
+    public function delete(string $path): bool
+    {
+        return $this->provider->delete($path);
+    }
+
+    /**
+     * Get signed URL for a file
+     *
+     * @param string $path
+     * @param int $expirationMinutes
+     * @return string
+     */
+    public function getSignedUrl(string $path, int $expirationMinutes = 60): string
+    {
+        return $this->provider->getSignedUrl($path, $expirationMinutes);
     }
 }

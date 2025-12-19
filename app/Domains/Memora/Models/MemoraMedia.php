@@ -44,9 +44,8 @@ class MemoraMedia extends Model
         'is_completed',
         'completed_at',
         'original_media_uuid',
+        'user_file_uuid',
         'url',
-        'thumbnail_url',
-        'low_res_copy_url',
         'type',
         'filename',
         'mime_type',
@@ -91,5 +90,13 @@ class MemoraMedia extends Model
     public function feedback()
     {
         return $this->hasMany(MemoraMediaFeedback::class, 'media_uuid', 'uuid');
+    }
+
+    /**
+     * Get the user file that this media is associated with
+     */
+    public function userFile(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\UserFile::class, 'user_file_uuid', 'uuid');
     }
 }
