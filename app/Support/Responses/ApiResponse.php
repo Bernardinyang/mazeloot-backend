@@ -1,0 +1,223 @@
+<?php
+
+namespace App\Support\Responses;
+
+use Illuminate\Http\JsonResponse;
+
+class ApiResponse
+{
+    /**
+     * Return a successful JSON response matching the frontend contract
+     *
+     * @param mixed|null $data
+     * @param int $status
+     * @param string $statusText
+     * @return JsonResponse
+     */
+    public static function success(mixed $data = null, int $status = 200, string $statusText = 'OK'): JsonResponse
+    {
+        // For 204 No Content, return empty response body but still with status in body if needed
+        if ($status === 204) {
+            return response()->json([
+                'data' => $data,
+                'status' => $status,
+                'statusText' => 'No Content',
+            ], 200); // Return 200 with status in body for consistency
+        }
+
+        return response()->json([
+            'data' => $data,
+            'status' => $status,
+            'statusText' => $statusText,
+        ], $status);
+    }
+
+    /**
+     * Return an error JSON response matching the frontend contract
+     *
+     * @param string $message
+     * @param string|null $code
+     * @param int $status
+     * @param array|null $errors
+     * @return JsonResponse
+     */
+    public static function error(
+        string  $message,
+        ?string $code = null,
+        int     $status = 400,
+        ?array  $errors = null
+    ): JsonResponse
+    {
+        $response = [
+            'message' => $message,
+            'status' => $status,
+        ];
+
+        if ($code) {
+            $response['code'] = $code;
+        }
+
+        if ($errors) {
+            $response['errors'] = $errors;
+        }
+
+        return response()->json($response, $status);
+    }
+
+    // ==================== Success Methods ====================
+
+    /**
+     * Return a 200 OK success response
+     *
+     * @param mixed|null $data
+     * @return JsonResponse
+     */
+    public static function successOk(mixed $data = null): JsonResponse
+    {
+        return self::success($data, 200, 'OK');
+    }
+
+    /**
+     * Return a 201 Created success response
+     *
+     * @param mixed|null $data
+     * @return JsonResponse
+     */
+    public static function successCreated(mixed $data = null): JsonResponse
+    {
+        return self::success($data, 201, 'Created');
+    }
+
+    /**
+     * Return a 202 Accepted success response
+     *
+     * @param mixed|null $data
+     * @return JsonResponse
+     */
+    public static function successAccepted(mixed $data = null): JsonResponse
+    {
+        return self::success($data, 202, 'Accepted');
+    }
+
+    /**
+     * Return a 204 No Content success response
+     *
+     * @return JsonResponse
+     */
+    public static function successNoContent(): JsonResponse
+    {
+        return self::success(null, 204, 'No Content');
+    }
+
+    // ==================== Error Methods ====================
+
+    /**
+     * Return a 400 Bad Request error response
+     *
+     * @param string $message
+     * @param string|null $code
+     * @param array|null $errors
+     * @return JsonResponse
+     */
+    public static function errorBadRequest(string $message, ?string $code = 'BAD_REQUEST', ?array $errors = null): JsonResponse
+    {
+        return self::error($message, $code, 400, $errors);
+    }
+
+    /**
+     * Return a 401 Unauthorized error response
+     *
+     * @param string $message
+     * @param string|null $code
+     * @return JsonResponse
+     */
+    public static function errorUnauthorized(string $message = 'Unauthorized', ?string $code = 'UNAUTHORIZED'): JsonResponse
+    {
+        return self::error($message, $code, 401);
+    }
+
+    /**
+     * Return a 403 Forbidden error response
+     *
+     * @param string $message
+     * @param string|null $code
+     * @return JsonResponse
+     */
+    public static function errorForbidden(string $message = 'Forbidden', ?string $code = 'FORBIDDEN'): JsonResponse
+    {
+        return self::error($message, $code, 403);
+    }
+
+    /**
+     * Return a 404 Not Found error response
+     *
+     * @param string $message
+     * @param string|null $code
+     * @return JsonResponse
+     */
+    public static function errorNotFound(string $message = 'Resource not found', ?string $code = 'NOT_FOUND'): JsonResponse
+    {
+        return self::error($message, $code, 404);
+    }
+
+    /**
+     * Return a 409 Conflict error response
+     *
+     * @param string $message
+     * @param string|null $code
+     * @return JsonResponse
+     */
+    public static function errorConflict(string $message, ?string $code = 'CONFLICT'): JsonResponse
+    {
+        return self::error($message, $code, 409);
+    }
+
+    /**
+     * Return a 422 Unprocessable Entity (Validation) error response
+     *
+     * @param string $message
+     * @param array|null $errors
+     * @param string|null $code
+     * @return JsonResponse
+     */
+    public static function errorValidation(string $message = 'Validation failed', ?array $errors = null, ?string $code = 'VALIDATION_ERROR'): JsonResponse
+    {
+        return self::error($message, $code, 422, $errors);
+    }
+
+    /**
+     * Return a 429 Too Many Requests error response
+     *
+     * @param string $message
+     * @param string|null $code
+     * @return JsonResponse
+     */
+    public static function errorTooManyRequests(string $message = 'Too many requests', ?string $code = 'TOO_MANY_REQUESTS'): JsonResponse
+    {
+        return self::error($message, $code, 429);
+    }
+
+    /**
+     * Return a 500 Internal Server Error response
+     *
+     * @param string $message
+     * @param string|null $code
+     * @return JsonResponse
+     */
+    public static function errorInternalServerError(string $message = 'Internal server error', ?string $code = 'INTERNAL_SERVER_ERROR'): JsonResponse
+    {
+        return self::error($message, $code, 500);
+    }
+
+    /**
+     * Return a 503 Service Unavailable error response
+     *
+     * @param string $message
+     * @param string|null $code
+     * @return JsonResponse
+     */
+    public static function errorServiceUnavailable(string $message = 'Service unavailable', ?string $code = 'SERVICE_UNAVAILABLE'): JsonResponse
+    {
+        return self::error($message, $code, 503);
+    }
+}
