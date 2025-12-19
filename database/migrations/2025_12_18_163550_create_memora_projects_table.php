@@ -3,6 +3,7 @@
 use App\Domains\Memora\Enums\ProjectStatusEnum;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
@@ -12,11 +13,11 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('memora_projects', static function (Blueprint $table) {
-            $table->unsignedBigInteger('id')->autoIncrement();
+            $table->unsignedBigInteger('id')->nullable();
             $table->uuid('uuid')->primary()->default(DB::raw('(UUID())'));
             $table->foreignUuid('user_uuid')->constrained('users', 'uuid')->cascadeOnDelete();
-            $table->foreign('preset_uuid')->references('uuid')->on('memora_presets')->nullOnDelete();
-            $table->foreign('watermark_uuid')->references('uuid')->on('memora_watermarks')->nullOnDelete();
+            $table->foreignUuid('preset_uuid')->nullable()->constrained('memora_presets', 'uuid')->nullOnDelete();
+            $table->foreignUuid('watermark_uuid')->nullable()->constrained('memora_watermarks', 'uuid')->nullOnDelete();
             $table->string('name')->unique();
             $table->text('description')->nullable();
             $table->enum('status', ProjectStatusEnum::values())->default(ProjectStatusEnum::DRAFT->value);

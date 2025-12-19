@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Memora\Controllers\V1\CollectionController;
+use App\Domains\Memora\Controllers\V1\CoverLayoutController;
 use App\Domains\Memora\Controllers\V1\CoverStyleController;
 use App\Domains\Memora\Controllers\V1\MediaController;
 use App\Domains\Memora\Controllers\V1\ProjectController;
@@ -75,4 +76,11 @@ Route::prefix('cover-styles')->group(function () {
     Route::get('/', [CoverStyleController::class, 'index']);
     Route::get('/{uuid}', [CoverStyleController::class, 'show']);
     Route::get('/slug/{slug}', [CoverStyleController::class, 'showBySlug']);
+});
+
+// Cover Layouts - Public endpoints (frontend needs to fetch these)
+Route::prefix('cover-layouts')->group(function () {
+    Route::get('/', [CoverLayoutController::class, 'index']);
+    Route::get('/{uuid}', [CoverLayoutController::class, 'show']);
+    Route::get('/slug/{slug}', [CoverLayoutController::class, 'showBySlug']);
 });

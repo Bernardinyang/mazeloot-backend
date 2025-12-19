@@ -59,4 +59,12 @@ class MemoraMediaFeedback extends Model
     {
         return $this->belongsTo(MemoraMedia::class, 'media_uuid', 'uuid');
     }
+
+    /**
+     * Create a new factory instance for the model.
+     */
+    protected static function newFactory()
+    {
+        return \Database\Factories\MemoraMediaFeedbackFactory::new();
+    }
 }

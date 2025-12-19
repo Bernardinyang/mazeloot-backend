@@ -20,7 +20,7 @@ class ProjectFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id' => \App\Models\User::factory(),
+            'user_uuid' => \App\Models\User::factory(),
             'name' => fake()->words(3, true),
             'description' => fake()->sentence(),
             'status' => fake()->randomElement(['draft', 'active', 'archived']),

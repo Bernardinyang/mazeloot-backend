@@ -1,0 +1,394 @@
+<?php
+
+namespace App\Http\Controllers\V1;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\V1\ForgotPasswordRequest;
+use App\Http\Requests\V1\LoginRequest;
+use App\Http\Requests\V1\RegisterRequest;
+use App\Http\Requests\V1\ResendVerificationRequest;
+use App\Http\Requests\V1\ResetPasswordRequest;
+use App\Http\Requests\V1\VerifyEmailRequest;
+use App\Models\User;
+use App\Services\Auth\EmailVerificationService;
+use App\Services\Auth\PasswordResetService;
+use App\Support\Responses\ApiResponse;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
+use Laravel\Socialite\Facades\Socialite;
+
+class AuthController extends Controller
+{
+    public function __construct(
+        protected EmailVerificationService $verificationService,
+        protected PasswordResetService     $passwordResetService
+    )
+    {
+    }
+
+    /**
+     * Login user.
+     */
+    public function login(LoginRequest $request): JsonResponse
+    {
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            throw ValidationException::withMessages([
+                'email' => ['The provided credentials are incorrect.'],
+            ]);
+        }
+
+        // Check if email is verified
+        if (!$user->email_verified_at) {
+            return ApiResponse::error(
+                'Please verify your email address before logging in.',
+                'EMAIL_NOT_VERIFIED',
+                403
+            );
+        }
+
+        // Check user status
+        $canLogin = $user->canLogin();
+        if (!$canLogin['can_login']) {
+            return ApiResponse::error(
+                $canLogin['message'],
+                'ACCOUNT_STATUS_BLOCKED',
+                403
+            );
+        }
+
+        // Create token
+        $token = $user->createToken('auth-token')->plainTextToken;
+
+        // Load status relationship if not already loaded
+        if (!$user->relationLoaded('status')) {
+            $user->load('status');
+        }
+
+        return ApiResponse::successOk([
+            'user' => [
+                'uuid' => $user->uuid,
+                'email' => $user->email,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'profile_photo' => $user->profile_photo,
+                'email_verified_at' => $user->email_verified_at,
+                'status' => $user->status ? [
+                    'uuid' => $user->status->uuid,
+                    'name' => $user->status->name,
+                    'description' => $user->status->description,
+                    'color' => $user->status->color,
+                ] : null,
+            ],
+            'token' => $token,
+        ]);
+    }
+
+    /**
+     * Register a new user.
+     */
+    public function register(RegisterRequest $request): JsonResponse
+    {
+        $user = User::create([
+            'first_name' => $request->first_name,
+            'last_name' => $request->last_name,
+            'middle_name' => $request->middle_name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+        ]);
+
+        // Send verification code
+        $this->verificationService->sendVerificationCode($user);
+
+        return ApiResponse::successCreated([
+            'message' => 'Registration successful. Please verify your email.',
+            'user' => [
+                'uuid' => $user->uuid,
+                'email' => $user->email,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'email_verified_at' => $user->email_verified_at,
+            ],
+            'requires_verification' => true,
+        ]);
+    }
+
+    /**
+     * Verify email with code.
+     */
+    public function verifyEmail(VerifyEmailRequest $request): JsonResponse
+    {
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return ApiResponse::errorNotFound('User not found.');
+        }
+
+        if ($user->email_verified_at) {
+            return ApiResponse::error('Email is already verified.', 'EMAIL_ALREADY_VERIFIED', 400);
+        }
+
+        $verified = $this->verificationService->verifyCode($user, $request->code);
+
+        if (!$verified) {
+            return ApiResponse::error('Invalid or expired verification code.', 'INVALID_CODE', 400);
+        }
+
+        // Refresh user to get updated email_verified_at
+        $user->refresh();
+
+        // Create token for login
+        $token = $user->createToken('auth-token')->plainTextToken;
+
+        return ApiResponse::successOk([
+            'message' => 'Email verified successfully.',
+            'user' => [
+                'uuid' => $user->uuid,
+                'email' => $user->email,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'email_verified_at' => $user->email_verified_at,
+            ],
+            'token' => $token,
+        ]);
+    }
+
+    /**
+     * Resend verification code.
+     */
+    public function resendVerification(ResendVerificationRequest $request): JsonResponse
+    {
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return ApiResponse::errorNotFound('User not found.');
+        }
+
+        if ($user->email_verified_at) {
+            return ApiResponse::error('Email is already verified.', 'EMAIL_ALREADY_VERIFIED', 400);
+        }
+
+        $this->verificationService->sendVerificationCode($user);
+
+        return ApiResponse::successOk([
+            'message' => 'Verification code sent successfully.',
+        ]);
+    }
+
+    /**
+     * Send password reset code.
+     */
+    public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
+    {
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            // Don't reveal if user exists for security
+            return ApiResponse::successOk([
+                'message' => 'If the email exists, a password reset code has been sent.',
+            ]);
+        }
+
+        $this->passwordResetService->sendResetCode($user);
+
+        return ApiResponse::successOk([
+            'message' => 'If the email exists, a password reset code has been sent.',
+        ]);
+    }
+
+    /**
+     * Reset password with code.
+     */
+    public function resetPassword(ResetPasswordRequest $request): JsonResponse
+    {
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return ApiResponse::errorNotFound('User not found.');
+        }
+
+        $reset = $this->passwordResetService->resetPassword(
+            $user,
+            $request->code,
+            $request->password
+        );
+
+        if (!$reset) {
+            return ApiResponse::error('Invalid or expired reset code.', 'INVALID_CODE', 400);
+        }
+
+        return ApiResponse::successOk([
+            'message' => 'Password reset successfully. You can now login with your new password.',
+        ]);
+    }
+
+    /**
+     * Redirect user to OAuth provider (Google).
+     * Returns the redirect URL for the frontend to use.
+     */
+    public function redirectToProvider(string $provider): JsonResponse
+    {
+        // Validate provider
+        if (!in_array($provider, ['google'])) {
+            return ApiResponse::error('Invalid OAuth provider.', 'INVALID_PROVIDER', 400);
+        }
+
+        try {
+            $redirectUrl = Socialite::driver($provider)->stateless()->redirect()->getTargetUrl();
+            return ApiResponse::successOk([
+                'redirect_url' => $redirectUrl,
+            ]);
+        } catch (\Exception $e) {
+            return ApiResponse::error('OAuth redirect failed: ' . $e->getMessage(), 'OAUTH_ERROR', 400);
+        }
+    }
+
+    /**
+     * Handle OAuth provider callback.
+     * Redirects to frontend callback page with token in URL hash for security.
+     */
+    public function handleProviderCallback(string $provider): \Illuminate\Http\RedirectResponse
+    {
+        // Validate provider
+        if (!in_array($provider, ['google'])) {
+            $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173'));
+            return redirect($frontendUrl . '/auth/oauth/callback?error=invalid_provider&message=Invalid OAuth provider');
+        }
+
+        try {
+            $socialUser = Socialite::driver($provider)->stateless()->user();
+
+            // Check if user exists by provider_id or email
+            $user = User::where('provider', $provider)
+                ->where('provider_id', $socialUser->getId())
+                ->first();
+
+            if (!$user) {
+                // Check if user exists by email (linking OAuth to existing account)
+                $user = User::where('email', $socialUser->getEmail())->first();
+
+                if ($user) {
+                    // Link OAuth provider to existing account
+                    $user->update([
+                        'provider' => $provider,
+                        'provider_id' => $socialUser->getId(),
+                    ]);
+                } else {
+                    // Create new user from OAuth
+                    $nameParts = $this->splitName($socialUser->getName());
+                    
+                    $user = DB::transaction(function () use ($socialUser, $provider, $nameParts) {
+                        return User::create([
+                            'first_name' => $nameParts['first_name'],
+                            'last_name' => $nameParts['last_name'],
+                            'email' => $socialUser->getEmail(),
+                            'provider' => $provider,
+                            'provider_id' => $socialUser->getId(),
+                            'email_verified_at' => now(), // OAuth emails are pre-verified
+                            'password' => null, // No password for OAuth users
+                            'profile_photo' => $socialUser->getAvatar(),
+                        ]);
+                    });
+                }
+            } else {
+                // Update user info from OAuth provider
+                $user->update([
+                    'profile_photo' => $socialUser->getAvatar() ?: $user->profile_photo,
+                ]);
+            }
+
+            // Check user status before allowing login
+            $canLogin = $user->canLogin();
+            if (!$canLogin['can_login']) {
+                // Redirect to frontend callback page with error
+                $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173'));
+                $callbackUrl = $frontendUrl . '/auth/oauth/callback?' . http_build_query([
+                    'error' => 'account_blocked',
+                    'message' => $canLogin['message'],
+                ]);
+
+                return redirect($callbackUrl);
+            }
+
+            // Create token
+            $token = $user->createToken('auth-token')->plainTextToken;
+
+            // Load status relationship if not already loaded
+            if (!$user->relationLoaded('status')) {
+                $user->load('status');
+            }
+
+            // Redirect to frontend callback page with token in URL hash
+            $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173'));
+            $callbackUrl = $frontendUrl . '/auth/oauth/callback#' . http_build_query([
+                'token' => $token,
+                'success' => 'true',
+            ]);
+
+            return redirect($callbackUrl);
+        } catch (\Exception $e) {
+            // Redirect to frontend callback page with error
+            $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173'));
+            $callbackUrl = $frontendUrl . '/auth/oauth/callback?' . http_build_query([
+                'error' => 'oauth_error',
+                'message' => $e->getMessage(),
+            ]);
+
+            return redirect($callbackUrl);
+        }
+    }
+
+    /**
+     * Get authenticated user.
+     */
+    public function user(): JsonResponse
+    {
+        $user = auth()->user();
+
+        if (!$user) {
+            return ApiResponse::errorUnauthorized('User not authenticated.');
+        }
+
+        // Load status relationship if not already loaded
+        if (!$user->relationLoaded('status')) {
+            $user->load('status');
+        }
+
+        return ApiResponse::successOk([
+            'user' => [
+                'uuid' => $user->uuid,
+                'email' => $user->email,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'profile_photo' => $user->profile_photo,
+                'email_verified_at' => $user->email_verified_at,
+                'status' => $user->status ? [
+                    'uuid' => $user->status->uuid,
+                    'name' => $user->status->name,
+                    'description' => $user->status->description,
+                    'color' => $user->status->color,
+                ] : null,
+            ],
+        ]);
+    }
+
+    /**
+     * Split full name into first and last name.
+     */
+    private function splitName(?string $fullName): array
+    {
+        if (!$fullName) {
+            return ['first_name' => 'User', 'last_name' => ''];
+        }
+
+        $parts = explode(' ', trim($fullName), 2);
+        
+        return [
+            'first_name' => $parts[0] ?: 'User',
+            'last_name' => $parts[1] ?? '',
+        ];
+    }
+}

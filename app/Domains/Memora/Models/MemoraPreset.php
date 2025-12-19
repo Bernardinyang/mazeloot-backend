@@ -175,4 +175,12 @@ class MemoraPreset extends Model
     {
         return $this->coverStyle?->slug;
     }
+
+    /**
+     * Create a new factory instance for the model.
+     */
+    protected static function newFactory()
+    {
+        return \Database\Factories\MemoraPresetFactory::new();
+    }
 }

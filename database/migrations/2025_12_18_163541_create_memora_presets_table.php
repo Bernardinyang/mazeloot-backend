@@ -12,7 +12,7 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('memora_presets', function (Blueprint $table) {
-            $table->unsignedBigInteger('id')->autoIncrement();
+            $table->unsignedBigInteger('id')->nullable();
             $table->uuid('uuid')->primary()->default(DB::raw('(UUID())'));
             $table->foreignUuid('user_uuid')->constrained('users', 'uuid')->cascadeOnDelete();
             $table->foreignUuid('default_watermark_uuid')->nullable()->constrained('memora_watermarks', 'uuid')->nullOnDelete();
@@ -28,8 +28,7 @@ return new class extends Migration {
             $table->string('language', 10)->default('en');
 
             // Design section fields
-            $table->uuid('design_cover_uuid')->nullable(); // Cover style reference
-            $table->foreign('design_cover_uuid')->references('uuid')->on('memora_cover_styles')->nullOnDelete();
+            $table->foreignUuid('design_cover_uuid')->nullable()->constrained('memora_cover_styles', 'uuid')->nullOnDelete(); // Cover style reference
             $table->json('design_cover_focal_point')->nullable(); // {x, y} coordinates
             $table->string('design_font_family')->default('sans');
             $table->string('design_font_style')->default('normal');

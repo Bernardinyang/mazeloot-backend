@@ -34,18 +34,17 @@ class ApiResponse
 
     /**
      * Return an error JSON response matching the frontend contract
+     * Returns only a single error message (no arrays)
      *
      * @param string $message
      * @param string|null $code
      * @param int $status
-     * @param array|null $errors
      * @return JsonResponse
      */
     public static function error(
         string  $message,
         ?string $code = null,
-        int     $status = 400,
-        ?array  $errors = null
+        int     $status = 400
     ): JsonResponse
     {
         $response = [
@@ -55,10 +54,6 @@ class ApiResponse
 
         if ($code) {
             $response['code'] = $code;
-        }
-
-        if ($errors) {
-            $response['errors'] = $errors;
         }
 
         return response()->json($response, $status);
@@ -116,12 +111,11 @@ class ApiResponse
      *
      * @param string $message
      * @param string|null $code
-     * @param array|null $errors
      * @return JsonResponse
      */
-    public static function errorBadRequest(string $message, ?string $code = 'BAD_REQUEST', ?array $errors = null): JsonResponse
+    public static function errorBadRequest(string $message, ?string $code = 'BAD_REQUEST'): JsonResponse
     {
-        return self::error($message, $code, 400, $errors);
+        return self::error($message, $code, 400);
     }
 
     /**
@@ -174,15 +168,25 @@ class ApiResponse
 
     /**
      * Return a 422 Unprocessable Entity (Validation) error response
+     * If an errors array is provided, extracts the first error message
      *
      * @param string $message
-     * @param array|null $errors
+     * @param array|null $errors Optional: if provided, will extract first error from array
      * @param string|null $code
      * @return JsonResponse
      */
     public static function errorValidation(string $message = 'Validation failed', ?array $errors = null, ?string $code = 'VALIDATION_ERROR'): JsonResponse
     {
-        return self::error($message, $code, 422, $errors);
+        // If errors array is provided, extract the first error message
+        if ($errors && !empty($errors)) {
+            $firstFieldErrors = reset($errors);
+            $firstError = is_array($firstFieldErrors) ? reset($firstFieldErrors) : $firstFieldErrors;
+            if ($firstError) {
+                $message = $firstError;
+            }
+        }
+        
+        return self::error($message, $code, 422);
     }
 
     /**

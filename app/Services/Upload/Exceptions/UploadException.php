@@ -12,7 +12,6 @@ class UploadException extends ApiException
             $message,
             'UPLOAD_PROVIDER_ERROR',
             500,
-            null,
             $previous
         );
     }

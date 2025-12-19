@@ -13,7 +13,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('{{ table }}', static function (Blueprint $table) {
-            $table->unsignedBigInteger('id')->autoIncrement();
+            $table->unsignedBigInteger('id')->nullable();
             $table->uuid('uuid')->primary()->default(DB::raw('(UUID())'));
 
             $table->timestamps();

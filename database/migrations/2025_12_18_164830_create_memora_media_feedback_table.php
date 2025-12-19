@@ -9,7 +9,7 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('memora_media_feedback', static function (Blueprint $table) {
-            $table->unsignedBigInteger('id')->autoIncrement();
+            $table->unsignedBigInteger('id')->nullable();
             $table->uuid('uuid')->primary()->default(DB::raw('(UUID())'));
             $table->foreignUuid('media_uuid')->constrained('memora_media', 'uuid')->cascadeOnDelete();
             $table->enum('type', MediaFeedbackTypeEnum::values());

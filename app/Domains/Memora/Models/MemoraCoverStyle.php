@@ -150,5 +150,13 @@ class MemoraCoverStyle extends Model
 
         return $value;
     }
+
+    /**
+     * Create a new factory instance for the model.
+     */
+    protected static function newFactory()
+    {
+        return \Database\Factories\MemoraCoverStyleFactory::new();
+    }
 }
 

@@ -63,4 +63,12 @@ class MemoraProofing extends Model
     {
         return $this->belongsTo(MemoraProject::class, 'project_uuid', 'uuid');
     }
+
+    /**
+     * Create a new factory instance for the model.
+     */
+    protected static function newFactory()
+    {
+        return \Database\Factories\MemoraProofingFactory::new();
+    }
 }

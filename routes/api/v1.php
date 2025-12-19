@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\V1\AuthController;
 use App\Http\Controllers\V1\UploadController;
 use Illuminate\Support\Facades\Route;
 
@@ -12,9 +13,24 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
+// Auth routes (public - no authentication required)
+Route::prefix('auth')->group(function () {
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
+    Route::post('/resend-verification', [AuthController::class, 'resendVerification']);
+    Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+    Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+    
+    // OAuth routes
+    Route::get('/oauth/{provider}/redirect', [AuthController::class, 'redirectToProvider']);
+    Route::get('/oauth/{provider}/callback', [AuthController::class, 'handleProviderCallback']);
+});
+
 // Single upload endpoint - supports Sanctum auth
 // Note: API key auth middleware (ApiKeyAuth) can be added to support programmatic access
 Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get('/auth/user', [AuthController::class, 'user']);
     Route::post('/uploads', [UploadController::class, 'upload']);
 });
 

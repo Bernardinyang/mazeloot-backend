@@ -60,4 +60,20 @@ class MemoraCollection extends Model
     {
         return $this->belongsTo(MemoraProject::class, 'project_uuid', 'uuid');
     }
+
+    /**
+     * Get the cover layout relationship (optional - if cover_layout_uuid is stored)
+     */
+    public function coverLayout(): BelongsTo
+    {
+        return $this->belongsTo(MemoraCoverLayout::class, 'cover_layout_uuid', 'uuid');
+    }
+
+    /**
+     * Create a new factory instance for the model.
+     */
+    protected static function newFactory()
+    {
+        return \Database\Factories\MemoraCollectionFactory::new();
+    }
 }

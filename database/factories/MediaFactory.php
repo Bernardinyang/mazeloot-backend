@@ -21,7 +21,7 @@ class MediaFactory extends Factory
     {
         return [
             'user_uuid' => \App\Models\User::factory(),
-            'media_set_uuid' => \App\Domains\Memora\Models\MemoraMediaSet::factory(),
+            'media_set_uuid' => null, // Should be provided when creating media
             'is_selected' => false,
             'selected_at' => null,
             'revision_number' => null,

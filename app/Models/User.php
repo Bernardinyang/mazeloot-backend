@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\UserRoleEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -43,10 +44,17 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'name',
+        'first_name',
+        'last_name',
+        'middle_name',
         'email',
         'password',
         'status_uuid',
+        'role',
+        'provider',
+        'provider_id',
+        'email_verified_at',
+        'profile_photo',
     ];
 
     /**
@@ -69,6 +77,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'role' => UserRoleEnum::class,
         ];
     }
 
@@ -82,6 +91,11 @@ class User extends Authenticatable
         static::creating(function ($model) {
             if (empty($model->uuid)) {
                 $model->uuid = (string) Str::uuid();
+            }
+            
+            // Set default role to 'user' if not provided
+            if (empty($model->role)) {
+                $model->role = UserRoleEnum::USER;
             }
         });
     }
@@ -100,5 +114,100 @@ class User extends Authenticatable
     public function status(): BelongsTo
     {
         return $this->belongsTo(UserStatus::class, 'status_uuid', 'uuid');
+    }
+
+    /**
+     * Get the email verification codes for the user.
+     */
+    public function emailVerificationCodes(): HasMany
+    {
+        return $this->hasMany(EmailVerificationCode::class, 'user_uuid', 'uuid');
+    }
+
+    /**
+     * Get the password reset tokens for the user.
+     */
+    public function passwordResetTokens(): HasMany
+    {
+        return $this->hasMany(PasswordResetToken::class, 'user_uuid', 'uuid');
+    }
+
+    /**
+     * Check if the user has a specific role.
+     *
+     * @param UserRoleEnum $role
+     * @return bool
+     */
+    public function hasRole(UserRoleEnum $role): bool
+    {
+        return $this->role === $role;
+    }
+
+    /**
+     * Check if the user is an admin or super admin.
+     *
+     * @return bool
+     */
+    public function isAdmin(): bool
+    {
+        return $this->role && $this->role->isAdmin();
+    }
+
+    /**
+     * Check if the user is a super admin.
+     *
+     * @return bool
+     */
+    public function isSuperAdmin(): bool
+    {
+        return $this->hasRole(UserRoleEnum::SUPER_ADMIN);
+    }
+
+    /**
+     * Check if the user can manage admins (only super admins can).
+     *
+     * @return bool
+     */
+    public function canManageAdmins(): bool
+    {
+        return $this->role && $this->role->canManageAdmins();
+    }
+
+    /**
+     * Check if the user can login based on their status.
+     *
+     * @return array{can_login: bool, message: string|null}
+     */
+    public function canLogin(): array
+    {
+        // Load status relationship if not already loaded
+        if (!$this->relationLoaded('status')) {
+            $this->load('status');
+        }
+
+        // If user has no status, allow login (status is nullable)
+        if (!$this->status) {
+            return ['can_login' => true, 'message' => null];
+        }
+
+        $statusName = strtolower($this->status->name);
+
+        // Block login for these statuses
+        $blockedStatuses = ['suspended', 'banned', 'blocked', 'inactive', 'deactivated'];
+
+        if (in_array($statusName, $blockedStatuses)) {
+            $message = match ($statusName) {
+                'suspended' => 'Your account has been suspended. Please contact support for assistance.',
+                'banned' => 'Your account has been banned. Please contact support for assistance.',
+                'blocked' => 'Your account has been blocked. Please contact support for assistance.',
+                'inactive', 'deactivated' => 'Your account is inactive. Please contact support to reactivate your account.',
+                default => 'Your account status prevents login. Please contact support for assistance.',
+            };
+
+            return ['can_login' => false, 'message' => $message];
+        }
+
+        // Allow login for active status or any other status not in blocked list
+        return ['can_login' => true, 'message' => null];
     }
 }

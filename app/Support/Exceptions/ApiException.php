@@ -10,28 +10,20 @@ use App\Support\Responses\ApiResponse;
 class ApiException extends Exception
 {
     protected ?string $errorCode = null;
-    protected ?array $errors = null;
 
     public function __construct(
         string $message = '',
         ?string $errorCode = null,
         int $code = 400,
-        ?array $errors = null,
         ?\Throwable $previous = null
     ) {
         parent::__construct($message, $code, $previous);
         $this->errorCode = $errorCode;
-        $this->errors = $errors;
     }
 
     public function getErrorCode(): ?string
     {
         return $this->errorCode;
-    }
-
-    public function getErrors(): ?array
-    {
-        return $this->errors;
     }
 
     /**
@@ -42,8 +34,7 @@ class ApiException extends Exception
         return ApiResponse::error(
             $this->getMessage(),
             $this->getErrorCode(),
-            $this->getCode() ?: 400,
-            $this->getErrors()
+            $this->getCode() ?: 400
         );
     }
 }

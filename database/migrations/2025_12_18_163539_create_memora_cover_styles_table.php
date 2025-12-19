@@ -12,9 +12,8 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('memora_cover_styles', static function (Blueprint $table) {
-            $table->unsignedBigInteger('id')->autoIncrement();
+            $table->unsignedBigInteger('id')->nullable();
             $table->uuid('uuid')->primary()->default(DB::raw('(UUID())'));
-            $table->unique('id');
 
             $table->string('name'); // Display name like "Modern", "Joy", "Split Layout"
             $table->string('slug')->unique(); // URL-friendly identifier like "modern", "joy", "split-layout"

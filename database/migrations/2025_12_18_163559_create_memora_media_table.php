@@ -3,6 +3,7 @@
 use App\Domains\Memora\Enums\MediaTypeEnum;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
@@ -12,7 +13,7 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('memora_media', static function (Blueprint $table) {
-            $table->unsignedBigInteger('id')->autoIncrement();
+            $table->unsignedBigInteger('id')->nullable();
             $table->uuid('uuid')->primary()->default(DB::raw('(UUID())'));
             $table->foreignUuid('user_uuid')->constrained('users', 'uuid')->cascadeOnDelete();
             $table->foreignUuid('media_set_uuid')->constrained('memora_media_sets', 'uuid')->cascadeOnDelete();
@@ -25,7 +26,7 @@ return new class extends Migration {
             $table->boolean('is_completed')->default(false);
             $table->timestamp('completed_at')->nullable();
 
-            $table->uuid('original_media_uuid')->nullable();
+            $table->foreignUuid('original_media_uuid')->nullable()->constrained('memora_media', 'uuid')->nullOnDelete();
             $table->string('url'); // From upload system
             $table->string('thumbnail_url')->nullable();
             $table->string('low_res_copy_url')->nullable();
@@ -37,12 +38,6 @@ return new class extends Migration {
             $table->integer('height')->nullable();
             $table->integer('order')->default(0);
             $table->timestamps();
-        });
-        
-        // Add unique index and self-referencing FK after table creation
-        Schema::table('memora_media', static function (Blueprint $table) {
-            $table->unique('uuid');
-            $table->foreign('original_media_uuid')->references('uuid')->on('memora_media')->nullOnDelete();
         });
     }
 
