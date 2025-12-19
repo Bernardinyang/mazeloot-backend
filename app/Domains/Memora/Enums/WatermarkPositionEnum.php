@@ -2,7 +2,7 @@
 
 namespace App\Domains\Memora\Enums;
 
-enum WatermarkPosition: string
+enum WatermarkPositionEnum: string
 {
     case TOP_LEFT = 'top-left';
     case TOP_CENTER = 'top-center';

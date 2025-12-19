@@ -2,11 +2,11 @@
 
 namespace App\Domains\Memora\Enums;
 
-enum TextTransform: string
+enum FontStyleEnum: string
 {
-    case NONE = 'none';
-    case UPPERCASE = 'uppercase';
-    case LOWERCASE = 'lowercase';
+    case NORMAL = 'normal';
+    case BOLD = 'bold';
+    case ITALIC = 'italic';
 
     /**
      * Get all values as array
@@ -30,9 +30,9 @@ enum TextTransform: string
     public function label(): string
     {
         return match ($this) {
-            self::NONE => 'None',
-            self::UPPERCASE => 'Uppercase',
-            self::LOWERCASE => 'Lowercase',
+            self::NORMAL => 'Normal',
+            self::BOLD => 'Bold',
+            self::ITALIC => 'Italic',
         };
     }
 }

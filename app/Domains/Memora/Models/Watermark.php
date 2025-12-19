@@ -2,11 +2,11 @@
 
 namespace App\Domains\Memora\Models;
 
-use App\Domains\Memora\Enums\BorderStyle;
-use App\Domains\Memora\Enums\FontStyle;
-use App\Domains\Memora\Enums\TextTransform;
-use App\Domains\Memora\Enums\WatermarkPosition;
-use App\Domains\Memora\Enums\WatermarkType;
+use App\Domains\Memora\Enums\BorderStyleEnum;
+use App\Domains\Memora\Enums\FontStyleEnum;
+use App\Domains\Memora\Enums\TextTransformEnum;
+use App\Domains\Memora\Enums\WatermarkPositionEnum;
+use App\Domains\Memora\Enums\WatermarkTypeEnum;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -44,11 +44,11 @@ class Watermark extends Model
     ];
 
     protected $casts = [
-        'type' => WatermarkType::class,
-        'font_style' => FontStyle::class,
-        'text_transform' => TextTransform::class,
-        'border_style' => BorderStyle::class,
-        'position' => WatermarkPosition::class,
+        'type' => WatermarkTypeEnum::class,
+        'font_style' => FontStyleEnum::class,
+        'text_transform' => TextTransformEnum::class,
+        'border_style' => BorderStyleEnum::class,
+        'position' => WatermarkPositionEnum::class,
         'line_height' => 'decimal:2',
         'letter_spacing' => 'decimal:2',
         'scale' => 'integer',

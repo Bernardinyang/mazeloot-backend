@@ -15,11 +15,12 @@ return new class extends Migration {
             $table->id();
             $table->uuid()->unique()->default(DB::raw('(UUID())'));
             $table->foreignUuid('user_uuid')->constrained('users', 'uuid')->cascadeOnDelete();
+            $table->foreignUuid('default_watermark_uuid')->nullable()->constrained('memora_watermarks', 'uuid')->nullOnDelete();
+
             $table->string('name');
             $table->boolean('is_selected')->default(false);
             $table->text('collection_tags')->nullable(); // Comma-separated tags
             $table->json('photo_sets')->nullable(); // Array of photo set names
-            $table->foreignUuid('default_watermark_uuid')->nullable()->constrained('memora_watermarks', 'uuid')->nullOnDelete();
             $table->boolean('email_registration')->default(false);
             $table->boolean('gallery_assist')->default(false);
             $table->boolean('slideshow')->default(true);
@@ -37,13 +38,6 @@ return new class extends Migration {
             $table->string('design_thumbnail_size')->default('medium');
             $table->integer('design_grid_spacing')->default(16);
             $table->string('design_navigation_style')->default('icon-text');
-            $table->string('design_joy_cover_title')->nullable();
-            $table->string('design_joy_cover_avatar')->nullable(); // URL
-            $table->boolean('design_joy_cover_show_date')->default(false);
-            $table->boolean('design_joy_cover_show_name')->default(false);
-            $table->string('design_joy_cover_button_text')->default('View Gallery');
-            $table->boolean('design_joy_cover_show_button')->default(false);
-            $table->string('design_joy_cover_background_pattern')->default('crosses');
 
             // Privacy section fields
             $table->string('privacy_collection_password')->nullable();
@@ -70,7 +64,7 @@ return new class extends Migration {
             $table->boolean('favorite_favorite_enabled')->default(true);
             $table->boolean('favorite_favorite_photos')->default(true);
             $table->boolean('favorite_favorite_notes')->default(true);
-            
+
             $table->timestamps();
 
             // Indexes

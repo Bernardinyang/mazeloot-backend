@@ -2,11 +2,11 @@
 
 namespace App\Domains\Memora\Enums;
 
-enum FontStyle: string
+enum MediaFeedbackTypeEnum: string
 {
-    case NORMAL = 'normal';
-    case BOLD = 'bold';
-    case ITALIC = 'italic';
+    case TEXT = 'text';
+    case VIDEO = 'video';
+    case AUDIO = 'audio';
 
     /**
      * Get all values as array
@@ -30,9 +30,9 @@ enum FontStyle: string
     public function label(): string
     {
         return match ($this) {
-            self::NORMAL => 'Normal',
-            self::BOLD => 'Bold',
-            self::ITALIC => 'Italic',
+            self::TEXT => 'Text',
+            self::VIDEO => 'Video',
+            self::AUDIO => 'Audio',
         };
     }
 }

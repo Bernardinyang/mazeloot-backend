@@ -2,7 +2,7 @@
 
 namespace App\Domains\Memora\Enums;
 
-enum ProofingStatus: string
+enum ProofingStatusEnum: string
 {
     case DRAFT = 'draft';
     case ACTIVE = 'active';

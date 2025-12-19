@@ -2,11 +2,11 @@
 
 namespace App\Domains\Memora\Enums;
 
-enum PhaseType: string
+enum SelectionStatusEnum: string
 {
-    case SELECTION = 'selection';
-    case PROOFING = 'proofing';
-    case COLLECTION = 'collection';
+    case DRAFT = 'draft';
+    case ACTIVE = 'active';
+    case COMPLETED = 'completed';
 
     /**
      * Get all values as array
@@ -30,9 +30,9 @@ enum PhaseType: string
     public function label(): string
     {
         return match ($this) {
-            self::SELECTION => 'Selection',
-            self::PROOFING => 'Proofing',
-            self::COLLECTION => 'Collection',
+            self::DRAFT => 'Draft',
+            self::ACTIVE => 'Active',
+            self::COMPLETED => 'Completed',
         };
     }
 }

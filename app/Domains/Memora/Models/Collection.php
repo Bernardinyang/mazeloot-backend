@@ -2,7 +2,7 @@
 
 namespace App\Domains\Memora\Models;
 
-use App\Domains\Memora\Enums\ProjectStatus;
+use App\Domains\Memora\Enums\ProjectStatusEnum;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,7 +22,7 @@ class Collection extends Model
     ];
 
     protected $casts = [
-        'status' => ProjectStatus::class,
+        'status' => ProjectStatusEnum::class,
     ];
 
     public function project(): BelongsTo

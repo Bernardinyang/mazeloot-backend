@@ -2,11 +2,10 @@
 
 namespace App\Domains\Memora\Enums;
 
-enum SelectionStatus: string
+enum WatermarkTypeEnum: string
 {
-    case DRAFT = 'draft';
-    case ACTIVE = 'active';
-    case COMPLETED = 'completed';
+    case IMAGE = 'image';
+    case TEXT = 'text';
 
     /**
      * Get all values as array
@@ -30,9 +29,8 @@ enum SelectionStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::DRAFT => 'Draft',
-            self::ACTIVE => 'Active',
-            self::COMPLETED => 'Completed',
+            self::IMAGE => 'Image',
+            self::TEXT => 'Text',
         };
     }
 }

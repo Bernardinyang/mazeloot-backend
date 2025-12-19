@@ -2,10 +2,11 @@
 
 namespace App\Domains\Memora\Enums;
 
-enum WatermarkType: string
+enum PhaseTypeEnum: string
 {
-    case IMAGE = 'image';
-    case TEXT = 'text';
+    case SELECTION = 'selection';
+    case PROOFING = 'proofing';
+    case COLLECTION = 'collection';
 
     /**
      * Get all values as array
@@ -29,8 +30,9 @@ enum WatermarkType: string
     public function label(): string
     {
         return match ($this) {
-            self::IMAGE => 'Image',
-            self::TEXT => 'Text',
+            self::SELECTION => 'Selection',
+            self::PROOFING => 'Proofing',
+            self::COLLECTION => 'Collection',
         };
     }
 }

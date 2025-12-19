@@ -2,11 +2,11 @@
 
 namespace App\Domains\Memora\Enums;
 
-enum ProjectStatus: string
+enum TextTransformEnum: string
 {
-    case DRAFT = 'draft';
-    case ACTIVE = 'active';
-    case ARCHIVED = 'archived';
+    case NONE = 'none';
+    case UPPERCASE = 'uppercase';
+    case LOWERCASE = 'lowercase';
 
     /**
      * Get all values as array
@@ -30,9 +30,9 @@ enum ProjectStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::DRAFT => 'Draft',
-            self::ACTIVE => 'Active',
-            self::ARCHIVED => 'Archived',
+            self::NONE => 'None',
+            self::UPPERCASE => 'Uppercase',
+            self::LOWERCASE => 'Lowercase',
         };
     }
 }

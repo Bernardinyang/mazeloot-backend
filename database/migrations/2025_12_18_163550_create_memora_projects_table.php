@@ -1,6 +1,6 @@
 <?php
 
-use App\Domains\Memora\Enums\ProjectStatus;
+use App\Domains\Memora\Enums\ProjectStatusEnum;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -20,7 +20,7 @@ return new class extends Migration {
             $table->foreign('watermark_uuid')->references('uuid')->on('memora_watermarks')->nullOnDelete();
             $table->string('name')->unique();
             $table->text('description')->nullable();
-            $table->enum('status', ProjectStatus::values())->default(ProjectStatus::DRAFT->value);
+            $table->enum('status', ProjectStatusEnum::values())->default(ProjectStatusEnum::DRAFT->value);
             $table->string('color', 7)->default('#3B82F6'); // Default blue color
             $table->boolean('has_selections')->default(false);
             $table->boolean('has_proofing')->default(false);

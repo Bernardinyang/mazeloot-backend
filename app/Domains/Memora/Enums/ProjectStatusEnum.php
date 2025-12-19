@@ -2,11 +2,11 @@
 
 namespace App\Domains\Memora\Enums;
 
-enum MediaType: string
+enum ProjectStatusEnum: string
 {
-    case IMAGE = 'image';
-    case VIDEO = 'video';
-    case DOCUMENT = 'document';
+    case DRAFT = 'draft';
+    case ACTIVE = 'active';
+    case ARCHIVED = 'archived';
 
     /**
      * Get all values as array
@@ -30,9 +30,9 @@ enum MediaType: string
     public function label(): string
     {
         return match ($this) {
-            self::IMAGE => 'Image',
-            self::VIDEO => 'Video',
-            self::DOCUMENT => 'Document',
+            self::DRAFT => 'Draft',
+            self::ACTIVE => 'Active',
+            self::ARCHIVED => 'Archived',
         };
     }
 }

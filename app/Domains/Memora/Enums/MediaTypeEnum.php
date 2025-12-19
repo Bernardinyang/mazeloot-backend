@@ -2,12 +2,11 @@
 
 namespace App\Domains\Memora\Enums;
 
-enum BorderStyle: string
+enum MediaTypeEnum: string
 {
-    case NONE = 'none';
-    case SOLID = 'solid';
-    case DASHED = 'dashed';
-    case DOTTED = 'dotted';
+    case IMAGE = 'image';
+    case VIDEO = 'video';
+    case DOCUMENT = 'document';
 
     /**
      * Get all values as array
@@ -31,10 +30,9 @@ enum BorderStyle: string
     public function label(): string
     {
         return match ($this) {
-            self::NONE => 'None',
-            self::SOLID => 'Solid',
-            self::DASHED => 'Dashed',
-            self::DOTTED => 'Dotted',
+            self::IMAGE => 'Image',
+            self::VIDEO => 'Video',
+            self::DOCUMENT => 'Document',
         };
     }
 }

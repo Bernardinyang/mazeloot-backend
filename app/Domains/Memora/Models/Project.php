@@ -2,7 +2,7 @@
 
 namespace App\Domains\Memora\Models;
 
-use App\Domains\Memora\Enums\ProjectStatus;
+use App\Domains\Memora\Enums\ProjectStatusEnum;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -31,7 +31,7 @@ class Project extends Model
     ];
 
     protected $casts = [
-        'status' => ProjectStatus::class,
+        'status' => ProjectStatusEnum::class,
         'has_selections' => 'boolean',
         'has_proofing' => 'boolean',
         'has_collections' => 'boolean',
