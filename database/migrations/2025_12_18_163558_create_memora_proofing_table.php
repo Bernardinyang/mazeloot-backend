@@ -16,7 +16,7 @@ return new class extends Migration {
             $table->uuid()->unique()
                 ->default(DB::raw('(UUID())'));
             $table->foreignUuid('folder_uuid')->nullable()->constrained('memora_folders', 'uuid')->cascadeOnDelete();
-            $table->foreignUuid('project_uuid')->nullable()->constrained('memora_projects')->cascadeOnDelete();
+            $table->foreignUuid('project_uuid')->nullable()->constrained('memora_projects', 'uuid')->cascadeOnDelete();
             $table->string('name');
             $table->enum('status', ProofingStatus::values())->default(ProofingStatus::DRAFT->value);
             $table->string('color', 7)->default('#F59E0B'); // Default amber/orange color

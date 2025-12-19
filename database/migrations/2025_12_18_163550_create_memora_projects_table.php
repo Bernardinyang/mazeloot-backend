@@ -16,8 +16,8 @@ return new class extends Migration {
             $table->uuid()->unique()
                 ->default(DB::raw('(UUID())'));
             $table->foreignUuid('user_uuid')->constrained('users', 'uuid')->cascadeOnDelete();
-            $table->foreignUuid('preset_uuid')->nullable()->constrained()->cascadeOnDelete();
-            $table->foreignUuid('watermark_uid')->nullable()->constrained()->cascadeOnDelete();
+            $table->uuid('preset_uuid')->nullable(); // No FK - table doesn't exist yet
+            $table->uuid('watermark_uuid')->nullable(); // No FK - table doesn't exist yet, fixed typo from watermark_uid
             $table->string('name')->unique();
             $table->text('description')->nullable();
             $table->enum('status', ProjectStatus::values())->default(ProjectStatus::DRAFT->value);
@@ -25,7 +25,6 @@ return new class extends Migration {
             $table->boolean('has_selections')->default(false);
             $table->boolean('has_proofing')->default(false);
             $table->boolean('has_collections')->default(false);
-            $table->foreignUuid('parent_id')->nullable()->constrained('memora_projects', 'id')->cascadeOnDelete();
             $table->json('settings')->nullable();
             $table->timestamps();
         });

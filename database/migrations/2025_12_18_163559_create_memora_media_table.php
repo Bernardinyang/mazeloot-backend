@@ -13,8 +13,7 @@ return new class extends Migration {
     {
         Schema::create('memora_media', static function (Blueprint $table) {
             $table->id();
-            $table->uuid()->unique()
-                ->default(DB::raw('(UUID())'));
+            $table->uuid()->default(DB::raw('(UUID())'));
             $table->foreignUuid('user_uuid')->constrained('users', 'uuid')->cascadeOnDelete();
             $table->foreignUuid('media_set_uuid')->constrained('memora_media_sets', 'uuid')->cascadeOnDelete();
 
@@ -26,7 +25,7 @@ return new class extends Migration {
             $table->boolean('is_completed')->default(false);
             $table->timestamp('completed_at')->nullable();
 
-            $table->foreignUuid('original_media_uuid')->nullable()->constrained('memora_media', 'uuid')->nullOnDelete();
+            $table->uuid('original_media_uuid')->nullable();
             $table->string('url'); // From upload system
             $table->string('thumbnail_url')->nullable();
             $table->string('low_res_copy_url')->nullable();
@@ -38,6 +37,12 @@ return new class extends Migration {
             $table->integer('height')->nullable();
             $table->integer('order')->default(0);
             $table->timestamps();
+        });
+        
+        // Add unique index and self-referencing FK after table creation
+        Schema::table('memora_media', static function (Blueprint $table) {
+            $table->unique('uuid');
+            $table->foreign('original_media_uuid')->references('uuid')->on('memora_media')->nullOnDelete();
         });
     }
 

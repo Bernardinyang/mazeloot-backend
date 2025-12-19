@@ -12,14 +12,18 @@ return new class extends Migration {
     {
         Schema::create('memora_folders', static function (Blueprint $table) {
             $table->id();
-            $table->uuid()->unique()
-                ->default(DB::raw('(UUID())'));
+            $table->uuid()->default(DB::raw('(UUID())'));
             $table->foreignUuid('user_uuid')->constrained('users', 'uuid')->cascadeOnDelete();
             $table->string('name')->unique();
             $table->text('description')->nullable();
             $table->string('color', 7)->default('#6366F1'); // Default indigo color
-            $table->foreignUuid('parent_uuid')->nullable()->constrained('memora_folders', 'uuid')->cascadeOnDelete();
             $table->timestamps();
+        });
+        
+        // Add unique index and self-referencing FK after table creation
+        Schema::table('memora_folders', static function (Blueprint $table) {
+            $table->unique('uuid');
+            $table->foreignUuid('parent_uuid')->nullable()->constrained('memora_folders', 'uuid')->cascadeOnDelete();
         });
     }
 
