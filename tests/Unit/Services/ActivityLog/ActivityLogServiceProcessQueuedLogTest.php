@@ -2,10 +2,10 @@
 
 namespace Tests\Unit\Services\ActivityLog;
 
-use Tests\TestCase;
-use App\Services\ActivityLog\ActivityLogService;
 use App\Models\ActivityLog;
+use App\Services\ActivityLog\ActivityLogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class ActivityLogServiceProcessQueuedLogTest extends TestCase
 {
@@ -13,20 +13,14 @@ class ActivityLogServiceProcessQueuedLogTest extends TestCase
 
     protected ActivityLogService $activityLogService;
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->activityLogService = app(ActivityLogService::class);
-    }
-
     public function test_process_queued_log_creates_activity_log(): void
     {
         // Use null user_uuid since it's nullable and UUID() function doesn't work in SQLite
         $this->activityLogService->processQueuedLog(
             action: 'created',
-            subjectType: 'App\Domains\Memora\Models\Project',
+            subjectType: 'App\Domains\Memora\Models\MemoraProject',
             subjectUuid: 'project-uuid-123',
-            description: 'Created Project',
+            description: 'Created MemoraProject',
             properties: ['key' => 'value'],
             causerType: 'App\Models\User',
             causerUuid: 'user-uuid-456',
@@ -39,9 +33,9 @@ class ActivityLogServiceProcessQueuedLogTest extends TestCase
 
         $this->assertDatabaseHas('activity_logs', [
             'action' => 'created',
-            'subject_type' => 'App\Domains\Memora\Models\Project',
+            'subject_type' => 'App\Domains\Memora\Models\MemoraProject',
             'subject_uuid' => 'project-uuid-123',
-            'description' => 'Created Project',
+            'description' => 'Created MemoraProject',
             'causer_type' => 'App\Models\User',
             'causer_uuid' => 'user-uuid-456',
             'user_uuid' => null,
@@ -88,6 +82,12 @@ class ActivityLogServiceProcessQueuedLogTest extends TestCase
         $log = ActivityLog::where('action', 'updated')->first();
         $this->assertNotNull($log);
         $this->assertEquals($properties, $log->properties);
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->activityLogService = app(ActivityLogService::class);
     }
 }
 

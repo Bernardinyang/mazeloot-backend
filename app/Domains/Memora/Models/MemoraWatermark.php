@@ -14,11 +14,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Watermark extends Model
+class MemoraWatermark extends Model
 {
     use HasFactory, HasUuids;
-
-    protected $table = 'memora_watermarks';
 
     protected $fillable = [
         'user_uuid',
@@ -68,7 +66,7 @@ class Watermark extends Model
      */
     public function presets(): HasMany
     {
-        return $this->hasMany(Preset::class, 'default_watermark_uuid', 'uuid');
+        return $this->hasMany(MemoraPreset::class, 'default_watermark_uuid', 'uuid');
     }
 
     /**
@@ -76,6 +74,6 @@ class Watermark extends Model
      */
     public function projects(): HasMany
     {
-        return $this->hasMany(Project::class, 'watermark_uuid', 'uuid');
+        return $this->hasMany(MemoraProject::class, 'watermark_uuid', 'uuid');
     }
 }

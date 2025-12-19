@@ -9,11 +9,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Preset extends Model
+class MemoraPreset extends Model
 {
     use HasFactory, HasUuids;
-
-    protected $table = 'memora_presets';
 
     protected $fillable = [
         'user_uuid',
@@ -116,7 +114,7 @@ class Preset extends Model
      */
     public function defaultWatermark(): BelongsTo
     {
-        return $this->belongsTo(Watermark::class, 'default_watermark_uuid', 'uuid');
+        return $this->belongsTo(MemoraWatermark::class, 'default_watermark_uuid', 'uuid');
     }
 
     /**
@@ -124,6 +122,6 @@ class Preset extends Model
      */
     public function projects(): HasMany
     {
-        return $this->hasMany(Project::class, 'preset_uuid', 'uuid');
+        return $this->hasMany(MemoraProject::class, 'preset_uuid', 'uuid');
     }
 }

@@ -1,11 +1,11 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Domains\Memora\Controllers\V1\ProjectController;
-use App\Domains\Memora\Controllers\V1\SelectionController;
-use App\Domains\Memora\Controllers\V1\ProofingController;
-use App\Domains\Memora\Controllers\V1\MediaController;
 use App\Domains\Memora\Controllers\V1\CollectionController;
+use App\Domains\Memora\Controllers\V1\MediaController;
+use App\Domains\Memora\Controllers\V1\ProjectController;
+use App\Domains\Memora\Controllers\V1\ProofingController;
+use App\Domains\Memora\Controllers\V1\SelectionController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -37,7 +37,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
             Route::get('/{id}/filenames', [SelectionController::class, 'getSelectedFilenames']);
         });
 
-        // Proofing
+        // MemoraProofing
         Route::prefix('{projectId}/proofing')->group(function () {
             Route::post('/', [ProofingController::class, 'store']);
             Route::get('/{id}', [ProofingController::class, 'show']);
@@ -57,7 +57,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         });
     });
 
-    // Media
+    // MemoraMedia
     Route::prefix('media')->group(function () {
         Route::get('/phase/{phaseType}/{phaseId}', [MediaController::class, 'getPhaseMedia']);
         Route::post('/move-between-phases', [MediaController::class, 'moveBetweenPhases']);

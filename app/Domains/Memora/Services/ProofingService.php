@@ -2,9 +2,8 @@
 
 namespace App\Domains\Memora\Services;
 
-use App\Domains\Memora\Models\Proofing;
-use App\Domains\Memora\Models\Project;
-use App\Domains\Memora\Models\Media;
+use App\Domains\Memora\Models\MemoraMedia;
+use App\Domains\Memora\Models\MemoraProofing;
 use App\Services\Upload\UploadService;
 
 class ProofingService
@@ -17,54 +16,16 @@ class ProofingService
     }
 
     /**
-     * Get a proofing phase
-     */
-    public function find(string $projectId, string $id): Proofing
-    {
-        $proofing = Proofing::where('project_id', $projectId)->findOrFail($id);
-
-        // Load counts
-        $mediaCount = Media::where('phase_id', $id)->where('phase', 'proofing')->count();
-        $completedCount = Media::where('phase_id', $id)
-            ->where('phase', 'proofing')
-            ->where('is_completed', true)
-            ->count();
-
-        $proofing->setAttribute('media_count', $mediaCount);
-        $proofing->setAttribute('completed_count', $completedCount);
-        $proofing->setAttribute('pending_count', $mediaCount - $completedCount);
-
-        return $proofing;
-    }
-
-    /**
      * Create a proofing phase
      */
-    public function create(string $projectId, array $data): Proofing
+    public function create(string $projectId, array $data): MemoraProofing
     {
-        return Proofing::create([
+        return MemoraProofing::create([
             'project_id' => $projectId,
-            'name' => $data['name'] ?? 'Proofing',
+            'name' => $data['name'] ?? 'MemoraProofing',
             'max_revisions' => $data['maxRevisions'] ?? 3,
             'status' => 'active',
         ]);
-    }
-
-    /**
-     * Update a proofing phase
-     */
-    public function update(string $projectId, string $id, array $data): Proofing
-    {
-        $proofing = $this->find($projectId, $id);
-
-        $updateData = [];
-        if (isset($data['name'])) $updateData['name'] = $data['name'];
-        if (isset($data['maxRevisions'])) $updateData['max_revisions'] = $data['maxRevisions'];
-        if (isset($data['status'])) $updateData['status'] = $data['status'];
-
-        $proofing->update($updateData);
-
-        return $proofing->fresh();
     }
 
     /**
@@ -73,7 +34,7 @@ class ProofingService
     public function uploadRevision(string $projectId, string $id, string $mediaId, int $revisionNumber, $file): array
     {
         $proofing = $this->find($projectId, $id);
-        $media = Media::where('phase_id', $id)
+        $media = MemoraMedia::where('phase_id', $id)
             ->where('phase', 'proofing')
             ->findOrFail($mediaId);
 
@@ -96,9 +57,30 @@ class ProofingService
     }
 
     /**
+     * Get a proofing phase
+     */
+    public function find(string $projectId, string $id): MemoraProofing
+    {
+        $proofing = MemoraProofing::where('project_id', $projectId)->findOrFail($id);
+
+        // Load counts
+        $mediaCount = MemoraMedia::where('phase_id', $id)->where('phase', 'proofing')->count();
+        $completedCount = MemoraMedia::where('phase_id', $id)
+            ->where('phase', 'proofing')
+            ->where('is_completed', true)
+            ->count();
+
+        $proofing->setAttribute('media_count', $mediaCount);
+        $proofing->setAttribute('completed_count', $completedCount);
+        $proofing->setAttribute('pending_count', $mediaCount - $completedCount);
+
+        return $proofing;
+    }
+
+    /**
      * Complete proofing
      */
-    public function complete(string $projectId, string $id): Proofing
+    public function complete(string $projectId, string $id): MemoraProofing
     {
         $proofing = $this->find($projectId, $id);
 
@@ -111,13 +93,30 @@ class ProofingService
     }
 
     /**
+     * Update a proofing phase
+     */
+    public function update(string $projectId, string $id, array $data): MemoraProofing
+    {
+        $proofing = $this->find($projectId, $id);
+
+        $updateData = [];
+        if (isset($data['name'])) $updateData['name'] = $data['name'];
+        if (isset($data['maxRevisions'])) $updateData['max_revisions'] = $data['maxRevisions'];
+        if (isset($data['status'])) $updateData['status'] = $data['status'];
+
+        $proofing->update($updateData);
+
+        return $proofing->fresh();
+    }
+
+    /**
      * Move media to collection
      */
     public function moveToCollection(string $projectId, string $id, array $mediaIds, string $collectionId): array
     {
         $proofing = $this->find($projectId, $id);
 
-        $moved = Media::where('phase_id', $id)
+        $moved = MemoraMedia::where('phase_id', $id)
             ->where('phase', 'proofing')
             ->whereIn('id', $mediaIds)
             ->update([

@@ -2,16 +2,15 @@
 
 namespace Database\Factories;
 
-use App\Domains\Memora\Models\Media;
-use App\Domains\Memora\Models\Project;
+use App\Domains\Memora\Models\MemoraMedia;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Domains\Memora\Models\Media>
+ * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Domains\Memora\Models\MemoraMedia>
  */
 class MediaFactory extends Factory
 {
-    protected $model = Media::class;
+    protected $model = MemoraMedia::class;
 
     /**
      * Define the model's default state.
@@ -22,7 +21,7 @@ class MediaFactory extends Factory
     {
         return [
             'user_uuid' => \App\Models\User::factory(),
-            'media_set_uuid' => \App\Domains\Memora\Models\MediaSet::factory(),
+            'media_set_uuid' => \App\Domains\Memora\Models\MemoraMediaSet::factory(),
             'is_selected' => false,
             'selected_at' => null,
             'revision_number' => null,

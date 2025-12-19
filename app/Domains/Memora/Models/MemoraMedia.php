@@ -3,16 +3,16 @@
 namespace App\Domains\Memora\Models;
 
 use App\Domains\Memora\Enums\MediaTypeEnum;
+use Database\Factories\MediaFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Media extends Model
+class MemoraMedia extends Model
 {
     use HasFactory, HasUuids;
-
-    protected $table = 'memora_media';
 
     protected $fillable = [
         'user_uuid',
@@ -43,18 +43,18 @@ class Media extends Model
         'completed_at' => 'datetime',
     ];
 
+    protected static function newFactory(): Factory|MediaFactory
+    {
+        return MediaFactory::new();
+    }
+
     public function mediaSet(): BelongsTo
     {
-        return $this->belongsTo(MediaSet::class, 'media_set_uuid', 'uuid');
+        return $this->belongsTo(MemoraMediaSet::class, 'media_set_uuid', 'uuid');
     }
 
     public function feedback()
     {
-        return $this->hasMany(MediaFeedback::class, 'media_id');
-    }
-
-    protected static function newFactory()
-    {
-        return \Database\Factories\MediaFactory::new();
+        return $this->hasMany(MemoraMediaFeedback::class, 'media_id');
     }
 }

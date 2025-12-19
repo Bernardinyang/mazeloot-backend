@@ -30,9 +30,9 @@ enum PhaseTypeEnum: string
     public function label(): string
     {
         return match ($this) {
-            self::SELECTION => 'Selection',
-            self::PROOFING => 'Proofing',
-            self::COLLECTION => 'Collection',
+            self::SELECTION => 'MemoraSelection',
+            self::PROOFING => 'MemoraProofing',
+            self::COLLECTION => 'MemoraCollection',
         };
     }
 }

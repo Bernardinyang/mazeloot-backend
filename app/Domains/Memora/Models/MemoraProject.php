@@ -9,11 +9,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Project extends Model
+class MemoraProject extends Model
 {
     use HasFactory, HasUuids;
-
-    protected $table = 'memora_projects';
 
     protected $fillable = [
         'user_uuid',
@@ -38,6 +36,11 @@ class Project extends Model
         'settings' => 'array',
     ];
 
+    protected static function newFactory()
+    {
+        return \Database\Factories\ProjectFactory::new();
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(\App\Models\User::class, 'user_uuid', 'uuid');
@@ -45,46 +48,41 @@ class Project extends Model
 
     public function preset(): BelongsTo
     {
-        return $this->belongsTo(Preset::class, 'preset_uuid', 'uuid');
+        return $this->belongsTo(MemoraPreset::class, 'preset_uuid', 'uuid');
     }
 
     public function watermark(): BelongsTo
     {
-        return $this->belongsTo(Watermark::class, 'watermark_uuid', 'uuid');
+        return $this->belongsTo(MemoraWatermark::class, 'watermark_uuid', 'uuid');
     }
 
     public function mediaSets(): HasMany
     {
-        return $this->hasMany(MediaSet::class, 'project_uuid', 'uuid');
+        return $this->hasMany(MemoraMediaSet::class, 'project_uuid', 'uuid');
     }
 
     public function selections(): HasMany
     {
-        return $this->hasMany(Selection::class, 'project_uuid', 'uuid');
+        return $this->hasMany(MemoraSelection::class, 'project_uuid', 'uuid');
     }
 
     public function proofing(): HasMany
     {
-        return $this->hasMany(Proofing::class, 'project_uuid', 'uuid');
+        return $this->hasMany(MemoraProofing::class, 'project_uuid', 'uuid');
     }
 
     public function collections(): HasMany
     {
-        return $this->hasMany(Collection::class, 'project_uuid', 'uuid');
+        return $this->hasMany(MemoraCollection::class, 'project_uuid', 'uuid');
     }
 
     public function parent(): BelongsTo
     {
-        return $this->belongsTo(Project::class, 'parent_uuid', 'uuid');
+        return $this->belongsTo(MemoraProject::class, 'parent_uuid', 'uuid');
     }
 
     public function children(): HasMany
     {
-        return $this->hasMany(Project::class, 'parent_uuid', 'uuid');
-    }
-
-    protected static function newFactory()
-    {
-        return \Database\Factories\ProjectFactory::new();
+        return $this->hasMany(MemoraProject::class, 'parent_uuid', 'uuid');
     }
 }

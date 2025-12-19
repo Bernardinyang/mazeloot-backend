@@ -2,13 +2,12 @@
 
 namespace Tests\Unit\Services;
 
-use Tests\TestCase;
-use App\Domains\Memora\Models\Media;
+use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Services\MediaService;
 use App\Services\Upload\UploadService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
+use Tests\TestCase;
 
 class MediaServiceJobMethodsTest extends TestCase
 {
@@ -17,25 +16,11 @@ class MediaServiceJobMethodsTest extends TestCase
     protected MediaService $mediaService;
     protected $mockUploadService;
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->mockUploadService = \Mockery::mock(UploadService::class);
-        $this->mediaService = new MediaService($this->mockUploadService);
-    }
-
-    protected function tearDown(): void
-    {
-        \Mockery::close();
-        parent::tearDown();
-    }
-
     public function test_process_low_res_copy_updates_media(): void
     {
         Queue::fake();
 
-        $media = Media::factory()->create([
+        $media = MemoraMedia::factory()->create([
             'url' => 'https://example.com/image.jpg',
             'low_res_copy_url' => null,
         ]);
@@ -66,6 +51,20 @@ class MediaServiceJobMethodsTest extends TestCase
         // Should not throw exception, just log warning
         $this->expectNotToPerformAssertions();
         $this->mediaService->processImage('non-existent-id', []);
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->mockUploadService = \Mockery::mock(UploadService::class);
+        $this->mediaService = new MediaService($this->mockUploadService);
+    }
+
+    protected function tearDown(): void
+    {
+        \Mockery::close();
+        parent::tearDown();
     }
 }
 

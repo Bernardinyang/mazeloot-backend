@@ -2,19 +2,13 @@
 
 namespace Tests\Unit\Jobs;
 
-use Tests\TestCase;
 use App\Jobs\LogActivityJob;
 use App\Services\ActivityLog\ActivityLogService;
 use Mockery;
+use Tests\TestCase;
 
 class LogActivityJobTest extends TestCase
 {
-    protected function tearDown(): void
-    {
-        Mockery::close();
-        parent::tearDown();
-    }
-
     public function test_job_calls_activity_log_service_process_queued_log(): void
     {
         $mockService = Mockery::mock(ActivityLogService::class);
@@ -24,9 +18,9 @@ class LogActivityJobTest extends TestCase
             ->once()
             ->with(
                 'created',
-                'App\Domains\Memora\Models\Project',
+                'App\Domains\Memora\Models\MemoraProject',
                 'project-uuid-123',
-                'Created Project',
+                'Created MemoraProject',
                 ['key' => 'value'],
                 'App\Models\User',
                 'user-uuid-456',
@@ -39,9 +33,9 @@ class LogActivityJobTest extends TestCase
 
         $job = new LogActivityJob(
             action: 'created',
-            subjectType: 'App\Domains\Memora\Models\Project',
+            subjectType: 'App\Domains\Memora\Models\MemoraProject',
             subjectUuid: 'project-uuid-123',
-            description: 'Created Project',
+            description: 'Created MemoraProject',
             properties: ['key' => 'value'],
             causerType: 'App\Models\User',
             causerUuid: 'user-uuid-456',
@@ -55,6 +49,12 @@ class LogActivityJobTest extends TestCase
         $job->handle($mockService);
 
         $this->assertTrue(true); // Job executed without errors
+    }
+
+    protected function tearDown(): void
+    {
+        Mockery::close();
+        parent::tearDown();
     }
 }
 

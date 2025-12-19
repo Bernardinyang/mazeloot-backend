@@ -2,9 +2,8 @@
 
 namespace App\Domains\Memora\Services;
 
-use App\Domains\Memora\Models\Project;
-use App\Domains\Memora\Models\MediaSet;
-use Illuminate\Support\Str;
+use App\Domains\Memora\Models\MemoraMediaSet;
+use App\Domains\Memora\Models\MemoraProject;
 
 class ProjectService
 {
@@ -16,7 +15,7 @@ class ProjectService
      */
     public function list(array $filters = [])
     {
-        $query = Project::query()->with(['mediaSets']);
+        $query = MemoraProject::query()->with(['mediaSets']);
 
         // Filter by status
         if (isset($filters['status']) && $filters['status'] !== 'all') {
@@ -33,7 +32,7 @@ class ProjectService
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
@@ -44,11 +43,11 @@ class ProjectService
      * Get a single project
      *
      * @param string $id
-     * @return Project
+     * @return MemoraProject
      */
-    public function find(string $id): Project
+    public function find(string $id): MemoraProject
     {
-        return Project::with(['mediaSets', 'selections', 'proofing', 'collections'])->findOrFail($id);
+        return MemoraProject::with(['mediaSets', 'selections', 'proofing', 'collections'])->findOrFail($id);
     }
 
     /**
@@ -56,11 +55,11 @@ class ProjectService
      *
      * @param array $data
      * @param int $userId
-     * @return Project
+     * @return MemoraProject
      */
-    public function create(array $data, int $userId): Project
+    public function create(array $data, int $userId): MemoraProject
     {
-        $project = Project::create([
+        $project = MemoraProject::create([
             'user_id' => $userId,
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
@@ -77,7 +76,7 @@ class ProjectService
         // Create media sets if provided
         if (isset($data['mediaSets']) && is_array($data['mediaSets'])) {
             foreach ($data['mediaSets'] as $setData) {
-                MediaSet::create([
+                MemoraMediaSet::create([
                     'project_id' => $project->id,
                     'name' => $setData['name'],
                     'description' => $setData['description'] ?? null,
@@ -94,11 +93,11 @@ class ProjectService
      *
      * @param string $id
      * @param array $data
-     * @return Project
+     * @return MemoraProject
      */
-    public function update(string $id, array $data): Project
+    public function update(string $id, array $data): MemoraProject
     {
-        $project = Project::findOrFail($id);
+        $project = MemoraProject::findOrFail($id);
 
         $updateData = [];
         if (isset($data['name'])) $updateData['name'] = $data['name'];
@@ -125,7 +124,7 @@ class ProjectService
      */
     public function delete(string $id): bool
     {
-        $project = Project::findOrFail($id);
+        $project = MemoraProject::findOrFail($id);
         return $project->delete();
     }
 
@@ -137,7 +136,7 @@ class ProjectService
      */
     public function getPhases(string $id): array
     {
-        $project = Project::findOrFail($id);
+        $project = MemoraProject::findOrFail($id);
 
         $selection = $project->selections()->first();
         $proofing = $project->proofing()->first();

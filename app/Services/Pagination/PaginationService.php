@@ -10,7 +10,7 @@ class PaginationService
     /**
      * Paginate a collection or query
      *
-     * @param mixed $items Collection or Query Builder
+     * @param mixed $items MemoraCollection or Query Builder
      * @param int $perPage
      * @param int|null $page
      * @param string $pageName
@@ -24,7 +24,7 @@ class PaginationService
             $items = $items->values();
             $total = $items->count();
             $items = $items->slice(($page - 1) * $perPage, $perPage);
-            
+
             return new LengthAwarePaginator(
                 $items,
                 $total,

@@ -2,10 +2,10 @@
 
 namespace Tests\Feature\Domains\Memora;
 
-use Tests\TestCase;
+use App\Domains\Memora\Models\MemoraProject;
 use App\Models\User;
-use App\Domains\Memora\Models\Project;
 use Laravel\Sanctum\Sanctum;
+use Tests\TestCase;
 
 class ProjectTest extends TestCase
 {
@@ -14,7 +14,7 @@ class ProjectTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        Project::factory()->count(3)->create(['user_id' => $user->id]);
+        MemoraProject::factory()->count(3)->create(['user_id' => $user->id]);
 
         $response = $this->getJson('/api/projects');
 
@@ -38,7 +38,7 @@ class ProjectTest extends TestCase
         Sanctum::actingAs($user);
 
         $response = $this->postJson('/api/projects', [
-            'name' => 'Test Project',
+            'name' => 'Test MemoraProject',
             'description' => 'Test Description',
             'status' => 'draft',
         ]);
@@ -54,7 +54,7 @@ class ProjectTest extends TestCase
             ]);
 
         $this->assertDatabaseHas('memora_projects', [
-            'name' => 'Test Project',
+            'name' => 'Test MemoraProject',
             'user_id' => $user->id,
         ]);
     }
@@ -64,7 +64,7 @@ class ProjectTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $project = Project::factory()->create(['user_id' => $user->id]);
+        $project = MemoraProject::factory()->create(['user_id' => $user->id]);
 
         $response = $this->getJson("/api/projects/{$project->id}");
 
@@ -82,7 +82,7 @@ class ProjectTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $project = Project::factory()->create(['user_id' => $user->id]);
+        $project = MemoraProject::factory()->create(['user_id' => $user->id]);
 
         $response = $this->patchJson("/api/projects/{$project->id}", [
             'name' => 'Updated Name',
@@ -104,7 +104,7 @@ class ProjectTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $project = Project::factory()->create(['user_id' => $user->id]);
+        $project = MemoraProject::factory()->create(['user_id' => $user->id]);
 
         $response = $this->deleteJson("/api/projects/{$project->id}");
 

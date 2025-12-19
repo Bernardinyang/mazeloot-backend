@@ -2,10 +2,9 @@
 
 namespace App\Domains\Memora\Services;
 
-use App\Domains\Memora\Models\Media;
-use App\Domains\Memora\Models\MediaFeedback;
+use App\Domains\Memora\Models\MemoraMedia;
+use App\Domains\Memora\Models\MemoraMediaFeedback;
 use App\Services\Upload\UploadService;
-use Illuminate\Support\Facades\DB;
 
 class MediaService
 {
@@ -21,7 +20,7 @@ class MediaService
      */
     public function getPhaseMedia(string $phaseType, string $phaseId, ?string $setId = null)
     {
-        $query = Media::where('phase', $phaseType)
+        $query = MemoraMedia::where('phase', $phaseType)
             ->where('phase_id', $phaseId)
             ->with('feedback')
             ->orderBy('order');
@@ -38,7 +37,7 @@ class MediaService
      */
     public function moveBetweenPhases(array $mediaIds, string $fromPhase, string $fromPhaseId, string $toPhase, string $toPhaseId): array
     {
-        $moved = Media::whereIn('id', $mediaIds)
+        $moved = MemoraMedia::whereIn('id', $mediaIds)
             ->where('phase', $fromPhase)
             ->where('phase_id', $fromPhaseId)
             ->update([
@@ -46,7 +45,7 @@ class MediaService
                 'phase_id' => $toPhaseId,
             ]);
 
-        $media = Media::whereIn('id', $mediaIds)->get();
+        $media = MemoraMedia::whereIn('id', $mediaIds)->get();
 
         return [
             'movedCount' => $moved,
@@ -57,9 +56,9 @@ class MediaService
     /**
      * Generate low-res copy (queued job for image processing)
      */
-    public function generateLowResCopy(string $id): Media
+    public function generateLowResCopy(string $id): MemoraMedia
     {
-        $media = Media::findOrFail($id);
+        $media = MemoraMedia::findOrFail($id);
 
         // Dispatch job to queue for async processing
         \App\Domains\Memora\Jobs\GenerateLowResCopyJob::dispatch($id);
@@ -68,49 +67,15 @@ class MediaService
     }
 
     /**
-     * Process low-res copy generation (called by job).
-     */
-    public function processLowResCopy(string $mediaId): void
-    {
-        $media = Media::find($mediaId);
-
-        if (!$media) {
-            \Illuminate\Support\Facades\Log::warning("Media not found for low-res copy generation: {$mediaId}");
-            return;
-        }
-
-        try {
-            // TODO: Implement actual image processing logic
-            // This would:
-            // 1. Download the original image
-            // 2. Resize/compress it to low resolution
-            // 3. Upload the processed image
-            // 4. Update the media record with the low-res URL
-
-            // Placeholder implementation
-            $lowResUrl = $media->url . '?lowres=true';
-
-            $media->update([
-                'low_res_copy_url' => $lowResUrl,
-            ]);
-
-            \Illuminate\Support\Facades\Log::info("Low-res copy generated for media: {$mediaId}");
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("Failed to generate low-res copy for media {$mediaId}: " . $e->getMessage());
-            throw $e;
-        }
-    }
-
-    /**
      * Process image (thumbnails, low-res copies, EXIF extraction).
      * Called by ProcessImageJob.
      */
     public function processImage(string $mediaId, array $options = []): void
     {
-        $media = Media::find($mediaId);
+        $media = MemoraMedia::find($mediaId);
 
         if (!$media) {
-            \Illuminate\Support\Facades\Log::warning("Media not found for image processing: {$mediaId}");
+            \Illuminate\Support\Facades\Log::warning("MemoraMedia not found for image processing: {$mediaId}");
             return;
         }
 
@@ -140,7 +105,7 @@ class MediaService
     /**
      * Generate thumbnail for the media.
      */
-    protected function generateThumbnail(Media $media): void
+    protected function generateThumbnail(MemoraMedia $media): void
     {
         // TODO: Implement thumbnail generation
         // This would resize the image to a standard thumbnail size (e.g., 300x300)
@@ -150,9 +115,43 @@ class MediaService
     }
 
     /**
+     * Process low-res copy generation (called by job).
+     */
+    public function processLowResCopy(string $mediaId): void
+    {
+        $media = MemoraMedia::find($mediaId);
+
+        if (!$media) {
+            \Illuminate\Support\Facades\Log::warning("MemoraMedia not found for low-res copy generation: {$mediaId}");
+            return;
+        }
+
+        try {
+            // TODO: Implement actual image processing logic
+            // This would:
+            // 1. Download the original image
+            // 2. Resize/compress it to low resolution
+            // 3. Upload the processed image
+            // 4. Update the media record with the low-res URL
+
+            // Placeholder implementation
+            $lowResUrl = $media->url . '?lowres=true';
+
+            $media->update([
+                'low_res_copy_url' => $lowResUrl,
+            ]);
+
+            \Illuminate\Support\Facades\Log::info("Low-res copy generated for media: {$mediaId}");
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to generate low-res copy for media {$mediaId}: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
      * Extract EXIF data from the image.
      */
-    protected function extractExifData(Media $media): void
+    protected function extractExifData(MemoraMedia $media): void
     {
         // TODO: Extract EXIF data (camera info, GPS, etc.) and store in properties
         \Illuminate\Support\Facades\Log::info("EXIF extraction placeholder for media: {$media->id}");
@@ -161,9 +160,9 @@ class MediaService
     /**
      * Mark media as selected
      */
-    public function markSelected(string $id, bool $isSelected): Media
+    public function markSelected(string $id, bool $isSelected): MemoraMedia
     {
-        $media = Media::findOrFail($id);
+        $media = MemoraMedia::findOrFail($id);
 
         $media->update([
             'is_selected' => $isSelected,
@@ -178,7 +177,7 @@ class MediaService
      */
     public function getRevisions(string $id): array
     {
-        $media = Media::findOrFail($id);
+        $media = MemoraMedia::findOrFail($id);
 
         // TODO: If revisions are stored separately, query that table
         // For now, return empty array as placeholder
@@ -188,9 +187,9 @@ class MediaService
     /**
      * Mark media as completed
      */
-    public function markCompleted(string $id, bool $isCompleted): Media
+    public function markCompleted(string $id, bool $isCompleted): MemoraMedia
     {
-        $media = Media::findOrFail($id);
+        $media = MemoraMedia::findOrFail($id);
 
         $media->update([
             'is_completed' => $isCompleted,
@@ -203,11 +202,11 @@ class MediaService
     /**
      * Add feedback to media
      */
-    public function addFeedback(string $mediaId, array $data): MediaFeedback
+    public function addFeedback(string $mediaId, array $data): MemoraMediaFeedback
     {
-        $media = Media::findOrFail($mediaId);
+        $media = MemoraMedia::findOrFail($mediaId);
 
-        return MediaFeedback::create([
+        return MemoraMediaFeedback::create([
             'media_id' => $mediaId,
             'type' => $data['type'],
             'content' => $data['content'],
@@ -218,9 +217,9 @@ class MediaService
     /**
      * Create media from upload URL (domains never handle files directly)
      */
-    public function createFromUploadUrl(array $data, string $uploadUrl): Media
+    public function createFromUploadUrl(array $data, string $uploadUrl): MemoraMedia
     {
-        $media = Media::create([
+        $media = MemoraMedia::create([
             'project_id' => $data['projectId'],
             'phase' => $data['phase'] ?? null,
             'phase_id' => $data['phaseId'] ?? null,

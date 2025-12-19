@@ -51,7 +51,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Provider Selection Rules
+    | Provider MemoraSelection Rules
     |--------------------------------------------------------------------------
     |
     | Automatic provider selection based on currency or country

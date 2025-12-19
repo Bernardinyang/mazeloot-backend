@@ -2,15 +2,15 @@
 
 namespace Database\Factories;
 
-use App\Domains\Memora\Models\Project;
+use App\Domains\Memora\Models\MemoraProject;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Domains\Memora\Models\Project>
+ * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Domains\Memora\Models\MemoraProject>
  */
 class ProjectFactory extends Factory
 {
-    protected $model = Project::class;
+    protected $model = MemoraProject::class;
 
     /**
      * Define the model's default state.

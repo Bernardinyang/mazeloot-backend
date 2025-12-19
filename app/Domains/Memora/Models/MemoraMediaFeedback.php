@@ -7,11 +7,9 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class MediaFeedback extends Model
+class MemoraMediaFeedback extends Model
 {
     use HasUuids;
-
-    protected $table = 'memora_media_feedback';
 
     protected $fillable = [
         'media_id',
@@ -26,6 +24,6 @@ class MediaFeedback extends Model
 
     public function media(): BelongsTo
     {
-        return $this->belongsTo(Media::class, 'media_id');
+        return $this->belongsTo(MemoraMedia::class, 'media_id');
     }
 }

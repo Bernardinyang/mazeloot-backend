@@ -7,12 +7,10 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Proofing extends Model
+class MemoraProofing extends Model
 {
     use HasUuids;
-
-    protected $table = 'memora_proofing';
-
+    
     protected $fillable = [
         'project_id',
         'name',
@@ -30,6 +28,6 @@ class Proofing extends Model
 
     public function project(): BelongsTo
     {
-        return $this->belongsTo(Project::class, 'project_id');
+        return $this->belongsTo(MemoraProject::class, 'project_id');
     }
 }

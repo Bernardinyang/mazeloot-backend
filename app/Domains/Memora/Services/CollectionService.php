@@ -2,25 +2,16 @@
 
 namespace App\Domains\Memora\Services;
 
-use App\Domains\Memora\Models\Collection;
-use App\Domains\Memora\Models\Project;
+use App\Domains\Memora\Models\MemoraCollection;
 
 class CollectionService
 {
-    /**
-     * Get a collection
-     */
-    public function find(string $projectId, string $id): Collection
-    {
-        return Collection::where('project_id', $projectId)->findOrFail($id);
-    }
-
     /**
      * List collections for a project
      */
     public function list(string $projectId)
     {
-        return Collection::where('project_id', $projectId)
+        return MemoraCollection::where('project_id', $projectId)
             ->orderBy('created_at', 'desc')
             ->get();
     }
@@ -28,9 +19,9 @@ class CollectionService
     /**
      * Create a collection
      */
-    public function create(string $projectId, array $data): Collection
+    public function create(string $projectId, array $data): MemoraCollection
     {
-        return Collection::create([
+        return MemoraCollection::create([
             'project_id' => $projectId,
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
@@ -41,7 +32,7 @@ class CollectionService
     /**
      * Update a collection
      */
-    public function update(string $projectId, string $id, array $data): Collection
+    public function update(string $projectId, string $id, array $data): MemoraCollection
     {
         $collection = $this->find($projectId, $id);
 
@@ -53,6 +44,14 @@ class CollectionService
         $collection->update($updateData);
 
         return $collection->fresh();
+    }
+
+    /**
+     * Get a collection
+     */
+    public function find(string $projectId, string $id): MemoraCollection
+    {
+        return MemoraCollection::where('project_id', $projectId)->findOrFail($id);
     }
 
     /**

@@ -2,41 +2,20 @@
 
 namespace App\Domains\Memora\Services;
 
-use App\Domains\Memora\Models\Selection;
-use App\Domains\Memora\Models\Project;
-use App\Domains\Memora\Models\Media;
+use App\Domains\Memora\Models\MemoraMedia;
+use App\Domains\Memora\Models\MemoraProject;
+use App\Domains\Memora\Models\MemoraSelection;
 
 class SelectionService
 {
     /**
-     * Get a selection
-     */
-    public function find(string $projectId, string $id): Selection
-    {
-        $selection = Selection::where('project_id', $projectId)
-            ->findOrFail($id);
-
-        // Calculate counts
-        $mediaCount = Media::where('phase_id', $id)->where('phase', 'selection')->count();
-        $selectedCount = Media::where('phase_id', $id)
-            ->where('phase', 'selection')
-            ->where('is_selected', true)
-            ->count();
-
-        $selection->setAttribute('media_count', $mediaCount);
-        $selection->setAttribute('selected_count', $selectedCount);
-
-        return $selection;
-    }
-
-    /**
      * Create a selection phase
      */
-    public function create(string $projectId, array $data): Selection
+    public function create(string $projectId, array $data): MemoraSelection
     {
-        $project = Project::findOrFail($projectId);
+        $project = MemoraProject::findOrFail($projectId);
 
-        return Selection::create([
+        return MemoraSelection::create([
             'project_id' => $projectId,
             'name' => $data['name'] ?? 'Selections',
             'status' => 'active',
@@ -44,25 +23,9 @@ class SelectionService
     }
 
     /**
-     * Update a selection
-     */
-    public function update(string $projectId, string $id, array $data): Selection
-    {
-        $selection = $this->find($projectId, $id);
-
-        $updateData = [];
-        if (isset($data['name'])) $updateData['name'] = $data['name'];
-        if (isset($data['status'])) $updateData['status'] = $data['status'];
-
-        $selection->update($updateData);
-
-        return $selection->fresh();
-    }
-
-    /**
      * Complete selection
      */
-    public function complete(string $projectId, string $id): Selection
+    public function complete(string $projectId, string $id): MemoraSelection
     {
         $selection = $this->find($projectId, $id);
 
@@ -76,13 +39,50 @@ class SelectionService
     }
 
     /**
+     * Get a selection
+     */
+    public function find(string $projectId, string $id): MemoraSelection
+    {
+        $selection = MemoraSelection::where('project_id', $projectId)
+            ->findOrFail($id);
+
+        // Calculate counts
+        $mediaCount = MemoraMedia::where('phase_id', $id)->where('phase', 'selection')->count();
+        $selectedCount = MemoraMedia::where('phase_id', $id)
+            ->where('phase', 'selection')
+            ->where('is_selected', true)
+            ->count();
+
+        $selection->setAttribute('media_count', $mediaCount);
+        $selection->setAttribute('selected_count', $selectedCount);
+
+        return $selection;
+    }
+
+    /**
+     * Update a selection
+     */
+    public function update(string $projectId, string $id, array $data): MemoraSelection
+    {
+        $selection = $this->find($projectId, $id);
+
+        $updateData = [];
+        if (isset($data['name'])) $updateData['name'] = $data['name'];
+        if (isset($data['status'])) $updateData['status'] = $data['status'];
+
+        $selection->update($updateData);
+
+        return $selection->fresh();
+    }
+
+    /**
      * Recover deleted media
      */
     public function recover(string $projectId, string $id, array $mediaIds): array
     {
         $selection = $this->find($projectId, $id);
 
-        $recovered = Media::where('phase_id', $id)
+        $recovered = MemoraMedia::where('phase_id', $id)
             ->whereIn('id', $mediaIds)
             ->where('phase', 'selection')
             ->withTrashed() // If soft deletes are enabled
@@ -98,7 +98,7 @@ class SelectionService
      */
     public function getSelectedMedia(string $projectId, string $id, ?string $setId = null)
     {
-        $query = Media::where('phase_id', $id)
+        $query = MemoraMedia::where('phase_id', $id)
             ->where('phase', 'selection')
             ->where('is_selected', true)
             ->orderBy('order');
@@ -115,7 +115,7 @@ class SelectionService
      */
     public function getSelectedFilenames(string $projectId, string $id): array
     {
-        $filenames = Media::where('phase_id', $id)
+        $filenames = MemoraMedia::where('phase_id', $id)
             ->where('phase', 'selection')
             ->where('is_selected', true)
             ->orderBy('order')
