@@ -3,15 +3,36 @@
 namespace App\Domains\Memora\Models;
 
 use App\Models\User;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class MemoraPreset extends Model
 {
-    use HasFactory, HasUuids;
+    use HasFactory;
+    
+    /**
+     * The primary key for the model.
+     *
+     * @var string
+     */
+    protected $primaryKey = 'uuid';
+    
+    /**
+     * The "type" of the primary key ID.
+     *
+     * @var string
+     */
+    protected $keyType = 'string';
+    
+    /**
+     * Indicates if the IDs are auto-incrementing.
+     *
+     * @var bool
+     */
+    public $incrementing = false;
 
     protected $fillable = [
         'user_uuid',
@@ -26,7 +47,7 @@ class MemoraPreset extends Model
         'social_sharing',
         'language',
         // Design fields
-        'design_cover',
+        'design_cover_uuid',
         'design_cover_focal_point',
         'design_font_family',
         'design_font_style',
@@ -102,6 +123,20 @@ class MemoraPreset extends Model
     ];
 
     /**
+     * Boot the model.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($model) {
+            if (empty($model->uuid)) {
+                $model->uuid = (string) Str::uuid();
+            }
+        });
+    }
+
+    /**
      * Get the user that owns the preset.
      */
     public function user(): BelongsTo
@@ -118,10 +153,26 @@ class MemoraPreset extends Model
     }
 
     /**
+     * Get the cover style for this preset.
+     */
+    public function coverStyle(): BelongsTo
+    {
+        return $this->belongsTo(MemoraCoverStyle::class, 'design_cover_uuid', 'uuid');
+    }
+
+    /**
      * Get all projects using this preset.
      */
     public function projects(): HasMany
     {
         return $this->hasMany(MemoraProject::class, 'preset_uuid', 'uuid');
+    }
+
+    /**
+     * Get design cover slug for backward compatibility.
+     */
+    public function getDesignCoverAttribute(): ?string
+    {
+        return $this->coverStyle?->slug;
     }
 }

@@ -9,9 +9,8 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('memora_media_feedback', static function (Blueprint $table) {
-            $table->id();
-            $table->uuid()->unique()
-                ->default(DB::raw('(UUID())'));
+            $table->unsignedBigInteger('id')->autoIncrement();
+            $table->uuid('uuid')->primary()->default(DB::raw('(UUID())'));
             $table->foreignUuid('media_uuid')->constrained('memora_media', 'uuid')->cascadeOnDelete();
             $table->enum('type', MediaFeedbackTypeEnum::values());
             $table->text('content'); // Text content or URL for video/audio

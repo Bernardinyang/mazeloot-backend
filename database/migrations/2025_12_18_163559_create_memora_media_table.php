@@ -12,8 +12,8 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('memora_media', static function (Blueprint $table) {
-            $table->id();
-            $table->uuid()->default(DB::raw('(UUID())'));
+            $table->unsignedBigInteger('id')->autoIncrement();
+            $table->uuid('uuid')->primary()->default(DB::raw('(UUID())'));
             $table->foreignUuid('user_uuid')->constrained('users', 'uuid')->cascadeOnDelete();
             $table->foreignUuid('media_set_uuid')->constrained('memora_media_sets', 'uuid')->cascadeOnDelete();
 

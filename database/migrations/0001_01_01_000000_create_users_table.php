@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
@@ -11,9 +12,8 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('users', static function (Blueprint $table) {
-            $table->id();
-            $table->uuid()->unique()
-                ->default(DB::raw('(UUID())'));
+            $table->unsignedBigInteger('id')->autoIncrement();
+            $table->uuid('uuid')->primary()->default(DB::raw('(UUID())'));
             $table->foreignUuid('status_uuid')->nullable()->constrained('user_statuses', 'uuid')->nullOnDelete();
             $table->string('first_name');
             $table->string('last_name');
@@ -44,7 +44,7 @@ return new class extends Migration {
 
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
-            $table->foreignId('user_id')->nullable()->index();
+            $table->foreignUuid('user_id')->nullable()->index()->constrained('users', 'uuid')->nullOnDelete();
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->longText('payload');

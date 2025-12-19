@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Memora\Controllers\V1\CollectionController;
+use App\Domains\Memora\Controllers\V1\CoverStyleController;
 use App\Domains\Memora\Controllers\V1\MediaController;
 use App\Domains\Memora\Controllers\V1\ProjectController;
 use App\Domains\Memora\Controllers\V1\ProofingController;
@@ -67,4 +68,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::patch('/{id}/complete', [MediaController::class, 'markCompleted']);
         Route::post('/{mediaId}/feedback', [MediaController::class, 'addFeedback']);
     });
+});
+
+// Cover Styles - Public endpoints (frontend needs to fetch these)
+Route::prefix('cover-styles')->group(function () {
+    Route::get('/', [CoverStyleController::class, 'index']);
+    Route::get('/{uuid}', [CoverStyleController::class, 'show']);
+    Route::get('/slug/{slug}', [CoverStyleController::class, 'showBySlug']);
 });

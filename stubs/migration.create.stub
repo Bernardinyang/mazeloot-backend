@@ -13,12 +13,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('{{ table }}', static function (Blueprint $table) {
-            $table->id();
-            $table->uuid()->unique()
-                ->default(DB::raw('(UUID())'))
-            ;
+            $table->unsignedBigInteger('id')->autoIncrement();
+            $table->uuid('uuid')->primary()->default(DB::raw('(UUID())'));
 
-            $table->json('metadata')->nullable();
             $table->timestamps();
         });
     }

@@ -17,8 +17,8 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('memora_watermarks', static function (Blueprint $table) {
-            $table->id();
-            $table->uuid()->unique()->default(DB::raw('(UUID())'));
+            $table->unsignedBigInteger('id')->autoIncrement();
+            $table->uuid('uuid')->primary()->default(DB::raw('(UUID())'));
             $table->foreignUuid('user_uuid')->constrained('users', 'uuid')->cascadeOnDelete();
             $table->string('name');
             $table->enum('type', WatermarkTypeEnum::values());

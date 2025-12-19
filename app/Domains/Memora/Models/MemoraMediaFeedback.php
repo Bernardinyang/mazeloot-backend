@@ -3,16 +3,35 @@
 namespace App\Domains\Memora\Models;
 
 use App\Domains\Memora\Enums\MediaFeedbackTypeEnum;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 
 class MemoraMediaFeedback extends Model
 {
-    use HasUuids;
+    /**
+     * The primary key for the model.
+     *
+     * @var string
+     */
+    protected $primaryKey = 'uuid';
+    
+    /**
+     * The "type" of the primary key ID.
+     *
+     * @var string
+     */
+    protected $keyType = 'string';
+    
+    /**
+     * Indicates if the IDs are auto-incrementing.
+     *
+     * @var bool
+     */
+    public $incrementing = false;
 
     protected $fillable = [
-        'media_id',
+        'media_uuid',
         'type',
         'content',
         'created_by',
@@ -22,8 +41,22 @@ class MemoraMediaFeedback extends Model
         'type' => MediaFeedbackTypeEnum::class,
     ];
 
+    /**
+     * Boot the model.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($model) {
+            if (empty($model->uuid)) {
+                $model->uuid = (string) Str::uuid();
+            }
+        });
+    }
+
     public function media(): BelongsTo
     {
-        return $this->belongsTo(MemoraMedia::class, 'media_id');
+        return $this->belongsTo(MemoraMedia::class, 'media_uuid', 'uuid');
     }
 }

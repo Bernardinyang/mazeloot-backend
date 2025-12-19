@@ -12,9 +12,8 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('memora_proofing', static function (Blueprint $table) {
-            $table->id();
-            $table->uuid()->unique()
-                ->default(DB::raw('(UUID())'));
+            $table->unsignedBigInteger('id')->autoIncrement();
+            $table->uuid('uuid')->primary()->default(DB::raw('(UUID())'));
             $table->foreignUuid('folder_uuid')->nullable()->constrained('memora_folders', 'uuid')->cascadeOnDelete();
             $table->foreignUuid('project_uuid')->nullable()->constrained('memora_projects', 'uuid')->cascadeOnDelete();
             $table->string('name');

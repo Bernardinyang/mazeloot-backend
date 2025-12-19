@@ -12,9 +12,8 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('user_statuses', static function (Blueprint $table) {
-            $table->id();
-            $table->uuid()->unique()
-                ->default(DB::raw('(UUID())'));
+            $table->unsignedBigInteger('id')->autoIncrement();
+            $table->uuid('uuid')->primary()->default(DB::raw('(UUID())'));
             $table->string('name')->unique();
             $table->text('description')->nullable();
             $table->string('color', 7)->nullable(); // Hex color code (e.g., #FF5733)
