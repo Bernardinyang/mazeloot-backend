@@ -8,9 +8,12 @@ use App\Http\Requests\V1\LoginRequest;
 use App\Http\Requests\V1\RegisterRequest;
 use App\Http\Requests\V1\ResendVerificationRequest;
 use App\Http\Requests\V1\ResetPasswordRequest;
+use App\Http\Requests\V1\SendMagicLinkRequest;
 use App\Http\Requests\V1\VerifyEmailRequest;
+use App\Http\Requests\V1\VerifyMagicLinkRequest;
 use App\Models\User;
 use App\Services\Auth\EmailVerificationService;
+use App\Services\Auth\MagicLinkService;
 use App\Services\Auth\PasswordResetService;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -23,7 +26,8 @@ class AuthController extends Controller
 {
     public function __construct(
         protected EmailVerificationService $verificationService,
-        protected PasswordResetService     $passwordResetService
+        protected PasswordResetService     $passwordResetService,
+        protected MagicLinkService         $magicLinkService
     )
     {
     }
@@ -339,6 +343,85 @@ class AuthController extends Controller
 
             return redirect($callbackUrl);
         }
+    }
+
+    /**
+     * Send magic link to user email.
+     */
+    public function sendMagicLink(SendMagicLinkRequest $request): JsonResponse
+    {
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            // Don't reveal if user exists for security
+            return ApiResponse::successOk([
+                'message' => 'If the email exists, a magic link has been sent.',
+            ]);
+        }
+
+        $this->magicLinkService->sendMagicLink($user);
+
+        return ApiResponse::successOk([
+            'message' => 'If the email exists, a magic link has been sent.',
+        ]);
+    }
+
+    /**
+     * Verify magic link and login user.
+     */
+    public function verifyMagicLink(VerifyMagicLinkRequest $request): JsonResponse
+    {
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return ApiResponse::errorNotFound('User not found.');
+        }
+
+        $magicLinkToken = $this->magicLinkService->verifyToken($request->token, $request->email);
+
+        if (!$magicLinkToken) {
+            return ApiResponse::error('Invalid or expired magic link.', 'INVALID_MAGIC_LINK', 400);
+        }
+
+        // Check user status before allowing login
+        $canLogin = $user->canLogin();
+        if (!$canLogin['can_login']) {
+            return ApiResponse::error(
+                $canLogin['message'],
+                'ACCOUNT_STATUS_BLOCKED',
+                403
+            );
+        }
+
+        // Mark token as used
+        $magicLinkToken->markAsUsed();
+
+        // Create token for login
+        $token = $user->createToken('auth-token')->plainTextToken;
+
+        // Load status relationship if not already loaded
+        if (!$user->relationLoaded('status')) {
+            $user->load('status');
+        }
+
+        return ApiResponse::successOk([
+            'message' => 'Magic link verified successfully.',
+            'user' => [
+                'uuid' => $user->uuid,
+                'email' => $user->email,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'profile_photo' => $user->profile_photo,
+                'email_verified_at' => $user->email_verified_at,
+                'status' => $user->status ? [
+                    'uuid' => $user->status->uuid,
+                    'name' => $user->status->name,
+                    'description' => $user->status->description,
+                    'color' => $user->status->color,
+                ] : null,
+            ],
+            'token' => $token,
+        ]);
     }
 
     /**

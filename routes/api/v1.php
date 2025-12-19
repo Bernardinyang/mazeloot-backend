@@ -22,6 +22,10 @@ Route::prefix('auth')->group(function () {
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
     
+    // Magic link routes
+    Route::post('/magic-link/send', [AuthController::class, 'sendMagicLink']);
+    Route::post('/magic-link/verify', [AuthController::class, 'verifyMagicLink']);
+    
     // OAuth routes
     Route::get('/oauth/{provider}/redirect', [AuthController::class, 'redirectToProvider']);
     Route::get('/oauth/{provider}/callback', [AuthController::class, 'handleProviderCallback']);

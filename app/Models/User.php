@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use App\Models\MagicLinkToken;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
@@ -130,6 +131,11 @@ class User extends Authenticatable
     public function passwordResetTokens(): HasMany
     {
         return $this->hasMany(PasswordResetToken::class, 'user_uuid', 'uuid');
+    }
+
+    public function magicLinkTokens(): HasMany
+    {
+        return $this->hasMany(MagicLinkToken::class, 'user_uuid', 'uuid');
     }
 
     /**
