@@ -101,7 +101,7 @@ class MediaController extends Controller
     }
 
     /**
-     * Get media for a specific set (guest access)
+     * Get media for a specific set (guest access) with optional sorting
      */
     public function getSetMediaGuest(Request $request, string $id, string $setUuid): JsonResponse
     {
@@ -112,18 +112,20 @@ class MediaController extends Controller
             return ApiResponse::error('Token does not match selection', 'INVALID_TOKEN', 403);
         }
 
-        $media = $this->mediaService->getSetMedia($setUuid);
+        $sortBy = $request->query('sort_by');
+        $media = $this->mediaService->getSetMedia($setUuid, $sortBy);
         return ApiResponse::success(MediaResource::collection($media));
     }
 
     // Guest methods
 
     /**
-     * Get media for a specific set
+     * Get media for a specific set with optional sorting
      */
-    public function getSetMedia(string $selectionId, string $setUuid): JsonResponse
+    public function getSetMedia(Request $request, string $selectionId, string $setUuid): JsonResponse
     {
-        $media = $this->mediaService->getSetMedia($setUuid);
+        $sortBy = $request->query('sort_by');
+        $media = $this->mediaService->getSetMedia($setUuid, $sortBy);
         return ApiResponse::success(MediaResource::collection($media));
     }
 

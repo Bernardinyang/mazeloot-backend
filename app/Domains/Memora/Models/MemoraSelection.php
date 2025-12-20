@@ -5,6 +5,7 @@ namespace App\Domains\Memora\Models;
 use App\Domains\Memora\Enums\SelectionStatusEnum;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
@@ -38,9 +39,19 @@ class MemoraSelection extends Model
         'status',
         'color',
         'cover_photo_url',
+        'password',
         'selection_completed_at',
         'completed_by_email',
         'auto_delete_date',
+    ];
+
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var array<int, string>
+     */
+    protected $hidden = [
+        'password',
     ];
 
     protected $casts = [
@@ -71,6 +82,21 @@ class MemoraSelection extends Model
     public function mediaSets(): HasMany
     {
         return $this->hasMany(MemoraMediaSet::class, 'selection_uuid', 'uuid');
+    }
+
+    /**
+     * Get the users who have starred this selection.
+     */
+    public function starredByUsers(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            \App\Models\User::class,
+            'user_starred_selections',
+            'selection_uuid',
+            'user_uuid',
+            'uuid',
+            'uuid'
+        )->withTimestamps();
     }
 
     /**

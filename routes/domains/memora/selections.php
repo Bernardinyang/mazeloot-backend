@@ -25,6 +25,7 @@ Route::middleware(['auth:sanctum'])->prefix('selections')->group(function () {
     Route::delete('/{id}', [SelectionController::class, 'destroy']);
     Route::post('/{id}/publish', [SelectionController::class, 'publish']);
     Route::post('/{id}/recover', [SelectionController::class, 'recover']);
+    Route::post('/{id}/star', [SelectionController::class, 'toggleStar']);
     Route::get('/{id}/selected', [SelectionController::class, 'getSelectedMedia']);
     Route::get('/{id}/filenames', [SelectionController::class, 'getSelectedFilenames']);
 

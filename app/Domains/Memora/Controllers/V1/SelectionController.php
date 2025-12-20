@@ -26,13 +26,29 @@ class SelectionController extends Controller
     }
 
     /**
-     * Get all selections (optionally filtered by project_uuid query parameter)
+     * Get all selections with optional search, sort, filter, and pagination parameters
      */
     public function index(Request $request): JsonResponse
     {
         $projectUuid = $request->query('project_uuid');
-        $selections = $this->selectionService->getAll($projectUuid);
-        return ApiResponse::success(SelectionResource::collection($selections));
+        $search = $request->query('search');
+        $sortBy = $request->query('sort_by');
+        $status = $request->query('status');
+        $starred = $request->has('starred') ? filter_var($request->query('starred'), FILTER_VALIDATE_BOOLEAN) : null;
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = max(1, min(100, (int) $request->query('per_page', 50))); // Limit between 1 and 100
+
+        $result = $this->selectionService->getAll(
+            projectUuid: $projectUuid,
+            search: $search,
+            sortBy: $sortBy,
+            status: $status,
+            starred: $starred,
+            page: $page,
+            perPage: $perPage
+        );
+        
+        return ApiResponse::success($result);
     }
 
     /**
@@ -41,7 +57,7 @@ class SelectionController extends Controller
     public function show(string $id): JsonResponse
     {
         $selection = $this->selectionService->find($id);
-        return ApiResponse::success(new SelectionResource($selection));
+        return ApiResponse::success($selection);
     }
 
     /**
@@ -50,7 +66,7 @@ class SelectionController extends Controller
     public function store(StoreSelectionRequest $request): JsonResponse
     {
         $selection = $this->selectionService->create($request->validated());
-        return ApiResponse::success(new SelectionResource($selection), 201);
+        return ApiResponse::success($selection, 201);
     }
 
     /**
@@ -59,7 +75,7 @@ class SelectionController extends Controller
     public function update(UpdateSelectionRequest $request, string $id): JsonResponse
     {
         $selection = $this->selectionService->update($id, $request->validated());
-        return ApiResponse::success(new SelectionResource($selection));
+        return ApiResponse::success($selection);
     }
 
     /**
@@ -77,7 +93,7 @@ class SelectionController extends Controller
     public function publish(string $id): JsonResponse
     {
         $selection = $this->selectionService->publish($id);
-        return ApiResponse::success(new SelectionResource($selection));
+        return ApiResponse::success($selection);
     }
 
     /**
@@ -108,6 +124,15 @@ class SelectionController extends Controller
         return ApiResponse::success($result);
     }
 
+    /**
+     * Toggle star status for a selection
+     */
+    public function toggleStar(string $id): JsonResponse
+    {
+        $result = $this->selectionService->toggleStar($id);
+        return ApiResponse::success($result);
+    }
+
     // Guest methods (for guest users with temporary tokens)
 
     /**
@@ -123,7 +148,7 @@ class SelectionController extends Controller
         }
 
         $selection = $this->selectionService->find($id);
-        return ApiResponse::success(new SelectionResource($selection));
+        return ApiResponse::success($selection);
     }
 
     /**
@@ -149,7 +174,7 @@ class SelectionController extends Controller
         // Mark token as used
         $this->guestSelectionService->markTokenAsUsed($guestToken->token);
 
-        return ApiResponse::success(new SelectionResource($selection));
+        return ApiResponse::success($selection);
     }
 }
 

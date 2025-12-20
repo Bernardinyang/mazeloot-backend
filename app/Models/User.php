@@ -6,6 +6,7 @@ namespace App\Models;
 use App\Enums\UserRoleEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use App\Models\MagicLinkToken;
@@ -136,6 +137,21 @@ class User extends Authenticatable
     public function magicLinkTokens(): HasMany
     {
         return $this->hasMany(MagicLinkToken::class, 'user_uuid', 'uuid');
+    }
+
+    /**
+     * Get the selections starred by this user.
+     */
+    public function starredSelections(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            \App\Domains\Memora\Models\MemoraSelection::class,
+            'user_starred_selections',
+            'user_uuid',
+            'selection_uuid',
+            'uuid',
+            'uuid'
+        )->withTimestamps();
     }
 
     /**

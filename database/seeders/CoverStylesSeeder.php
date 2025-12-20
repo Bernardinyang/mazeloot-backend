@@ -299,7 +299,10 @@ class CoverStylesSeeder extends Seeder
         ];
 
         foreach ($coverStyles as $style) {
-            MemoraCoverStyle::query()->create($style);
+            MemoraCoverStyle::query()->firstOrCreate(
+                ['slug' => $style['slug']],
+                $style
+            );
         }
     }
 }

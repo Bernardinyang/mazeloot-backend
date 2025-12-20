@@ -22,6 +22,7 @@ return new class extends Migration {
             $table->enum('status', SelectionStatusEnum::values())->default(SelectionStatusEnum::DRAFT->value);
             $table->string('color', 7)->default('#10B981'); // Default green color
             $table->string('cover_photo_url')->nullable();
+            $table->string('password')->nullable();
             $table->timestamp('selection_completed_at')->nullable();
             $table->string('completed_by_email')->nullable();
             $table->date('auto_delete_date')->nullable();

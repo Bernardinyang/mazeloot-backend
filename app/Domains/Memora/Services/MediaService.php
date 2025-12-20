@@ -217,14 +217,69 @@ class MediaService
     }
 
     /**
-     * Get media for a specific set
+     * Get media for a specific set with optional sorting
+     * 
+     * @param string $setUuid The media set UUID
+     * @param string|null $sortBy Sort field and direction (e.g., 'uploaded-desc', 'name-asc', 'date-taken-desc')
+     * @return \Illuminate\Database\Eloquent\Collection
      */
-    public function getSetMedia(string $setUuid)
+    public function getSetMedia(string $setUuid, ?string $sortBy = null)
     {
-        return MemoraMedia::where('media_set_uuid', $setUuid)
-            ->with('feedback')
-            ->orderBy('order')
-            ->get();
+        $query = MemoraMedia::where('media_set_uuid', $setUuid)
+            ->with('feedback');
+
+        // Apply sorting
+        if ($sortBy) {
+            $this->applyMediaSorting($query, $sortBy);
+        } else {
+            // Default sort: order asc
+            $query->orderBy('order');
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * Apply sorting to media query based on sortBy parameter
+     * 
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string $sortBy Format: 'field-direction' (e.g., 'uploaded-desc', 'name-asc')
+     */
+    protected function applyMediaSorting($query, string $sortBy): void
+    {
+        $parts = explode('-', $sortBy);
+        $field = $parts[0] ?? 'order';
+        $direction = strtoupper($parts[1] ?? 'asc');
+
+        // Validate direction
+        if (!in_array($direction, ['ASC', 'DESC'])) {
+            $direction = 'ASC';
+        }
+
+        // Handle special cases
+        if ($sortBy === 'random') {
+            $query->inRandomOrder();
+            return;
+        }
+
+        // Map frontend sort values to database fields
+        $fieldMap = [
+            'uploaded' => 'created_at',
+            'name' => 'filename', // Will join with user_file table
+            'date-taken' => 'created_at', // TODO: Add date_taken field if available
+            'order' => 'order',
+        ];
+
+        $dbField = $fieldMap[$field] ?? 'order';
+
+        // For name sorting, join with user_file table to access filename
+        if ($field === 'name') {
+            $query->leftJoin('user_files', 'memora_media.user_file_uuid', '=', 'user_files.uuid')
+                ->orderBy('user_files.filename', $direction)
+                ->select('memora_media.*'); // Ensure we only select media columns
+        } else {
+            $query->orderBy($dbField, $direction);
+        }
     }
 
     /**

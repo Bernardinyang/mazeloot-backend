@@ -18,21 +18,25 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        // Create a super admin user
-        User::factory()->create([
-            'first_name' => 'Super',
-            'last_name' => 'Admin',
-            'email' => 'superadmin@example.com',
-            'role' => UserRoleEnum::SUPER_ADMIN,
-        ]);
+        // Create a super admin user (if doesn't exist)
+        User::firstOrCreate(
+            ['email' => 'superadmin@example.com'],
+            [
+                'first_name' => 'Super',
+                'last_name' => 'Admin',
+                'role' => UserRoleEnum::SUPER_ADMIN,
+            ]
+        );
 
-        // Create a regular user
-        User::factory()->create([
-            'first_name' => 'Test',
-            'last_name' => 'User',
-            'email' => 'test@example.com',
-            'role' => UserRoleEnum::USER,
-        ]);
+        // Create a regular user (if doesn't exist)
+        User::firstOrCreate(
+            ['email' => 'test@example.com'],
+            [
+                'first_name' => 'Test',
+                'last_name' => 'User',
+                'role' => UserRoleEnum::USER,
+            ]
+        );
 
         // Seed user statuses (must be before users)
         $this->call([

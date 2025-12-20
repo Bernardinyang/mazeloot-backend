@@ -21,6 +21,7 @@ class StoreSelectionRequest extends FormRequest
             'status' => ['nullable', Rule::enum(SelectionStatusEnum::class)],
             'color' => ['nullable', 'string', 'max:7'],
             'cover_photo_url' => ['nullable', 'string', 'url'],
+            'password' => ['nullable', 'string', 'min:4', 'max:255'],
         ];
     }
 }

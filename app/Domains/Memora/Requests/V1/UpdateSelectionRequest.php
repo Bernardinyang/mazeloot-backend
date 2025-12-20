@@ -20,6 +20,7 @@ class UpdateSelectionRequest extends FormRequest
             'status' => ['sometimes', Rule::enum(SelectionStatusEnum::class)],
             'color' => ['sometimes', 'string', 'max:7'],
             'cover_photo_url' => ['nullable', 'string', 'url'],
+            'password' => ['nullable', 'string', 'min:4', 'max:255'],
         ];
     }
 }
