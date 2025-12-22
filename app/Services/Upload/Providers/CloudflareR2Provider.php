@@ -16,24 +16,65 @@ class CloudflareR2Provider implements UploadProviderInterface
     public function __construct()
     {
         $this->disk = config('upload.providers.r2.disk', 'r2');
+        $this->validateConfiguration();
+    }
+
+    /**
+     * Validate R2 configuration
+     *
+     * @throws UploadException
+     */
+    protected function validateConfiguration(): void
+    {
+        $required = [
+            'R2_ACCESS_KEY_ID',
+            'R2_SECRET_ACCESS_KEY',
+            'R2_BUCKET',
+            'R2_ENDPOINT',
+        ];
+
+        $missing = [];
+        foreach ($required as $key) {
+            if (empty(env($key))) {
+                $missing[] = $key;
+            }
+        }
+
+        if (!empty($missing)) {
+            throw UploadException::providerError(
+                'R2 configuration is incomplete. Missing environment variables: ' . implode(', ', $missing)
+            );
+        }
     }
 
     public function upload(UploadedFile $file, array $options = []): UploadResult
     {
-        // R2 is S3-compatible, so we can use S3 driver
-        $path = $this->generatePath($file, $options['path'] ?? null);
-        $storedPath = Storage::disk($this->disk)->putFileAs(
-            dirname($path),
-            $file,
-            basename($path),
-            'public'
-        );
+        try {
+            // R2 is S3-compatible, so we can use S3 driver
+            $path = $this->generatePath($file, $options['path'] ?? null);
+            $storedPath = Storage::disk($this->disk)->putFileAs(
+                dirname($path),
+                $file,
+                basename($path),
+                'public'
+            );
+        } catch (\Exception $e) {
+            throw UploadException::providerError(
+                'Failed to upload file to R2: ' . $e->getMessage()
+            );
+        }
 
         if (!$storedPath) {
             throw UploadException::providerError('Failed to store file to R2');
         }
 
-        $url = Storage::disk($this->disk)->url($storedPath);
+        try {
+            $url = Storage::disk($this->disk)->url($storedPath);
+        } catch (\Exception $e) {
+            throw UploadException::providerError(
+                'Failed to get URL from R2: ' . $e->getMessage()
+            );
+        }
 
         // Get image dimensions if it's an image
         $width = null;

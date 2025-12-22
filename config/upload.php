@@ -64,13 +64,16 @@ return [
     |
     */
 
-    'max_size' => env('UPLOAD_MAX_SIZE', 10485760), // 10MB in bytes
+    'max_size' => env('UPLOAD_MAX_SIZE', 52428800), // 50MB in bytes (default, can be overridden via env)
 
     'allowed_types' => [
         'image/jpeg',
         'image/png',
         'image/gif',
         'image/webp',
+        'image/svg+xml',
+        'video/mp4',
+        'video/webm',
         'application/pdf',
         'application/msword',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

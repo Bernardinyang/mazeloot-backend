@@ -75,7 +75,7 @@ class UploadService
     protected function validateFile(UploadedFile $file, array $options): void
     {
         // Check file size limit
-        $maxSize = $options['maxSize'] ?? config('upload.max_size', 10485760); // 10MB default
+        $maxSize = $options['maxSize'] ?? config('upload.max_size', 52428800); // 50MB default
         if ($file->getSize() > $maxSize) {
             throw UploadException::invalidFile(
                 "File size exceeds maximum allowed size of " . number_format($maxSize / 1024 / 1024, 2) . " MB"

@@ -7,17 +7,21 @@ use App\Http\Requests\V1\UploadRequest;
 use App\Models\UserFile;
 use App\Services\Upload\Exceptions\UploadException;
 use App\Services\Upload\UploadService;
+use App\Services\Video\VideoThumbnailGenerator;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class UploadController extends Controller
 {
     protected UploadService $uploadService;
+    protected VideoThumbnailGenerator $thumbnailGenerator;
 
-    public function __construct(UploadService $uploadService)
+    public function __construct(UploadService $uploadService, VideoThumbnailGenerator $thumbnailGenerator)
     {
         $this->uploadService = $uploadService;
+        $this->thumbnailGenerator = $thumbnailGenerator;
     }
 
     /**
@@ -36,12 +40,21 @@ class UploadController extends Controller
             $file = $request->file('file');
             $result = $this->uploadService->upload($file, $options);
 
-            // Store file information in user_files table
-            $userFile = $this->storeUserFile($userUuid, $file, $result);
+            // Generate thumbnail for videos
+            $thumbnailUrl = null;
+            if (str_starts_with($file->getMimeType(), 'video/')) {
+                $thumbnailUrl = $this->generateVideoThumbnail($file, $result);
+            }
 
-            // Include user_file UUID in response
+            // Store file information in user_files table
+            $userFile = $this->storeUserFile($userUuid, $file, $result, $thumbnailUrl);
+
+            // Include user_file UUID and thumbnail in response
             $responseData = $result->toArray();
             $responseData['userFileUuid'] = $userFile->uuid;
+            if ($thumbnailUrl) {
+                $responseData['thumbnail'] = $thumbnailUrl;
+            }
 
             return ApiResponse::success($responseData);
         }
@@ -58,10 +71,20 @@ class UploadController extends Controller
             $data = [];
             foreach ($results as $index => $result) {
                 $file = $files[$index];
-                $userFile = $this->storeUserFile($userUuid, $file, $result);
+                
+                // Generate thumbnail for videos
+                $thumbnailUrl = null;
+                if (str_starts_with($file->getMimeType(), 'video/')) {
+                    $thumbnailUrl = $this->generateVideoThumbnail($file, $result);
+                }
+                
+                $userFile = $this->storeUserFile($userUuid, $file, $result, $thumbnailUrl);
 
                 $fileData = $result->toArray();
                 $fileData['userFileUuid'] = $userFile->uuid;
+                if ($thumbnailUrl) {
+                    $fileData['thumbnail'] = $thumbnailUrl;
+                }
                 $data[] = $fileData;
             }
 
@@ -73,9 +96,54 @@ class UploadController extends Controller
     }
 
     /**
+     * Generate thumbnail for video file
+     *
+     * @param \Illuminate\Http\UploadedFile $file
+     * @param \App\Services\Upload\DTOs\UploadResult $uploadResult
+     * @return string|null Thumbnail URL or null if failed
+     */
+    protected function generateVideoThumbnail($file, $uploadResult): ?string
+    {
+        try {
+            // Generate thumbnail
+            $thumbnailPath = $this->thumbnailGenerator->generateThumbnail($file);
+            
+            if (!$thumbnailPath) {
+                return null;
+            }
+
+            // Extract UUID from path or generate one
+            // The path format is usually: uploads/YYYY/MM/DD/{uuid}.ext
+            $pathParts = explode('/', $uploadResult->path);
+            $filename = end($pathParts);
+            $videoUuid = pathinfo($filename, PATHINFO_FILENAME);
+
+            // Determine storage disk based on provider
+            $provider = config('upload.default_provider', 'local');
+            $disk = match ($provider) {
+                'local' => config('upload.providers.local.disk', 'public'),
+                's3' => config('upload.providers.s3.disk', 's3'),
+                'r2' => config('upload.providers.r2.disk', 'r2'),
+                default => 'public',
+            };
+
+            // Upload thumbnail to storage
+            $thumbnailUrl = $this->thumbnailGenerator->uploadThumbnail($thumbnailPath, $videoUuid, $disk);
+
+            // Cleanup temporary thumbnail
+            $this->thumbnailGenerator->cleanup($thumbnailPath);
+
+            return $thumbnailUrl;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to generate video thumbnail: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Store file information in user_files table
      */
-    protected function storeUserFile(string $userUuid, $file, $uploadResult): UserFile
+    protected function storeUserFile(string $userUuid, $file, $uploadResult, ?string $thumbnailUrl = null): UserFile
     {
         // Determine file type
         $mimeType = $file->getMimeType();
@@ -84,6 +152,16 @@ class UploadController extends Controller
             $type = 'video';
         } elseif (!str_starts_with($mimeType, 'image/')) {
             $type = 'document';
+        }
+
+        $metadata = [
+            'provider' => $uploadResult->provider,
+            'checksum' => $uploadResult->checksum,
+        ];
+
+        // Include thumbnail URL in metadata for videos
+        if ($thumbnailUrl) {
+            $metadata['thumbnail'] = $thumbnailUrl;
         }
 
         return UserFile::query()->create([
@@ -96,10 +174,7 @@ class UploadController extends Controller
             'size' => $uploadResult->size,
             'width' => $uploadResult->width,
             'height' => $uploadResult->height,
-            'metadata' => [
-                'provider' => $uploadResult->provider,
-                'checksum' => $uploadResult->checksum,
-            ],
+            'metadata' => $metadata,
         ]);
     }
 }

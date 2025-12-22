@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\V1\AuthController;
+use App\Http\Controllers\V1\ImageUploadController;
 use App\Http\Controllers\V1\UploadController;
 use Illuminate\Support\Facades\Route;
 
@@ -36,6 +37,7 @@ Route::prefix('auth')->group(function () {
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/auth/user', [AuthController::class, 'user']);
     Route::post('/uploads', [UploadController::class, 'upload']);
+    Route::post('/images/upload', [ImageUploadController::class, 'upload']);
 });
 
 // Domain routes
