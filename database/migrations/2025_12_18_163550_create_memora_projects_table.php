@@ -18,7 +18,7 @@ return new class extends Migration {
             $table->foreignUuid('user_uuid')->constrained('users', 'uuid')->cascadeOnDelete();
             $table->foreignUuid('preset_uuid')->nullable()->constrained('memora_presets', 'uuid')->nullOnDelete();
             $table->foreignUuid('watermark_uuid')->nullable()->constrained('memora_watermarks', 'uuid')->nullOnDelete();
-            $table->string('name')->unique();
+            $table->string('name');
             $table->text('description')->nullable();
             $table->enum('status', ProjectStatusEnum::values())->default(ProjectStatusEnum::DRAFT->value);
             $table->string('color', 7)->default('#3B82F6'); // Default blue color
@@ -27,6 +27,9 @@ return new class extends Migration {
             $table->boolean('has_collections')->default(false);
             $table->json('settings')->nullable();
             $table->timestamps();
+            $table->softDeletes();
+            // Unique constraint including deleted_at to allow same name for soft-deleted records
+            $table->unique(['user_uuid', 'name', 'deleted_at'], 'projects_user_name_deleted_unique');
         });
     }
 

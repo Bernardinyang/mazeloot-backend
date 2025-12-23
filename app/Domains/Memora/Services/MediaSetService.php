@@ -41,11 +41,24 @@ class MediaSetService
     }
 
     /**
-     * Delete a media set
+     * Delete a media set and all media in it
      */
     public function delete(string $selectionId, string $id): bool
     {
         $set = $this->find($selectionId, $id);
+        
+        // Load media relationship if not already loaded
+        if (!$set->relationLoaded('media')) {
+            $set->load('media');
+        }
+        
+        // Soft delete all media in this set
+        // Loop through each media item to ensure soft deletes work correctly
+        foreach ($set->media as $media) {
+            $media->delete();
+        }
+        
+        // Soft delete the set itself
         return $set->delete();
     }
 

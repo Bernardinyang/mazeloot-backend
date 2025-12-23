@@ -23,6 +23,7 @@ return new class extends Migration {
             $table->json('metadata')->nullable();
             $table->integer('order')->default(0);
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

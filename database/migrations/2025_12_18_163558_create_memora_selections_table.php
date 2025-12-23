@@ -27,6 +27,7 @@ return new class extends Migration {
             $table->string('completed_by_email')->nullable();
             $table->date('auto_delete_date')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

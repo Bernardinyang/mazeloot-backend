@@ -16,10 +16,13 @@ return new class extends Migration {
             $table->uuid('uuid')->primary()->default(DB::raw('(UUID())'));
             $table->foreignUuid('user_uuid')->constrained('users', 'uuid')->cascadeOnDelete();
             $table->foreignUuid('parent_uuid')->nullable()->constrained('memora_folders', 'uuid')->cascadeOnDelete();
-            $table->string('name')->unique();
+            $table->string('name');
             $table->text('description')->nullable();
             $table->string('color', 7)->default('#6366F1'); // Default indigo color
             $table->timestamps();
+            $table->softDeletes();
+            // Unique constraint including deleted_at to allow same name for soft-deleted records
+            $table->unique(['user_uuid', 'name', 'deleted_at'], 'folders_user_name_deleted_unique');
         });
     }
 

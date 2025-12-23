@@ -5,10 +5,12 @@ namespace App\Domains\Memora\Models;
 use App\Domains\Memora\Enums\ProjectStatusEnum;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 class MemoraCollection extends Model
 {
+    use SoftDeletes;
     /**
      * The primary key for the model.
      *

@@ -504,10 +504,37 @@ class SelectionService
     }
 
     /**
-     * Delete a selection
+     * Delete a selection and all its sets and media
      */
     public function delete(string $id): bool
     {
-        return $this->findModel($id)->delete();
+        $selection = $this->findModel($id);
+        
+        // Load media sets relationship if not already loaded
+        if (!$selection->relationLoaded('mediaSets')) {
+            $selection->load('mediaSets.media');
+        }
+        
+        // Get all media sets for this selection
+        $mediaSets = $selection->mediaSets;
+        
+        // Soft delete all media in all sets, then delete all sets
+        foreach ($mediaSets as $set) {
+            // Ensure media is loaded for this set
+            if (!$set->relationLoaded('media')) {
+                $set->load('media');
+            }
+            
+            // Soft delete all media in this set
+            // Loop through each media item to ensure soft deletes work correctly
+            foreach ($set->media as $media) {
+                $media->delete();
+            }
+            // Soft delete the set
+            $set->delete();
+        }
+        
+        // Soft delete the selection itself
+        return $selection->delete();
     }
 }

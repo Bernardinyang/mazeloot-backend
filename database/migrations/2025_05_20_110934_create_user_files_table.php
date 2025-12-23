@@ -30,6 +30,7 @@ return new class extends Migration
             $table->integer('height')->nullable();
             $table->json('metadata')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 
