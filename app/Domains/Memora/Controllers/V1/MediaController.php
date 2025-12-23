@@ -5,6 +5,7 @@ namespace App\Domains\Memora\Controllers\V1;
 use App\Domains\Memora\Requests\V1\AddMediaFeedbackRequest;
 use App\Domains\Memora\Requests\V1\MoveCopyMediaRequest;
 use App\Domains\Memora\Requests\V1\RenameMediaRequest;
+use App\Domains\Memora\Requests\V1\ReplaceMediaRequest;
 use App\Domains\Memora\Requests\V1\UploadMediaToSetRequest;
 use App\Domains\Memora\Resources\V1\MediaFeedbackResource;
 use App\Domains\Memora\Resources\V1\MediaResource;
@@ -112,6 +113,30 @@ class MediaController extends Controller
                 'exception' => $e->getMessage(),
             ]);
             return ApiResponse::error('Failed to rename media', 'RENAME_FAILED', 500);
+        }
+    }
+
+    /**
+     * Replace media file by updating the user_file_uuid
+     */
+    public function replace(ReplaceMediaRequest $request, string $selectionId, string $setUuid, string $mediaId): JsonResponse
+    {
+        try {
+            $validated = $request->validated();
+            $media = $this->mediaService->replaceMedia($mediaId, $validated['user_file_uuid']);
+            return ApiResponse::success(new MediaResource($media));
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ApiResponse::error('Media or file not found', 'NOT_FOUND', 404);
+        } catch (\RuntimeException $e) {
+            return ApiResponse::error($e->getMessage(), 'REPLACE_FAILED', 400);
+        } catch (\Exception $e) {
+            Log::error('Failed to replace media', [
+                'selection_id' => $selectionId,
+                'set_uuid' => $setUuid,
+                'media_id' => $mediaId,
+                'exception' => $e->getMessage(),
+            ]);
+            return ApiResponse::error('Failed to replace media', 'REPLACE_FAILED', 500);
         }
     }
 

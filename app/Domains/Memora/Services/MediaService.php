@@ -506,6 +506,37 @@ class MediaService
     }
 
     /**
+     * Replace media file by updating the user_file_uuid to point to a new UserFile
+     * 
+     * @param string $mediaUuid Media UUID
+     * @param string $newUserFileUuid New UserFile UUID
+     * @return MemoraMedia Updated media with file relationship
+     */
+    public function replaceMedia(string $mediaUuid, string $newUserFileUuid): MemoraMedia
+    {
+        // Find media and verify ownership
+        $media = MemoraMedia::where('uuid', $mediaUuid)
+            ->where('user_uuid', Auth::user()->uuid)
+            ->firstOrFail();
+
+        // Verify the new UserFile exists and belongs to the authenticated user
+        $newUserFile = \App\Models\UserFile::query()
+            ->where('uuid', $newUserFileUuid)
+            ->where('user_uuid', Auth::user()->uuid)
+            ->firstOrFail();
+
+        // Update the media to point to the new UserFile
+        $media->update([
+            'user_file_uuid' => $newUserFileUuid,
+        ]);
+
+        // Reload the file relationship to get updated data
+        $media->load('file');
+
+        return $media;
+    }
+
+    /**
      * Create media from upload URL (domains never handle files directly)
      */
     public function createFromUploadUrl(array $data, string $uploadUrl): MemoraMedia
