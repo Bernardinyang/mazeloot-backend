@@ -24,7 +24,7 @@ class MediaService
     {
         $query = MemoraMedia::where('phase', $phaseType)
             ->where('phase_id', $phaseId)
-            ->with('feedback')
+            ->with(['feedback', 'file'])
             ->orderBy('order');
 
         if ($setUuid) {
@@ -226,7 +226,7 @@ class MediaService
     public function getSetMedia(string $setUuid, ?string $sortBy = null)
     {
         $query = MemoraMedia::where('media_set_uuid', $setUuid)
-            ->with('feedback');
+            ->with(['feedback', 'file']);
 
         // Apply sorting
         if ($sortBy) {
@@ -283,29 +283,36 @@ class MediaService
     }
 
     /**
-     * Create media from upload URL for a set
+     * Create media from user_file_uuid for a set
+     * Uses user_file_uuid from the memora_media migration to store media
+     * All metadata is retrieved from the UserFile relationship
      */
-    public function createFromUploadUrlForSet(string $setUuid, array $data): array
+    public function createFromUploadUrlForSet(string $setUuid, array $data): MemoraMedia
     {
         $set = MemoraMediaSet::query()->findOrFail($setUuid);
+
+        // Verify user_file_uuid exists and belongs to the authenticated user
+        $userFile = \App\Models\UserFile::query()
+            ->where('uuid', $data['user_file_uuid'])
+            ->where('user_uuid', Auth::user()->uuid)
+            ->firstOrFail();
 
         // Get the maximum order for media in this set
         $maxOrder = MemoraMedia::query()->where('media_set_uuid', $setUuid)
             ->max('order') ?? -1;
 
-        $medias = $data['media'];
-        $savedMedias = [];
+        // Create media using only user_file_uuid - all other data comes from UserFile relationship
+        $media = MemoraMedia::query()->create([
+            'user_uuid' => Auth::user()->uuid,
+            'media_set_uuid' => $setUuid,
+            'user_file_uuid' => $data['user_file_uuid'],
+            'order' => $maxOrder + 1,
+        ]);
 
-        foreach ($medias as $mediaData) {
-            $savedMedias[] = MemoraMedia::query()->create([
-                'user_uuid' => Auth::user()->uuid,
-                'media_set_uuid' => $setUuid,
-                'url' => $mediaData['url'],
-                'order' => $maxOrder + 1,
-            ]);
-        }
+        // Load the file relationship for the response
+        $media->load('file');
 
-        return $savedMedias;
+        return $media;
     }
 
     /**
@@ -321,6 +328,29 @@ class MediaService
         // Note: We don't delete the user_file record as it may be used elsewhere
         // The user_file will remain in the database for potential recovery
         return $media->delete();
+    }
+
+    /**
+     * Get media by UUID for download
+     * Returns the media with file relationship loaded
+     */
+    public function getMediaForDownload(string $mediaUuid): MemoraMedia
+    {
+        $media = MemoraMedia::where('uuid', $mediaUuid)
+            ->with('file')
+            ->firstOrFail();
+
+        // Verify the user owns this media
+        if ($media->user_uuid !== Auth::user()->uuid) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Media not found');
+        }
+
+        // Ensure file relationship is loaded
+        if (!$media->file) {
+            throw new \RuntimeException('File not found for this media');
+        }
+
+        return $media;
     }
 
     /**

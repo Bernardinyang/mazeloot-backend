@@ -27,6 +27,9 @@ class SelectionResource extends JsonResource
             'isStarred' => Auth::check() && $this->relationLoaded('starredByUsers') 
                 ? $this->starredByUsers->isNotEmpty() 
                 : false,
+            'project' => $this->whenLoaded('project', function () {
+                return new ProjectResource($this->project);
+            }, null),
             'mediaSets' => $this->whenLoaded('mediaSets', function () {
                 return MediaSetResource::collection($this->mediaSets);
             }, []),

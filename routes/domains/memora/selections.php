@@ -46,6 +46,9 @@ Route::middleware(['auth:sanctum'])->prefix('selections')->group(function () {
             Route::post('/{mediaId}/feedback', [MediaController::class, 'addFeedback']);
         });
     });
+
+    // Media download endpoint (outside of selection/set context)
+    Route::get('/media/{mediaUuid}/download', [MediaController::class, 'download']);
 });
 
 // Guest Selection Routes (for guest users with temporary tokens)

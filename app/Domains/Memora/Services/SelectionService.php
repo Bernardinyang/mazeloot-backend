@@ -341,6 +341,7 @@ class SelectionService
             $query->where('selection_uuid', $id);
         })
             ->where('is_selected', true)
+            ->with(['file'])
             ->orderBy('order');
 
         if ($setUuid) {

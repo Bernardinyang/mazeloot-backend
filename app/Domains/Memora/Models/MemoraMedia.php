@@ -93,9 +93,9 @@ class MemoraMedia extends Model
     }
 
     /**
-     * Get the user file that this media is associated with
+     * Get the file that this media is associated with
      */
-    public function userFile(): BelongsTo
+    public function file(): BelongsTo
     {
         return $this->belongsTo(\App\Models\UserFile::class, 'user_file_uuid', 'uuid');
     }

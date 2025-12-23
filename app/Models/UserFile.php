@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Domains\Memora\Enums\MediaTypeEnum;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class UserFile extends Model
@@ -73,6 +74,14 @@ class UserFile extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_uuid', 'uuid');
+    }
+
+    /**
+     * Get all media that use this user file
+     */
+    public function media(): HasMany
+    {
+        return $this->hasMany(\App\Domains\Memora\Models\MemoraMedia::class, 'user_file_uuid', 'uuid');
     }
 }
 

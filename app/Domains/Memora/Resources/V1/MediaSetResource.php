@@ -14,6 +14,15 @@ class MediaSetResource extends JsonResource
             'description' => $this->description,
             'count' => $this->whenCounted('media', $this->media_count ?? 0),
             'order' => $this->order,
+            'media' => $this->whenLoaded('media', function () {
+                return MediaResource::collection($this->media);
+            }, []),
+            'selection' => $this->whenLoaded('selection', function () {
+                return new SelectionResource($this->selection);
+            }, null),
+            'project' => $this->whenLoaded('project', function () {
+                return new ProjectResource($this->project);
+            }, null),
             'createdAt' => $this->created_at->toIso8601String(),
             'updatedAt' => $this->updated_at->toIso8601String(),
         ];

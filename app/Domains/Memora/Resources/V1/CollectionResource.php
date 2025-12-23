@@ -11,6 +11,12 @@ class CollectionResource extends JsonResource
         return [
             'id' => $this->id,
             'projectId' => $this->project_id,
+            'project' => $this->whenLoaded('project', function () {
+                return new ProjectResource($this->project);
+            }, null),
+            'coverLayout' => $this->whenLoaded('coverLayout', function () {
+                return new CoverLayoutResource($this->coverLayout);
+            }, null),
             'name' => $this->name,
             'description' => $this->description,
             'status' => $this->status,

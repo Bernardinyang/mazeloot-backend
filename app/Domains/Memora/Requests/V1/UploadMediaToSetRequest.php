@@ -14,17 +14,11 @@ class UploadMediaToSetRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'media' => ['required', 'array', 'min:1'],
-            'media.*' => ['required', 'url', 'exists:user_files,url'],
-        ];
-    }
-
-    public function messages(): array
-    {
-        $maxSizeMB = round(config('upload.max_size', 10485760) / (1024 * 1024), 2);
-
-        return [
-
+            'user_file_uuid' => [
+                'required',
+                'uuid',
+                'exists:user_files,uuid',
+            ],
         ];
     }
 }
