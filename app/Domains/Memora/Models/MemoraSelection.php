@@ -41,6 +41,7 @@ class MemoraSelection extends Model
         'status',
         'color',
         'cover_photo_url',
+        'cover_focal_point',
         'password',
         'selection_completed_at',
         'completed_by_email',
@@ -60,6 +61,7 @@ class MemoraSelection extends Model
         'status' => SelectionStatusEnum::class,
         'selection_completed_at' => 'datetime',
         'auto_delete_date' => 'date',
+        'cover_focal_point' => 'array',
     ];
 
     /**

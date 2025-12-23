@@ -47,6 +47,16 @@ class MediaResource extends JsonResource
                     return $file->metadata['variants']['thumb'];
                 }
                 
+                // For videos, check metadata for thumbnail
+                if ($fileType === 'video' && $file->metadata) {
+                    if (isset($file->metadata['thumbnail'])) {
+                        return $file->metadata['thumbnail'];
+                    }
+                    if (isset($file->metadata['variants']['thumb'])) {
+                        return $file->metadata['variants']['thumb'];
+                    }
+                }
+                
                 return $this->thumbnail_url ?? $file->url ?? null;
             }, $this->thumbnail_url),
             'type' => $this->type?->value ?? $this->type,

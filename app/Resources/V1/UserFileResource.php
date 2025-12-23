@@ -24,7 +24,9 @@ class UserFileResource extends JsonResource
             'metadata' => $this->metadata,
             'thumbnailUrl' => $fileType === 'image' && $variants && isset($variants['thumb'])
                 ? $variants['thumb']
-                : ($fileType === 'video' ? $this->url : null),
+                : ($fileType === 'video' 
+                    ? ($this->metadata['thumbnail'] ?? ($variants && isset($variants['thumb']) ? $variants['thumb'] : null))
+                    : null),
             'variants' => $variants,
             'createdAt' => $this->created_at->toIso8601String(),
             'updatedAt' => $this->updated_at->toIso8601String(),

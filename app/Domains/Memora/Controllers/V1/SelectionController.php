@@ -132,7 +132,8 @@ class SelectionController extends Controller
     {
         try {
             $validated = $request->validated();
-            $selection = $this->selectionService->setCoverPhotoFromMedia($id, $validated['media_uuid']);
+            $focalPoint = $validated['focal_point'] ?? null;
+            $selection = $this->selectionService->setCoverPhotoFromMedia($id, $validated['media_uuid'], $focalPoint);
             return ApiResponse::success($selection);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ApiResponse::error('Selection or media not found', 'NOT_FOUND', 404);

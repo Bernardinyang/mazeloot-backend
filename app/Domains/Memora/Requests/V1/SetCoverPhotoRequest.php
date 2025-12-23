@@ -21,6 +21,9 @@ class SetCoverPhotoRequest extends FormRequest
     {
         return [
             'media_uuid' => ['required', 'string', 'uuid'],
+            'focal_point' => ['sometimes', 'array'],
+            'focal_point.x' => ['sometimes', 'numeric', 'min:0', 'max:100'],
+            'focal_point.y' => ['sometimes', 'numeric', 'min:0', 'max:100'],
         ];
     }
 

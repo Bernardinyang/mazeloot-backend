@@ -16,6 +16,7 @@ class SelectionResource extends JsonResource
             'status' => $this->status?->value ?? $this->status,
             'color' => $this->color,
             'coverPhotoUrl' => $this->cover_photo_url,
+            'coverFocalPoint' => $this->cover_focal_point,
             'hasPassword' => !empty($this->password),
             'selectionCompletedAt' => $this->selection_completed_at?->toIso8601String(),
             'completedByEmail' => $this->completed_by_email,

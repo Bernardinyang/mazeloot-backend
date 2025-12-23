@@ -381,7 +381,7 @@ class SelectionService
     /**
      * Set cover photo from media thumbnail URL
      */
-    public function setCoverPhotoFromMedia(string $selectionId, string $mediaUuid): SelectionResource
+    public function setCoverPhotoFromMedia(string $selectionId, string $mediaUuid, ?array $focalPoint = null): SelectionResource
     {
         // Find the selection and verify ownership
         $selection = MemoraSelection::query()
@@ -399,29 +399,45 @@ class SelectionService
             })
             ->firstOrFail();
 
-        // Get thumbnail URL from the media's file
-        $thumbnailUrl = null;
+        // Get cover URL from the media's file
+        // For videos, use the actual video URL (file.url)
+        // For images, use thumbnail variant if available, otherwise file URL
+        $coverUrl = null;
         if ($media->file) {
             $file = $media->file;
             $fileType = $file->type?->value ?? $file->type;
             
-            // Check for thumbnail variant first
-            if ($fileType === 'image' && $file->metadata && isset($file->metadata['variants']['thumb'])) {
-                $thumbnailUrl = $file->metadata['variants']['thumb'];
+            if ($fileType === 'video') {
+                // For videos, use the actual video URL
+                $coverUrl = $file->url ?? null;
             } else {
-                // Fallback to file URL
-                $thumbnailUrl = $file->url ?? null;
+                // For images, check for thumbnail variant first
+                if ($file->metadata && isset($file->metadata['variants']['thumb'])) {
+                    $coverUrl = $file->metadata['variants']['thumb'];
+                } else {
+                    // Fallback to file URL
+                    $coverUrl = $file->url ?? null;
+                }
             }
         }
 
-        if (!$thumbnailUrl) {
-            throw new \RuntimeException('Media does not have a valid thumbnail URL');
+        if (!$coverUrl) {
+            throw new \RuntimeException('Media does not have a valid URL');
         }
 
-        // Update selection with cover photo URL
-        $selection->update([
-            'cover_photo_url' => $thumbnailUrl,
-        ]);
+        // Prepare update data
+        $updateData = [
+            'cover_photo_url' => $coverUrl,
+        ];
+
+        // Add focal point if provided
+        if ($focalPoint !== null) {
+            $updateData['cover_focal_point'] = $focalPoint;
+        }
+
+        // Update selection with cover photo URL and optional focal point
+        // For videos, this will be the video URL; for images, it will be the thumbnail URL
+        $selection->update($updateData);
 
         // Return updated selection
         return $this->find($selectionId);
