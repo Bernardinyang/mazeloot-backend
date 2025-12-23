@@ -462,6 +462,50 @@ class MediaService
     }
 
     /**
+     * Rename media by updating the UserFile's filename
+     * Preserves the original file extension
+     * 
+     * @param string $mediaUuid Media UUID
+     * @param string $newFilename New filename (extension will be preserved from original)
+     * @return MemoraMedia Updated media with file relationship
+     */
+    public function renameMedia(string $mediaUuid, string $newFilename): MemoraMedia
+    {
+        // Find media and verify ownership
+        $media = MemoraMedia::where('uuid', $mediaUuid)
+            ->where('user_uuid', Auth::user()->uuid)
+            ->with('file')
+            ->firstOrFail();
+
+        // Ensure file relationship exists
+        if (!$media->file) {
+            throw new \RuntimeException('File not found for this media');
+        }
+
+        // Preserve the original extension
+        $originalFilename = $media->file->filename;
+        $originalExtension = pathinfo($originalFilename, PATHINFO_EXTENSION);
+        
+        // Remove extension from new filename if it exists
+        $newFilenameWithoutExt = pathinfo($newFilename, PATHINFO_FILENAME);
+        
+        // Reconstruct filename with original extension
+        $finalFilename = $originalExtension 
+            ? $newFilenameWithoutExt . '.' . $originalExtension
+            : $newFilenameWithoutExt;
+
+        // Update the UserFile's filename
+        $media->file->update([
+            'filename' => $finalFilename,
+        ]);
+
+        // Reload the file relationship to get updated data
+        $media->load('file');
+
+        return $media;
+    }
+
+    /**
      * Create media from upload URL (domains never handle files directly)
      */
     public function createFromUploadUrl(array $data, string $uploadUrl): MemoraMedia

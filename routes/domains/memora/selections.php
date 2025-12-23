@@ -45,6 +45,7 @@ Route::middleware(['auth:sanctum'])->prefix('selections')->group(function () {
             Route::post('/', [MediaController::class, 'uploadToSet']);
             Route::post('/move', [MediaController::class, 'moveToSet']);
             Route::post('/copy', [MediaController::class, 'copyToSet']);
+            Route::patch('/{mediaId}/rename', [MediaController::class, 'rename']);
             Route::delete('/{mediaId}', [MediaController::class, 'deleteFromSet']);
             Route::post('/{mediaId}/feedback', [MediaController::class, 'addFeedback']);
         });

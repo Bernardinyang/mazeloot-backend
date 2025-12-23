@@ -4,6 +4,7 @@ namespace App\Domains\Memora\Controllers\V1;
 
 use App\Domains\Memora\Requests\V1\AddMediaFeedbackRequest;
 use App\Domains\Memora\Requests\V1\MoveCopyMediaRequest;
+use App\Domains\Memora\Requests\V1\RenameMediaRequest;
 use App\Domains\Memora\Requests\V1\UploadMediaToSetRequest;
 use App\Domains\Memora\Resources\V1\MediaFeedbackResource;
 use App\Domains\Memora\Resources\V1\MediaResource;
@@ -88,6 +89,30 @@ class MediaController extends Controller
         }
 
         return ApiResponse::error('Failed to delete media', 'DELETE_FAILED', 500);
+    }
+
+    /**
+     * Rename media by updating the UserFile's filename
+     */
+    public function rename(RenameMediaRequest $request, string $selectionId, string $setUuid, string $mediaId): JsonResponse
+    {
+        try {
+            $validated = $request->validated();
+            $media = $this->mediaService->renameMedia($mediaId, $validated['filename']);
+            return ApiResponse::success(new MediaResource($media));
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ApiResponse::error('Media not found', 'MEDIA_NOT_FOUND', 404);
+        } catch (\RuntimeException $e) {
+            return ApiResponse::error($e->getMessage(), 'RENAME_FAILED', 400);
+        } catch (\Exception $e) {
+            Log::error('Failed to rename media', [
+                'selection_id' => $selectionId,
+                'set_uuid' => $setUuid,
+                'media_id' => $mediaId,
+                'exception' => $e->getMessage(),
+            ]);
+            return ApiResponse::error('Failed to rename media', 'RENAME_FAILED', 500);
+        }
     }
 
     /**
