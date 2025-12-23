@@ -49,7 +49,9 @@ class MediaResource extends JsonResource
                 return $this->thumbnail_url ?? $file->url ?? null;
             }, $this->thumbnail_url),
             'type' => $this->type?->value ?? $this->type,
-            'filename' => $this->filename,
+            'filename' => $this->whenLoaded('file', function () {
+                return $this->file->filename ?? $this->filename;
+            }, $this->filename),
             'mimeType' => $this->mime_type,
             'size' => $this->size,
             'width' => $this->width,

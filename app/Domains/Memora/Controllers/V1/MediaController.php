@@ -3,6 +3,7 @@
 namespace App\Domains\Memora\Controllers\V1;
 
 use App\Domains\Memora\Requests\V1\AddMediaFeedbackRequest;
+use App\Domains\Memora\Requests\V1\MoveCopyMediaRequest;
 use App\Domains\Memora\Requests\V1\UploadMediaToSetRequest;
 use App\Domains\Memora\Resources\V1\MediaFeedbackResource;
 use App\Domains\Memora\Resources\V1\MediaResource;
@@ -87,6 +88,67 @@ class MediaController extends Controller
         }
 
         return ApiResponse::error('Failed to delete media', 'DELETE_FAILED', 500);
+    }
+
+    /**
+     * Move media items to a different set
+     */
+    public function moveToSet(MoveCopyMediaRequest $request, string $selectionId, string $setUuid): JsonResponse
+    {
+        try {
+            $validated = $request->validated();
+            $movedCount = $this->mediaService->moveMediaToSet(
+                $validated['media_uuids'],
+                $validated['target_set_uuid']
+            );
+
+            return ApiResponse::success([
+                'message' => 'Media moved successfully',
+                'moved_count' => $movedCount,
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ApiResponse::error('Target set not found', 'SET_NOT_FOUND', 404);
+        } catch (\RuntimeException $e) {
+            return ApiResponse::error($e->getMessage(), 'MOVE_FAILED', 400);
+        } catch (\Exception $e) {
+            Log::error('Failed to move media', [
+                'selection_id' => $selectionId,
+                'set_uuid' => $setUuid,
+                'exception' => $e->getMessage(),
+            ]);
+            return ApiResponse::error('Failed to move media', 'MOVE_FAILED', 500);
+        }
+    }
+
+    /**
+     * Copy media items to a different set
+     */
+    public function copyToSet(MoveCopyMediaRequest $request, string $selectionId, string $setUuid): JsonResponse
+    {
+        try {
+            $validated = $request->validated();
+            $copiedMedia = $this->mediaService->copyMediaToSet(
+                $validated['media_uuids'],
+                $validated['target_set_uuid']
+            );
+
+            return ApiResponse::success([
+                'message' => 'Media copied successfully',
+                'copied_count' => count($copiedMedia),
+                'media' => MediaResource::collection($copiedMedia),
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ApiResponse::error('Target set not found', 'SET_NOT_FOUND', 404);
+        } catch (\RuntimeException $e) {
+            return ApiResponse::error($e->getMessage(), 'COPY_FAILED', 400);
+        } catch (\Exception $e) {
+            Log::error('Failed to copy media', [
+                'selection_id' => $selectionId,
+                'set_uuid' => $setUuid,
+                'exception' => $e->getMessage(),
+            ]);
+            return ApiResponse::error('Failed to copy media', 'COPY_FAILED', 500);
+        }
     }
 
     /**

@@ -4,6 +4,7 @@ namespace App\Domains\Memora\Controllers\V1;
 
 use App\Domains\Memora\Requests\V1\CompleteSelectionRequest;
 use App\Domains\Memora\Requests\V1\RecoverMediaRequest;
+use App\Domains\Memora\Requests\V1\SetCoverPhotoRequest;
 use App\Domains\Memora\Requests\V1\StoreSelectionRequest;
 use App\Domains\Memora\Requests\V1\UpdateSelectionRequest;
 use App\Domains\Memora\Resources\V1\MediaResource;
@@ -122,6 +123,29 @@ class SelectionController extends Controller
     {
         $result = $this->selectionService->getSelectedFilenames($id);
         return ApiResponse::success($result);
+    }
+
+    /**
+     * Set cover photo from media thumbnail URL
+     */
+    public function setCoverPhoto(SetCoverPhotoRequest $request, string $id): JsonResponse
+    {
+        try {
+            $validated = $request->validated();
+            $selection = $this->selectionService->setCoverPhotoFromMedia($id, $validated['media_uuid']);
+            return ApiResponse::success($selection);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ApiResponse::error('Selection or media not found', 'NOT_FOUND', 404);
+        } catch (\RuntimeException $e) {
+            return ApiResponse::error($e->getMessage(), 'INVALID_MEDIA', 400);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to set cover photo', [
+                'selection_id' => $id,
+                'media_uuid' => $request->input('media_uuid'),
+                'exception' => $e->getMessage(),
+            ]);
+            return ApiResponse::error('Failed to set cover photo', 'SET_COVER_FAILED', 500);
+        }
     }
 
     /**

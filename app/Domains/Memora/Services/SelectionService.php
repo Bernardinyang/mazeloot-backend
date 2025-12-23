@@ -356,18 +356,75 @@ class SelectionService
      */
     public function getSelectedFilenames(string $id): array
     {
-        $filenames = MemoraMedia::query()->whereHas('mediaSet', function ($query) use ($id) {
-            $query->where('selection_uuid', $id);
-        })
+        $mediaItems = MemoraMedia::query()
+            ->whereHas('mediaSet', function ($query) use ($id) {
+                $query->where('selection_uuid', $id);
+            })
             ->where('is_selected', true)
+            ->with('file')
             ->orderBy('order')
-            ->pluck('filename')
+            ->get();
+
+        $filenames = $mediaItems->map(function ($media) {
+            return $media->file?->filename ?? null;
+        })
+            ->filter()
+            ->values()
             ->toArray();
 
         return [
             'filenames' => $filenames,
             'count' => count($filenames),
         ];
+    }
+
+    /**
+     * Set cover photo from media thumbnail URL
+     */
+    public function setCoverPhotoFromMedia(string $selectionId, string $mediaUuid): SelectionResource
+    {
+        // Find the selection and verify ownership
+        $selection = MemoraSelection::query()
+            ->where('uuid', $selectionId)
+            ->where('user_uuid', Auth::user()->uuid)
+            ->firstOrFail();
+
+        // Find the media and verify it belongs to this selection
+        $media = MemoraMedia::query()
+            ->where('uuid', $mediaUuid)
+            ->where('user_uuid', Auth::user()->uuid)
+            ->with('file')
+            ->whereHas('mediaSet', function ($query) use ($selectionId) {
+                $query->where('selection_uuid', $selectionId);
+            })
+            ->firstOrFail();
+
+        // Get thumbnail URL from the media's file
+        $thumbnailUrl = null;
+        if ($media->file) {
+            $file = $media->file;
+            $fileType = $file->type?->value ?? $file->type;
+            
+            // Check for thumbnail variant first
+            if ($fileType === 'image' && $file->metadata && isset($file->metadata['variants']['thumb'])) {
+                $thumbnailUrl = $file->metadata['variants']['thumb'];
+            } else {
+                // Fallback to file URL
+                $thumbnailUrl = $file->url ?? null;
+            }
+        }
+
+        if (!$thumbnailUrl) {
+            throw new \RuntimeException('Media does not have a valid thumbnail URL');
+        }
+
+        // Update selection with cover photo URL
+        $selection->update([
+            'cover_photo_url' => $thumbnailUrl,
+        ]);
+
+        // Return updated selection
+        return $this->find($selectionId);
     }
 
     /**

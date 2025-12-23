@@ -331,6 +331,114 @@ class MediaService
     }
 
     /**
+     * Move media items to a different set
+     * 
+     * @param array $mediaUuids Array of media UUIDs to move
+     * @param string $targetSetUuid Target set UUID
+     * @return int Number of media items moved
+     */
+    public function moveMediaToSet(array $mediaUuids, string $targetSetUuid): int
+    {
+        // Verify target set exists and belongs to user
+        $targetSet = MemoraMediaSet::query()
+            ->where('uuid', $targetSetUuid)
+            ->where('user_uuid', Auth::user()->uuid)
+            ->firstOrFail();
+
+        // Verify all media items exist and belong to user
+        $mediaItems = MemoraMedia::where('user_uuid', Auth::user()->uuid)
+            ->whereIn('uuid', $mediaUuids)
+            ->get();
+
+        if ($mediaItems->count() !== count($mediaUuids)) {
+            throw new \RuntimeException('One or more media items not found or access denied');
+        }
+
+        // Validate: Prevent moving to the same set
+        $sourceSetUuids = $mediaItems->pluck('media_set_uuid')->unique();
+        if ($sourceSetUuids->contains($targetSetUuid)) {
+            throw new \RuntimeException('Cannot move media to the same set it already belongs to');
+        }
+
+        // Get the maximum order for media in the target set
+        $maxOrder = MemoraMedia::where('media_set_uuid', $targetSetUuid)
+            ->max('order') ?? -1;
+
+        // Update media_set_uuid for each media item and set order
+        $movedCount = 0;
+        foreach ($mediaItems as $index => $media) {
+            $media->update([
+                'media_set_uuid' => $targetSetUuid,
+                'order' => $maxOrder + 1 + $index,
+            ]);
+            $movedCount++;
+        }
+
+        return $movedCount;
+    }
+
+    /**
+     * Copy media items to a different set
+     * Creates new media entries pointing to the same user_file_uuid
+     * 
+     * @param array $mediaUuids Array of media UUIDs to copy
+     * @param string $targetSetUuid Target set UUID
+     * @return array Array of newly created media items
+     */
+    public function copyMediaToSet(array $mediaUuids, string $targetSetUuid): array
+    {
+        // Verify target set exists and belongs to user
+        $targetSet = MemoraMediaSet::query()
+            ->where('uuid', $targetSetUuid)
+            ->where('user_uuid', Auth::user()->uuid)
+            ->firstOrFail();
+
+        // Verify all media items exist and belong to user
+        $mediaItems = MemoraMedia::where('user_uuid', Auth::user()->uuid)
+            ->whereIn('uuid', $mediaUuids)
+            ->with('file')
+            ->get();
+
+        if ($mediaItems->count() !== count($mediaUuids)) {
+            throw new \RuntimeException('One or more media items not found or access denied');
+        }
+
+        // Validate: Prevent copying to the same set (would create duplicates)
+        $sourceSetUuids = $mediaItems->pluck('media_set_uuid')->unique();
+        if ($sourceSetUuids->contains($targetSetUuid)) {
+            throw new \RuntimeException('Cannot copy media to the same set it already belongs to');
+        }
+
+        // Get the maximum order for media in the target set
+        $maxOrder = MemoraMedia::where('media_set_uuid', $targetSetUuid)
+            ->max('order') ?? -1;
+
+        $copiedMedia = [];
+        foreach ($mediaItems as $index => $media) {
+            if (!$media->user_file_uuid) {
+                // Skip if media doesn't have a user_file_uuid
+                continue;
+            }
+
+            // Create new media entry with same user_file_uuid
+            $newMedia = MemoraMedia::create([
+                'user_uuid' => Auth::user()->uuid,
+                'media_set_uuid' => $targetSetUuid,
+                'user_file_uuid' => $media->user_file_uuid,
+                'order' => $maxOrder + 1 + $index,
+                'is_selected' => false,
+                'is_completed' => false,
+            ]);
+
+            // Load the file relationship
+            $newMedia->load('file');
+            $copiedMedia[] = $newMedia;
+        }
+
+        return $copiedMedia;
+    }
+
+    /**
      * Get media by UUID for download
      * Returns the media with file relationship loaded
      */
