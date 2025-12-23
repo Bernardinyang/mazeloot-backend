@@ -4,6 +4,7 @@ namespace App\Domains\Memora\Resources\V1;
 
 use App\Resources\V1\UserFileResource;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Auth;
 
 class MediaResource extends JsonResource
 {
@@ -57,6 +58,9 @@ class MediaResource extends JsonResource
             'width' => $this->width,
             'height' => $this->height,
             'order' => $this->order,
+            'isStarred' => Auth::check() && $this->relationLoaded('starredByUsers') 
+                ? $this->starredByUsers->isNotEmpty() 
+                : false,
             'createdAt' => $this->created_at->toIso8601String(),
             'updatedAt' => $this->updated_at->toIso8601String(),
         ];

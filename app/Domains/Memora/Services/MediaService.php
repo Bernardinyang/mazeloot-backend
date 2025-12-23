@@ -226,7 +226,10 @@ class MediaService
     public function getSetMedia(string $setUuid, ?string $sortBy = null)
     {
         $query = MemoraMedia::where('media_set_uuid', $setUuid)
-            ->with(['feedback', 'file']);
+            ->with(['feedback', 'file'])
+            ->with(['starredByUsers' => function ($query) {
+                $query->where('user_uuid', Auth::user()->uuid);
+            }]);
 
         // Apply sorting
         if ($sortBy) {
@@ -241,7 +244,7 @@ class MediaService
         // If we used a join for sorting, reload relationships to ensure they're available
         // This is necessary because joins can interfere with eager loading
         if ($sortBy && str_starts_with($sortBy, 'name-')) {
-            $media->load(['feedback', 'file']);
+            $media->load(['feedback', 'file', 'starredByUsers']);
         }
 
         return $media;
@@ -473,6 +476,32 @@ class MediaService
         }
 
         return $media;
+    }
+
+    /**
+     * Toggle star status for a media item
+     *
+     * @param string $mediaUuid Media UUID
+     * @return array{starred: bool} Returns whether the media is now starred
+     */
+    public function toggleStar(string $mediaUuid): array
+    {
+        // Verify the media exists and belongs to the user
+        $media = MemoraMedia::where('uuid', $mediaUuid)
+            ->where('user_uuid', Auth::user()->uuid)
+            ->firstOrFail();
+
+        $user = Auth::user();
+
+        // Toggle the star relationship
+        $user->starredMedia()->toggle($media->uuid);
+
+        // Check if it's now starred
+        $isStarred = $user->starredMedia()->where('media_uuid', $media->uuid)->exists();
+
+        return [
+            'starred' => $isStarred,
+        ];
     }
 
     /**

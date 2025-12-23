@@ -231,6 +231,27 @@ class MediaController extends Controller
     }
 
     /**
+     * Toggle star status for a media item
+     */
+    public function toggleStar(string $selectionId, string $setUuid, string $mediaId): JsonResponse
+    {
+        try {
+            $result = $this->mediaService->toggleStar($mediaId);
+            return ApiResponse::success($result);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ApiResponse::error('Media not found', 'MEDIA_NOT_FOUND', 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to toggle star for media', [
+                'selection_id' => $selectionId,
+                'set_uuid' => $setUuid,
+                'media_id' => $mediaId,
+                'exception' => $e->getMessage(),
+            ]);
+            return ApiResponse::error('Failed to toggle star', 'STAR_FAILED', 500);
+        }
+    }
+
+    /**
      * Download original image file by media UUID
      */
     public function download(string $mediaUuid): StreamedResponse|Response|JsonResponse|RedirectResponse

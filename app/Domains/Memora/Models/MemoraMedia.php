@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Str;
 
 class MemoraMedia extends Model
@@ -98,5 +99,20 @@ class MemoraMedia extends Model
     public function file(): BelongsTo
     {
         return $this->belongsTo(\App\Models\UserFile::class, 'user_file_uuid', 'uuid');
+    }
+
+    /**
+     * Get the users who have starred this media.
+     */
+    public function starredByUsers(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            \App\Models\User::class,
+            'user_starred_media',
+            'media_uuid',
+            'user_uuid',
+            'uuid',
+            'uuid'
+        )->withTimestamps();
     }
 }

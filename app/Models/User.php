@@ -155,6 +155,21 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the media starred by this user.
+     */
+    public function starredMedia(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            \App\Domains\Memora\Models\MemoraMedia::class,
+            'user_starred_media',
+            'user_uuid',
+            'media_uuid',
+            'uuid',
+            'uuid'
+        )->withTimestamps();
+    }
+
+    /**
      * Check if the user has a specific role.
      *
      * @param UserRoleEnum $role
