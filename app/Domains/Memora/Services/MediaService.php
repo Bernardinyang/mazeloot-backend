@@ -236,7 +236,15 @@ class MediaService
             $query->orderBy('order');
         }
 
-        return $query->get();
+        $media = $query->get();
+        
+        // If we used a join for sorting, reload relationships to ensure they're available
+        // This is necessary because joins can interfere with eager loading
+        if ($sortBy && str_starts_with($sortBy, 'name-')) {
+            $media->load(['feedback', 'file']);
+        }
+
+        return $media;
     }
 
     /**
@@ -277,8 +285,14 @@ class MediaService
             $query->leftJoin('user_files', 'memora_media.user_file_uuid', '=', 'user_files.uuid')
                 ->orderBy('user_files.filename', $direction)
                 ->select('memora_media.*'); // Ensure we only select media columns
+        } elseif ($field === 'uploaded') {
+            // For uploaded sorting, use created_at
+            $query->orderBy('memora_media.created_at', $direction);
+        } elseif ($field === 'date-taken') {
+            // For date-taken sorting, use created_at (TODO: use actual date_taken field if available)
+            $query->orderBy('memora_media.created_at', $direction);
         } else {
-            $query->orderBy($dbField, $direction);
+            $query->orderBy('memora_media.' . $dbField, $direction);
         }
     }
 
