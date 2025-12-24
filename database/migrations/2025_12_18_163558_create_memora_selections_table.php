@@ -22,10 +22,13 @@ return new class extends Migration {
             $table->enum('status', SelectionStatusEnum::values())->default(SelectionStatusEnum::DRAFT->value);
             $table->string('color', 7)->default('#10B981'); // Default green color
             $table->string('cover_photo_url')->nullable();
+            $table->json('cover_focal_point')->nullable();
             $table->string('password')->nullable();
             $table->timestamp('selection_completed_at')->nullable();
             $table->string('completed_by_email')->nullable();
             $table->date('auto_delete_date')->nullable();
+            $table->boolean('auto_delete_enabled')->default(false);
+            $table->integer('auto_delete_days')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

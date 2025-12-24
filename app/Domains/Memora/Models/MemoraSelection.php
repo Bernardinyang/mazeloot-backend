@@ -19,14 +19,14 @@ class MemoraSelection extends Model
      * @var string
      */
     protected $primaryKey = 'uuid';
-    
+
     /**
      * The "type" of the primary key ID.
      *
      * @var string
      */
     protected $keyType = 'string';
-    
+
     /**
      * Indicates if the IDs are auto-incrementing.
      *
@@ -46,6 +46,9 @@ class MemoraSelection extends Model
         'selection_completed_at',
         'completed_by_email',
         'auto_delete_date',
+        'auto_delete_enabled',
+        'auto_delete_days',
+        'display_settings',
     ];
 
     /**
@@ -61,7 +64,10 @@ class MemoraSelection extends Model
         'status' => SelectionStatusEnum::class,
         'selection_completed_at' => 'datetime',
         'auto_delete_date' => 'date',
+        'auto_delete_enabled' => 'boolean',
+        'auto_delete_days' => 'integer',
         'cover_focal_point' => 'array',
+        'display_settings' => 'array',
     ];
 
     /**

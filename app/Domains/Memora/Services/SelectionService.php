@@ -258,6 +258,11 @@ class SelectionService
             }
         }
 
+        // Handle auto_delete_date update
+        if (array_key_exists('auto_delete_date', $data)) {
+            $updateData['auto_delete_date'] = $data['auto_delete_date'] ? $data['auto_delete_date'] : null;
+        }
+
         $selection->update($updateData);
 
         // Return with calculated counts
