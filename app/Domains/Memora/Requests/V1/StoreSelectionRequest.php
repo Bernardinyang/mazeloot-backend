@@ -17,6 +17,7 @@ class StoreSelectionRequest extends FormRequest
     {
         return [
             'name' => ['nullable', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:1000'],
             'project_uuid' => ['nullable', 'uuid', 'exists:memora_projects,uuid'],
             'status' => ['nullable', Rule::enum(SelectionStatusEnum::class)],
             'color' => ['nullable', 'string', 'max:7'],

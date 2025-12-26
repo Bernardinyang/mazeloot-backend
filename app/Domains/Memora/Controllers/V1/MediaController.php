@@ -201,24 +201,7 @@ class MediaController extends Controller
         }
     }
 
-    /**
-     * Get media for a specific set (guest access) with optional sorting
-     */
-    public function getSetMediaGuest(Request $request, string $id, string $setUuid): JsonResponse
-    {
-        $guestToken = $request->attributes->get('guest_token');
-
-        // Verify the token belongs to this selection
-        if ($guestToken->selection_uuid !== $id) {
-            return ApiResponse::error('Token does not match selection', 'INVALID_TOKEN', 403);
-        }
-
-        $sortBy = $request->query('sort_by');
-        $media = $this->mediaService->getSetMedia($setUuid, $sortBy);
-        return ApiResponse::success(MediaResource::collection($media));
-    }
-
-    // Guest methods
+    // Authenticated user methods
 
     /**
      * Get media for a specific set with optional sorting

@@ -77,39 +77,5 @@ class MediaSetController extends Controller
         $this->mediaSetService->reorder($selectionId, $request->input('setIds'));
         return ApiResponse::success(['message' => 'Sets reordered successfully']);
     }
-
-    // Guest methods
-
-    /**
-     * Get all media sets for a selection (guest access)
-     */
-    public function indexGuest(Request $request, string $id): JsonResponse
-    {
-        $guestToken = $request->attributes->get('guest_token');
-
-        // Verify the token belongs to this selection
-        if ($guestToken->selection_uuid !== $id) {
-            return ApiResponse::error('Token does not match selection', 'INVALID_TOKEN', 403);
-        }
-
-        $sets = $this->mediaSetService->getBySelection($id);
-        return ApiResponse::success(MediaSetResource::collection($sets));
-    }
-
-    /**
-     * Get a single media set (guest access)
-     */
-    public function showGuest(Request $request, string $id, string $setUuid): JsonResponse
-    {
-        $guestToken = $request->attributes->get('guest_token');
-
-        // Verify the token belongs to this selection
-        if ($guestToken->selection_uuid !== $id) {
-            return ApiResponse::error('Token does not match selection', 'INVALID_TOKEN', 403);
-        }
-
-        $set = $this->mediaSetService->find($id, $setUuid);
-        return ApiResponse::success(new MediaSetResource($set));
-    }
 }
 

@@ -36,11 +36,12 @@ class SelectionService
             'user_uuid' => Auth::user()->uuid,
             'project_uuid' => $projectUuid,
             'name' => $data['name'],
+            'description' => (isset($data['description']) && trim($data['description']) !== '') ? trim($data['description']) : null,
             'color' => $data['color'] ?? '#10B981',
         ];
 
         if (!empty($data['password'])) {
-            $selectionData['password'] = bcrypt($data['password']);
+            $selectionData['password'] = $data['password'];
         }
 
         $selection = MemoraSelection::query()->create($selectionData);
@@ -55,13 +56,18 @@ class SelectionService
      */
     protected function findModel(string $id): MemoraSelection
     {
-        $selection = MemoraSelection::query()->where('user_uuid', Auth::user()->uuid)
+        $user = Auth::user();
+        if (!$user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $selection = MemoraSelection::query()->where('user_uuid', $user->uuid)
             ->where('uuid', $id)
             ->with(['mediaSets' => function ($query) {
                 $query->withCount('media')->orderBy('order');
             }])
-            ->with(['starredByUsers' => function ($query) {
-                $query->where('user_uuid', Auth::user()->uuid);
+            ->with(['starredByUsers' => function ($query) use ($user) {
+                $query->where('user_uuid', $user->uuid);
             }])
             // Add subquery for media count to avoid N+1
             ->addSelect([
@@ -217,21 +223,46 @@ class SelectionService
         $query->orderBy($dbField, $direction);
     }
 
-    /**
-     * Publish a selection (creative can only publish to active, not complete)
-     */
     public function publish(string $id): SelectionResource
     {
-        $selection = MemoraSelection::where('user_uuid', Auth::user()->uuid)
+        $user = Auth::user();
+        if (!$user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $selection = MemoraSelection::where('user_uuid', $user->uuid)
             ->where('uuid', $id)
             ->firstOrFail();
 
-        $selection->update([
-            'status' => 'active',
-        ]);
+        $newStatus = match ($selection->status->value) {
+            'draft' => 'active',
+            'active' => 'draft',
+            'completed' => 'active',
+            default => 'active',
+        };
 
-        // Return with calculated counts
-        return $this->find($id);
+        // Validate that at least one email is in allowed_emails before publishing to active
+        if ($newStatus === 'active') {
+            $allowedEmails = $selection->allowed_emails ?? [];
+            if (empty($allowedEmails) || !is_array($allowedEmails) || count(array_filter($allowedEmails)) === 0) {
+                throw new \Illuminate\Validation\ValidationException(
+                    validator([], []),
+                    ['allowed_emails' => ['At least one email address must be added to "Allowed Emails" before publishing the selection.']]
+                );
+            }
+        }
+
+        $selection->update(['status' => $newStatus]);
+
+        $selection->refresh();
+        $selection->load(['mediaSets' => function ($query) {
+            $query->withCount('media')->orderBy('order');
+        }]);
+        $selection->load(['starredByUsers' => function ($query) use ($user) {
+            $query->where('user_uuid', $user->uuid);
+        }]);
+
+        return new SelectionResource($selection);
     }
 
     /**
@@ -245,22 +276,58 @@ class SelectionService
 
         $updateData = [];
         if (isset($data['name'])) $updateData['name'] = $data['name'];
+        // Always handle description if it exists in the data (even if null)
+        if (array_key_exists('description', $data)) {
+            $desc = $data['description'];
+            if ($desc === null || $desc === '') {
+                $updateData['description'] = null;
+            } else {
+                $updateData['description'] = trim((string) $desc);
+            }
+        }
         if (isset($data['status'])) $updateData['status'] = $data['status'];
         if (isset($data['color'])) $updateData['color'] = $data['color'];
         if (isset($data['cover_photo_url'])) $updateData['cover_photo_url'] = $data['cover_photo_url'];
 
-        // Handle password update - hash if provided, or set to null if empty string
+        // Handle password update - store in plain text if provided, or set to null if empty string
         if (array_key_exists('password', $data)) {
             if (!empty($data['password'])) {
-                $updateData['password'] = bcrypt($data['password']);
+                $updateData['password'] = $data['password'];
             } else {
                 $updateData['password'] = null;
             }
         }
 
+        // Handle allowed_emails update
+        if (array_key_exists('allowed_emails', $data) || array_key_exists('allowedEmails', $data)) {
+            $emails = $data['allowed_emails'] ?? $data['allowedEmails'] ?? [];
+            // Ensure it's an array and filter out empty values
+            $emails = is_array($emails) ? array_filter(array_map('trim', $emails)) : [];
+            $updateData['allowed_emails'] = !empty($emails) ? array_values($emails) : null;
+        }
+
+        // Handle selection_limit update (support both snake_case and camelCase)
+        if (array_key_exists('selection_limit', $data) || array_key_exists('selectionLimit', $data)) {
+            $limit = $data['selection_limit'] ?? $data['selectionLimit'] ?? null;
+            $updateData['selection_limit'] = $limit !== null ? (int) $limit : null;
+        }
+
         // Handle auto_delete_date update
         if (array_key_exists('auto_delete_date', $data)) {
             $updateData['auto_delete_date'] = $data['auto_delete_date'] ? $data['auto_delete_date'] : null;
+        }
+
+        // Validate that at least one email is in allowed_emails before changing status to active
+        $newStatus = $updateData['status'] ?? $selection->status->value;
+        if ($newStatus === 'active') {
+            // Get the current allowed_emails (either from update data or existing selection)
+            $allowedEmails = $updateData['allowed_emails'] ?? $selection->allowed_emails ?? [];
+            if (empty($allowedEmails) || !is_array($allowedEmails) || count(array_filter($allowedEmails)) === 0) {
+                throw new \Illuminate\Validation\ValidationException(
+                    validator([], []),
+                    ['allowed_emails' => ['At least one email address must be added to "Allowed Emails" before publishing the selection.']]
+                );
+            }
         }
 
         $selection->update($updateData);
@@ -289,10 +356,10 @@ class SelectionService
                 $query->withCount('media')->orderBy('order');
             }]);
 
-        // Only load starred relationship if user is authenticated
-        if (Auth::check()) {
-            $query->with(['starredByUsers' => function ($q) {
-                $q->where('user_uuid', Auth::user()->uuid);
+        $user = Auth::user();
+        if ($user) {
+            $query->with(['starredByUsers' => function ($q) use ($user) {
+                $q->where('user_uuid', $user->uuid);
             }]);
         }
 
@@ -312,10 +379,21 @@ class SelectionService
             'status' => 'completed',
             'selection_completed_at' => now(),
             'completed_by_email' => $completedByEmail,
-            'auto_delete_date' => now()->addDays(30), // 30 days auto-delete
+            'auto_delete_date' => now()->addDays(30),
         ]);
 
-        return new SelectionResource($this->findModel($id));
+        $selection->refresh();
+        $selection->load(['mediaSets' => function ($query) {
+            $query->withCount('media')->orderBy('order');
+        }]);
+        
+        if ($user) {
+            $selection->load(['starredByUsers' => function ($q) use ($user) {
+                $q->where('user_uuid', $user->uuid);
+            }]);
+        }
+
+        return new SelectionResource($selection);
     }
 
     /**
@@ -359,16 +437,20 @@ class SelectionService
     /**
      * Get selected filenames
      */
-    public function getSelectedFilenames(string $id): array
+    public function getSelectedFilenames(string $id, ?string $setId = null): array
     {
-        $mediaItems = MemoraMedia::query()
-            ->whereHas('mediaSet', function ($query) use ($id) {
-                $query->where('selection_uuid', $id);
+        $query = MemoraMedia::query()
+            ->whereHas('mediaSet', function ($q) use ($id, $setId) {
+                $q->where('selection_uuid', $id);
+                if ($setId) {
+                    $q->where('uuid', $setId);
+                }
             })
             ->where('is_selected', true)
             ->with('file')
-            ->orderBy('order')
-            ->get();
+            ->orderBy('order');
+
+        $mediaItems = $query->get();
 
         $filenames = $mediaItems->map(function ($media) {
             return $media->file?->filename ?? null;
@@ -381,6 +463,27 @@ class SelectionService
             'filenames' => $filenames,
             'count' => count($filenames),
         ];
+    }
+
+    /**
+     * Reset selection limit
+     */
+    public function resetSelectionLimit(string $id): SelectionResource
+    {
+        $selection = MemoraSelection::query()->where('user_uuid', Auth::user()->uuid)
+            ->where('uuid', $id)
+            ->firstOrFail();
+
+        // Only allow reset if selection is completed
+        if ($selection->status->value !== 'completed') {
+            throw new \RuntimeException('Selection limit can only be reset for completed selections');
+        }
+
+        $selection->update([
+            'reset_selection_limit_at' => now(),
+        ]);
+
+        return $this->find($id);
     }
 
     /**

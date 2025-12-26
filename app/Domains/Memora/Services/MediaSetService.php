@@ -19,14 +19,28 @@ class MediaSetService
         $maxOrder = MemoraMediaSet::where('selection_uuid', $selectionId)
             ->max('order') ?? -1;
 
-        return MemoraMediaSet::create([
+        $setData = [
             'user_uuid' => Auth::user()->uuid,
             'selection_uuid' => $selectionId,
             'project_uuid' => $selection->project_uuid,
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
             'order' => $maxOrder + 1,
-        ]);
+        ];
+
+        // Handle selection_limit (support both snake_case and camelCase)
+        // Use array_key_exists to allow null values to be set
+        if (array_key_exists('selection_limit', $data) || array_key_exists('selectionLimit', $data)) {
+            $limit = $data['selection_limit'] ?? $data['selectionLimit'] ?? null;
+            // Explicitly set to null if null, empty string, or 0; otherwise cast to int
+            if ($limit === null || $limit === '' || $limit === 0) {
+                $setData['selection_limit'] = null;
+            } else {
+                $setData['selection_limit'] = (int) $limit;
+            }
+        }
+
+        return MemoraMediaSet::create($setData);
     }
 
     /**
@@ -102,6 +116,16 @@ class MediaSetService
         }
         if (isset($data['order'])) {
             $updateData['order'] = $data['order'];
+        }
+        // Handle selection_limit update (support both snake_case and camelCase)
+        if (array_key_exists('selection_limit', $data) || array_key_exists('selectionLimit', $data)) {
+            $limit = $data['selection_limit'] ?? $data['selectionLimit'] ?? null;
+            // Explicitly set to null if null, empty string, or 0; otherwise cast to int
+            if ($limit === null || $limit === '' || $limit === 0) {
+                $updateData['selection_limit'] = null;
+            } else {
+                $updateData['selection_limit'] = (int) $limit;
+            }
         }
 
         $set->update($updateData);

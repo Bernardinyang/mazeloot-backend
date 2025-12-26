@@ -43,6 +43,12 @@ class MemoraMediaSet extends Model
         'name',
         'description',
         'order',
+        'selection_limit',
+    ];
+
+    protected $casts = [
+        'selection_limit' => 'integer',
+        'order' => 'integer',
     ];
 
     protected static function newFactory(): Factory|MediaSetFactory

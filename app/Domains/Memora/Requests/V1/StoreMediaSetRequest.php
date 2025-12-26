@@ -37,6 +37,8 @@ class StoreMediaSetRequest extends FormRequest
                 },
             ],
             'description' => ['nullable', 'string', 'max:1000'],
+            'selection_limit' => ['nullable', 'integer', 'min:1'],
+            'selectionLimit' => ['nullable', 'integer', 'min:1'], // Frontend alias
         ];
     }
 }

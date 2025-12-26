@@ -22,6 +22,7 @@ return new class extends Migration {
             $table->text('description')->nullable();
             $table->json('metadata')->nullable();
             $table->integer('order')->default(0);
+            $table->integer('selection_limit')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

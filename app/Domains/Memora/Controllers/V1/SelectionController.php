@@ -2,14 +2,12 @@
 
 namespace App\Domains\Memora\Controllers\V1;
 
-use App\Domains\Memora\Requests\V1\CompleteSelectionRequest;
 use App\Domains\Memora\Requests\V1\RecoverMediaRequest;
 use App\Domains\Memora\Requests\V1\SetCoverPhotoRequest;
 use App\Domains\Memora\Requests\V1\StoreSelectionRequest;
 use App\Domains\Memora\Requests\V1\UpdateSelectionRequest;
 use App\Domains\Memora\Resources\V1\MediaResource;
 use App\Domains\Memora\Resources\V1\SelectionResource;
-use App\Domains\Memora\Services\GuestSelectionService;
 use App\Domains\Memora\Services\SelectionService;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -18,12 +16,10 @@ use Illuminate\Http\Request;
 class SelectionController extends Controller
 {
     protected SelectionService $selectionService;
-    protected GuestSelectionService $guestSelectionService;
 
-    public function __construct(SelectionService $selectionService, GuestSelectionService $guestSelectionService)
+    public function __construct(SelectionService $selectionService)
     {
         $this->selectionService = $selectionService;
-        $this->guestSelectionService = $guestSelectionService;
     }
 
     /**
@@ -119,10 +115,24 @@ class SelectionController extends Controller
     /**
      * Get selected filenames
      */
-    public function getSelectedFilenames(string $id): JsonResponse
+    public function getSelectedFilenames(Request $request, string $id): JsonResponse
     {
-        $result = $this->selectionService->getSelectedFilenames($id);
+        $setId = $request->query('setId');
+        $result = $this->selectionService->getSelectedFilenames($id, $setId);
         return ApiResponse::success($result);
+    }
+
+    /**
+     * Reset selection limit
+     */
+    public function resetSelectionLimit(string $id): JsonResponse
+    {
+        try {
+            $selection = $this->selectionService->resetSelectionLimit($id);
+            return ApiResponse::success($selection);
+        } catch (\RuntimeException $e) {
+            return ApiResponse::error($e->getMessage(), 'INVALID_OPERATION', 400);
+        }
     }
 
     /**
@@ -156,50 +166,6 @@ class SelectionController extends Controller
     {
         $result = $this->selectionService->toggleStar($id);
         return ApiResponse::success($result);
-    }
-
-    // Guest methods (for guest users with temporary tokens)
-
-    /**
-     * Get a selection (guest access)
-     */
-    public function showGuest(Request $request, string $id): JsonResponse
-    {
-        $guestToken = $request->attributes->get('guest_token');
-
-        // Verify the token belongs to this selection
-        if ($guestToken->selection_uuid !== $id) {
-            return ApiResponse::error('Token does not match selection', 'INVALID_TOKEN', 403);
-        }
-
-        $selection = $this->selectionService->find($id);
-        return ApiResponse::success($selection);
-    }
-
-    /**
-     * Complete a selection (guest access)
-     * Accepts media UUIDs to mark as selected
-     */
-    public function completeGuest(CompleteSelectionRequest $request, string $id): JsonResponse
-    {
-        $guestToken = $request->attributes->get('guest_token');
-
-        // Verify the token belongs to this selection
-        if ($guestToken->selection_uuid !== $id) {
-            return ApiResponse::error('Token does not match selection', 'INVALID_TOKEN', 403);
-        }
-
-        // Complete selection with media UUIDs and guest email
-        $selection = $this->selectionService->complete(
-            $id,
-            $request->validated()['mediaIds'],
-            $guestToken->email
-        );
-
-        // Mark token as used
-        $this->guestSelectionService->markTokenAsUsed($guestToken->token);
-
-        return ApiResponse::success($selection);
     }
 }
 

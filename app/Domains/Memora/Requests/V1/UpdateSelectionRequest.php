@@ -17,10 +17,17 @@ class UpdateSelectionRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'description' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'status' => ['sometimes', Rule::enum(SelectionStatusEnum::class)],
             'color' => ['sometimes', 'string', 'max:7'],
             'cover_photo_url' => ['nullable', 'string', 'url'],
             'password' => ['nullable', 'string', 'min:4', 'max:255'],
+            'allowed_emails' => ['nullable', 'array'],
+            'allowed_emails.*' => ['email', 'max:255'],
+            'allowedEmails' => ['nullable', 'array'],
+            'allowedEmails.*' => ['email', 'max:255'],
+            'selection_limit' => ['nullable', 'integer', 'min:1'],
+            'selectionLimit' => ['nullable', 'integer', 'min:1'], // Frontend alias
             'auto_delete_date' => ['nullable', 'date'],
             'display_settings' => ['sometimes', 'array'],
             'display_settings.view_mode' => ['sometimes', 'string', 'in:grid,list'],

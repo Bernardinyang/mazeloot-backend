@@ -38,13 +38,17 @@ class MemoraSelection extends Model
         'user_uuid',
         'project_uuid',
         'name',
+        'description',
         'status',
         'color',
         'cover_photo_url',
         'cover_focal_point',
         'password',
+        'allowed_emails',
         'selection_completed_at',
         'completed_by_email',
+        'selection_limit',
+        'reset_selection_limit_at',
         'auto_delete_date',
         'auto_delete_enabled',
         'auto_delete_days',
@@ -63,11 +67,14 @@ class MemoraSelection extends Model
     protected $casts = [
         'status' => SelectionStatusEnum::class,
         'selection_completed_at' => 'datetime',
+        'reset_selection_limit_at' => 'datetime',
         'auto_delete_date' => 'date',
         'auto_delete_enabled' => 'boolean',
         'auto_delete_days' => 'integer',
+        'selection_limit' => 'integer',
         'cover_focal_point' => 'array',
         'display_settings' => 'array',
+        'allowed_emails' => 'array',
     ];
 
     /**

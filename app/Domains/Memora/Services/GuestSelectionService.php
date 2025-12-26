@@ -15,6 +15,17 @@ class GuestSelectionService
     {
         $selection = MemoraSelection::findOrFail($selectionId);
 
+        // Allow token generation for active or completed selections (view-only for completed)
+        if (!in_array($selection->status->value, ['active', 'completed'])) {
+            throw new \RuntimeException('Selection is not accessible. Only active or completed selections can be accessed publicly.');
+        }
+
+        // Check if email is in the allowed emails list (if list exists)
+        $allowedEmails = $selection->allowed_emails ?? [];
+        if (!empty($allowedEmails) && !in_array(strtolower($email), array_map('strtolower', $allowedEmails))) {
+            throw new \RuntimeException('This email is not authorized to access this selection.');
+        }
+
         // Create token that expires in 7 days
         return GuestSelectionToken::create([
             'selection_uuid' => $selectionId,

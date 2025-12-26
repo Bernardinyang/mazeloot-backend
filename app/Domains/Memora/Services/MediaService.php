@@ -165,6 +165,31 @@ class MediaService
     public function markSelected(string $id, bool $isSelected): MemoraMedia
     {
         $media = MemoraMedia::findOrFail($id);
+        
+        // Load media set and selection relationships
+        $media->load('mediaSet.selection');
+        $set = $media->mediaSet;
+        $selection = $set?->selection;
+
+        // If marking as selected, validate against selection limits
+        if ($isSelected && $selection) {
+            $selectionLimitService = app(\App\Domains\Memora\Services\SelectionLimitService::class);
+            $setId = $set->uuid;
+            $selectionId = $selection->uuid;
+            
+            // Get current selected count for this set
+            $currentCount = \App\Domains\Memora\Models\MemoraMedia::query()
+                ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
+                ->where('memora_media_sets.uuid', $setId)
+                ->where('memora_media.is_selected', true)
+                ->whereNull('memora_media.deleted_at')
+                ->count();
+
+            // Check if selection is allowed
+            if (!$selectionLimitService->checkSelectionLimit($selectionId, $setId, $currentCount)) {
+                throw new \RuntimeException('Selection limit reached. Cannot select more items.');
+            }
+        }
 
         $media->update([
             'is_selected' => $isSelected,
@@ -226,10 +251,14 @@ class MediaService
     public function getSetMedia(string $setUuid, ?string $sortBy = null)
     {
         $query = MemoraMedia::where('media_set_uuid', $setUuid)
-            ->with(['feedback', 'file'])
-            ->with(['starredByUsers' => function ($query) {
+            ->with(['feedback', 'file']);
+
+        // Only load starredByUsers if user is authenticated
+        if (Auth::check()) {
+            $query->with(['starredByUsers' => function ($query) {
                 $query->where('user_uuid', Auth::user()->uuid);
             }]);
+        }
 
         // Apply sorting
         if ($sortBy) {
@@ -244,7 +273,11 @@ class MediaService
         // If we used a join for sorting, reload relationships to ensure they're available
         // This is necessary because joins can interfere with eager loading
         if ($sortBy && str_starts_with($sortBy, 'name-')) {
-            $media->load(['feedback', 'file', 'starredByUsers']);
+            $relationships = ['feedback', 'file'];
+            if (Auth::check()) {
+                $relationships[] = 'starredByUsers';
+            }
+            $media->load($relationships);
         }
 
         return $media;

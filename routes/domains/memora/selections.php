@@ -1,6 +1,5 @@
 <?php
 
-use App\Domains\Memora\Controllers\V1\GuestSelectionController;
 use App\Domains\Memora\Controllers\V1\MediaController;
 use App\Domains\Memora\Controllers\V1\MediaSetController;
 use App\Domains\Memora\Controllers\V1\SelectionController;
@@ -8,10 +7,10 @@ use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| Selection Routes
+| Authenticated Selection Routes
 |--------------------------------------------------------------------------
 |
-| Routes for managing selections, sets, and media
+| Routes for authenticated users managing their selections
 |
 */
 
@@ -29,6 +28,7 @@ Route::middleware(['auth:sanctum'])->prefix('selections')->group(function () {
     Route::post('/{id}/cover-photo', [SelectionController::class, 'setCoverPhoto']);
     Route::get('/{id}/selected', [SelectionController::class, 'getSelectedMedia']);
     Route::get('/{id}/filenames', [SelectionController::class, 'getSelectedFilenames']);
+    Route::post('/{id}/reset-limit', [SelectionController::class, 'resetSelectionLimit']);
 
     // Media Sets within a selection
     Route::prefix('{selectionId}/sets')->group(function () {
@@ -55,19 +55,5 @@ Route::middleware(['auth:sanctum'])->prefix('selections')->group(function () {
 
     // Media download endpoint (outside of selection/set context)
     Route::get('/media/{mediaUuid}/download', [MediaController::class, 'download']);
-});
-
-// Guest Selection Routes (for guest users with temporary tokens)
-Route::middleware(['guest.token'])->prefix('guest/selections')->group(function () {
-    Route::get('/{id}', [SelectionController::class, 'showGuest']);
-    Route::get('/{id}/sets', [MediaSetController::class, 'indexGuest']);
-    Route::get('/{id}/sets/{setId}', [MediaSetController::class, 'showGuest']);
-    Route::get('/{id}/sets/{setId}/media', [MediaController::class, 'getSetMediaGuest']);
-    Route::post('/{id}/complete', [SelectionController::class, 'completeGuest']);
-});
-
-// Generate guest token (public endpoint - no auth required)
-Route::prefix('selections')->group(function () {
-    Route::post('/{id}/guest-token', [GuestSelectionController::class, 'generateToken']);
 });
 

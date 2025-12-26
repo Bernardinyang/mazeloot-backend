@@ -41,6 +41,8 @@ class UpdateMediaSetRequest extends FormRequest
             ],
             'description' => ['nullable', 'string', 'max:1000'],
             'order' => ['sometimes', 'integer', 'min:0'],
+            'selection_limit' => ['nullable', 'integer', 'min:1', 'sometimes'],
+            'selectionLimit' => ['nullable', 'integer', 'min:1', 'sometimes'], // Frontend alias
         ];
     }
 }

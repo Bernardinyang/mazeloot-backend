@@ -41,6 +41,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
 });
 
 // Domain routes
+// Public routes (loaded first - no authentication required)
+require __DIR__ . '/../domains/memora/public.php';
+// Authenticated routes (require authentication)
 require __DIR__ . '/../domains/memora/selections.php';
 require __DIR__ . '/../domains/memora/memora.php';
 
