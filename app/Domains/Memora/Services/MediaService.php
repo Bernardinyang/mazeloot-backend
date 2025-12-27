@@ -569,6 +569,62 @@ class MediaService
     }
 
     /**
+     * Get all starred media for the authenticated user
+     *
+     * @param string|null $sortBy Sort field and direction (e.g., 'uploaded-desc', 'name-asc')
+     * @param int|null $page Page number for pagination
+     * @param int|null $perPage Items per page
+     * @return array{data: array, pagination: array}|array
+     */
+    public function getStarredMedia(?string $sortBy = null, ?int $page = null, ?int $perPage = null)
+    {
+        $user = Auth::user();
+
+        // Get all media starred by the user
+        $query = $user->starredMedia()
+            ->with(['feedback', 'file', 'mediaSet.selection', 'starredByUsers' => function ($q) use ($user) {
+                $q->where('user_uuid', $user->uuid);
+            }]);
+
+        // Apply sorting
+        if ($sortBy) {
+            $this->applyMediaSorting($query, $sortBy);
+        } else {
+            // Default sort: created_at desc
+            $query->orderBy('created_at', 'desc');
+        }
+
+        // If pagination is requested, use pagination service
+        if ($page !== null && $perPage !== null) {
+            $paginationService = app(\App\Services\Pagination\PaginationService::class);
+            $perPage = max(1, min(100, $perPage)); // Limit between 1 and 100
+            $paginator = $paginationService->paginate($query, $perPage, $page);
+
+            // Reload relationships to ensure they're available
+            $relationships = ['feedback', 'file', 'mediaSet.selection', 'starredByUsers'];
+            $paginator->getCollection()->load($relationships);
+
+            // Transform items to resources
+            $data = \App\Domains\Memora\Resources\V1\MediaResource::collection($paginator->items());
+
+            // Format response with pagination metadata
+            return [
+                'data' => $data,
+                'pagination' => [
+                    'page' => $paginator->currentPage(),
+                    'limit' => $paginator->perPage(),
+                    'total' => $paginator->total(),
+                    'totalPages' => $paginator->lastPage(),
+                ],
+            ];
+        }
+
+        // Non-paginated response
+        $media = $query->get();
+        return \App\Domains\Memora\Resources\V1\MediaResource::collection($media);
+    }
+
+    /**
      * Rename media by updating the UserFile's filename
      * Preserves the original file extension
      * 

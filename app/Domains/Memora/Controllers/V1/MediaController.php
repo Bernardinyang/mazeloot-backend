@@ -245,6 +245,26 @@ class MediaController extends Controller
     }
 
     /**
+     * Get all starred media for the authenticated user
+     */
+    public function getStarredMedia(Request $request): JsonResponse
+    {
+        $sortBy = $request->query('sort_by');
+        $page = $request->has('page') ? max(1, (int) $request->query('page', 1)) : null;
+        $perPage = $request->has('per_page') ? max(1, min(100, (int) $request->query('per_page', 10))) : null;
+
+        $result = $this->mediaService->getStarredMedia($sortBy, $page, $perPage);
+        
+        // If paginated, result is already formatted with data and pagination
+        // If not paginated, wrap in MediaResource collection
+        if (is_array($result) && isset($result['data']) && isset($result['pagination'])) {
+            return ApiResponse::success($result);
+        }
+        
+        return ApiResponse::success($result);
+    }
+
+    /**
      * Download original image file by media UUID
      */
     public function download(string $mediaUuid): StreamedResponse|Response|JsonResponse|RedirectResponse

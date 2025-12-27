@@ -55,5 +55,8 @@ Route::middleware(['auth:sanctum'])->prefix('selections')->group(function () {
 
     // Media download endpoint (outside of selection/set context)
     Route::get('/media/{mediaUuid}/download', [MediaController::class, 'download']);
+    
+    // Starred media endpoint
+    Route::get('/media/starred', [MediaController::class, 'getStarredMedia']);
 });
 

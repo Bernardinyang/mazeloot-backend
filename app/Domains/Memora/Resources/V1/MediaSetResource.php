@@ -15,6 +15,7 @@ class MediaSetResource extends JsonResource
             'count' => $this->whenCounted('media', $this->media_count ?? 0),
             'order' => $this->order,
             'selectionLimit' => $this->selection_limit,
+            'selectionUuid' => $this->selection_uuid,
             'media' => $this->whenLoaded('media', function () {
                 return MediaResource::collection($this->media);
             }, []),
