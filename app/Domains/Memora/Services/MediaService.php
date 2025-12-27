@@ -248,7 +248,7 @@ class MediaService
      * @param string|null $sortBy Sort field and direction (e.g., 'uploaded-desc', 'name-asc', 'date-taken-desc')
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    public function getSetMedia(string $setUuid, ?string $sortBy = null)
+    public function getSetMedia(string $setUuid, ?string $sortBy = null, ?int $page = null, ?int $perPage = null)
     {
         $query = MemoraMedia::where('media_set_uuid', $setUuid)
             ->with(['feedback', 'file']);
@@ -268,6 +268,37 @@ class MediaService
             $query->orderBy('order');
         }
 
+        // If pagination is requested, use pagination service
+        if ($page !== null && $perPage !== null) {
+            $paginationService = app(\App\Services\Pagination\PaginationService::class);
+            $perPage = max(1, min(100, $perPage)); // Limit between 1 and 100
+            $paginator = $paginationService->paginate($query, $perPage, $page);
+
+            // If we used a join for sorting, reload relationships to ensure they're available
+            if ($sortBy && str_starts_with($sortBy, 'name-')) {
+                $relationships = ['feedback', 'file'];
+                if (Auth::check()) {
+                    $relationships[] = 'starredByUsers';
+                }
+                $paginator->getCollection()->load($relationships);
+            }
+
+            // Transform items to resources
+            $data = \App\Domains\Memora\Resources\V1\MediaResource::collection($paginator->items());
+
+            // Format response with pagination metadata
+            return [
+                'data' => $data,
+                'pagination' => [
+                    'page' => $paginator->currentPage(),
+                    'limit' => $paginator->perPage(),
+                    'total' => $paginator->total(),
+                    'totalPages' => $paginator->lastPage(),
+                ],
+            ];
+        }
+
+        // Non-paginated response (backward compatibility)
         $media = $query->get();
         
         // If we used a join for sorting, reload relationships to ensure they're available

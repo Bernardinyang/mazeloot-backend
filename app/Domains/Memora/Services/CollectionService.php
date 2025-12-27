@@ -3,17 +3,47 @@
 namespace App\Domains\Memora\Services;
 
 use App\Domains\Memora\Models\MemoraCollection;
+use App\Services\Pagination\PaginationService;
 
 class CollectionService
 {
-    /**
-     * List collections for a project
-     */
-    public function list(string $projectId)
+    protected PaginationService $paginationService;
+
+    public function __construct(PaginationService $paginationService)
     {
-        return MemoraCollection::where('project_id', $projectId)
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $this->paginationService = $paginationService;
+    }
+
+    /**
+     * List collections for a project with pagination
+     *
+     * @param string $projectId
+     * @param int|null $page
+     * @param int|null $perPage
+     * @return array Paginated response with data and pagination metadata
+     */
+    public function list(string $projectId, ?int $page = null, ?int $perPage = null)
+    {
+        $query = MemoraCollection::where('project_id', $projectId)
+            ->orderBy('created_at', 'desc');
+
+        // Paginate the query
+        $perPage = $perPage ?? 10;
+        $paginator = $this->paginationService->paginate($query, $perPage, $page);
+
+        // Transform items to resources
+        $data = \App\Domains\Memora\Resources\V1\CollectionResource::collection($paginator->items());
+
+        // Format response with pagination metadata
+        return [
+            'data' => $data,
+            'pagination' => [
+                'page' => $paginator->currentPage(),
+                'limit' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'totalPages' => $paginator->lastPage(),
+            ],
+        ];
     }
 
     /**

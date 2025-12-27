@@ -20,7 +20,7 @@ class ProjectController extends Controller
     }
 
     /**
-     * List projects
+     * List projects with optional search, filter, and pagination parameters
      * GET /api/v1/projects
      */
     public function index(Request $request): JsonResponse
@@ -31,9 +31,12 @@ class ProjectController extends Controller
             'parentId' => $request->query('parentId'),
         ];
 
-        $projects = $this->projectService->list($filters);
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = max(1, min(100, (int) $request->query('per_page', 10))); // Limit between 1 and 100
 
-        return ApiResponse::success(ProjectResource::collection($projects));
+        $result = $this->projectService->list($filters, $page, $perPage);
+
+        return ApiResponse::success($result);
     }
 
     /**

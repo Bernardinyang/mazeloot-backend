@@ -209,8 +209,18 @@ class MediaController extends Controller
     public function getSetMedia(Request $request, string $selectionId, string $setUuid): JsonResponse
     {
         $sortBy = $request->query('sort_by');
-        $media = $this->mediaService->getSetMedia($setUuid, $sortBy);
-        return ApiResponse::success(MediaResource::collection($media));
+        $page = $request->has('page') ? max(1, (int) $request->query('page', 1)) : null;
+        $perPage = $request->has('per_page') ? max(1, min(100, (int) $request->query('per_page', 10))) : null;
+
+        $result = $this->mediaService->getSetMedia($setUuid, $sortBy, $page, $perPage);
+        
+        // If paginated, result is already formatted with data and pagination
+        // If not paginated, wrap in MediaResource collection
+        if (is_array($result) && isset($result['data']) && isset($result['pagination'])) {
+            return ApiResponse::success($result);
+        }
+        
+        return ApiResponse::success(MediaResource::collection($result));
     }
 
     /**

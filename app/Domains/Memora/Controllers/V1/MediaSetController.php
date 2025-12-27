@@ -20,12 +20,15 @@ class MediaSetController extends Controller
     }
 
     /**
-     * Get all media sets for a selection
+     * Get all media sets for a selection with optional pagination parameters
      */
-    public function index(string $selectionId): JsonResponse
+    public function index(Request $request, string $selectionId): JsonResponse
     {
-        $sets = $this->mediaSetService->getBySelection($selectionId);
-        return ApiResponse::success(MediaSetResource::collection($sets));
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = max(1, min(100, (int) $request->query('per_page', 10))); // Limit between 1 and 100
+
+        $result = $this->mediaSetService->getBySelection($selectionId, $page, $perPage);
+        return ApiResponse::success($result);
     }
 
     /**

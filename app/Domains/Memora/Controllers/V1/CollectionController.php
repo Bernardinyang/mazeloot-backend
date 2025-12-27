@@ -8,6 +8,7 @@ use App\Domains\Memora\Resources\V1\CollectionResource;
 use App\Domains\Memora\Services\CollectionService;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class CollectionController extends Controller
 {
@@ -18,10 +19,13 @@ class CollectionController extends Controller
         $this->collectionService = $collectionService;
     }
 
-    public function index(string $projectId): JsonResponse
+    public function index(Request $request, string $projectId): JsonResponse
     {
-        $collections = $this->collectionService->list($projectId);
-        return ApiResponse::success(CollectionResource::collection($collections));
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = max(1, min(100, (int) $request->query('per_page', 10))); // Limit between 1 and 100
+
+        $result = $this->collectionService->list($projectId, $page, $perPage);
+        return ApiResponse::success($result);
     }
 
     public function show(string $projectId, string $id): JsonResponse

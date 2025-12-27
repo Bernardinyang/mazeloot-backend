@@ -99,7 +99,7 @@ class SelectionService
      * @param string|null $status Filter by status (e.g., 'draft', 'completed', 'active')
      * @param bool|null $starred Filter by starred status
      * @param int $page Page number (default: 1)
-     * @param int $perPage Items per page (default: 50)
+     * @param int $perPage Items per page (default: 10)
      * @return array Paginated response with data and pagination metadata
      */
     public function getAll(
@@ -109,7 +109,7 @@ class SelectionService
         ?string $status = null,
         ?bool   $starred = null,
         int $page = 1,
-        int $perPage = 50
+        int $perPage = 10
     ): array
     {
         $query = MemoraSelection::query()->where('user_uuid', Auth::user()->uuid)

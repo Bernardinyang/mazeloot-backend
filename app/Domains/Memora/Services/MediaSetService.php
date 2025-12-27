@@ -4,10 +4,17 @@ namespace App\Domains\Memora\Services;
 
 use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraSelection;
+use App\Services\Pagination\PaginationService;
 use Illuminate\Support\Facades\Auth;
 
 class MediaSetService
 {
+    protected PaginationService $paginationService;
+
+    public function __construct(PaginationService $paginationService)
+    {
+        $this->paginationService = $paginationService;
+    }
     /**
      * Create a media set in a selection
      */
@@ -44,14 +51,36 @@ class MediaSetService
     }
 
     /**
-     * Get all media sets for a selection
+     * Get all media sets for a selection with pagination
+     *
+     * @param string $selectionId
+     * @param int|null $page
+     * @param int|null $perPage
+     * @return array Paginated response with data and pagination metadata
      */
-    public function getBySelection(string $selectionId)
+    public function getBySelection(string $selectionId, ?int $page = null, ?int $perPage = null)
     {
-        return MemoraMediaSet::where('selection_uuid', $selectionId)
+        $query = MemoraMediaSet::where('selection_uuid', $selectionId)
             ->withCount('media')
-            ->orderBy('order')
-            ->get();
+            ->orderBy('order');
+
+        // Paginate the query
+        $perPage = $perPage ?? 10;
+        $paginator = $this->paginationService->paginate($query, $perPage, $page);
+
+        // Transform items to resources
+        $data = \App\Domains\Memora\Resources\V1\MediaSetResource::collection($paginator->items());
+
+        // Format response with pagination metadata
+        return [
+            'data' => $data,
+            'pagination' => [
+                'page' => $paginator->currentPage(),
+                'limit' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'totalPages' => $paginator->lastPage(),
+            ],
+        ];
     }
 
     /**

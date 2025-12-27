@@ -4,16 +4,26 @@ namespace App\Domains\Memora\Services;
 
 use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraProject;
+use App\Services\Pagination\PaginationService;
 
 class ProjectService
 {
+    protected PaginationService $paginationService;
+
+    public function __construct(PaginationService $paginationService)
+    {
+        $this->paginationService = $paginationService;
+    }
+
     /**
-     * List projects with filters
+     * List projects with filters and pagination
      *
      * @param array $filters
-     * @return \Illuminate\Database\Eloquent\Collection
+     * @param int|null $page
+     * @param int|null $perPage
+     * @return array Paginated response with data and pagination metadata
      */
-    public function list(array $filters = [])
+    public function list(array $filters = [], ?int $page = null, ?int $perPage = null)
     {
         $query = MemoraProject::query()->with(['mediaSets']);
 
@@ -36,7 +46,26 @@ class ProjectService
             });
         }
 
-        return $query->get();
+        // Default ordering
+        $query->orderBy('created_at', 'desc');
+
+        // Paginate the query
+        $perPage = $perPage ?? 10;
+        $paginator = $this->paginationService->paginate($query, $perPage, $page);
+
+        // Transform items to resources
+        $data = \App\Domains\Memora\Resources\V1\ProjectResource::collection($paginator->items());
+
+        // Format response with pagination metadata
+        return [
+            'data' => $data,
+            'pagination' => [
+                'page' => $paginator->currentPage(),
+                'limit' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'totalPages' => $paginator->lastPage(),
+            ],
+        ];
     }
 
     /**
