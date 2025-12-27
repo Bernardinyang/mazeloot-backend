@@ -33,6 +33,7 @@ class MemoraCollection extends Model
     public $incrementing = false;
 
     protected $fillable = [
+        'user_uuid',
         'project_uuid',
         'name',
         'description',

@@ -3,6 +3,7 @@
 namespace App\Domains\Memora\Services;
 
 use App\Domains\Memora\Models\MemoraMedia;
+use App\Domains\Memora\Models\MemoraProject;
 use App\Domains\Memora\Models\MemoraProofing;
 use App\Services\Upload\UploadService;
 
@@ -20,11 +21,15 @@ class ProofingService
      */
     public function create(string $projectId, array $data): MemoraProofing
     {
+        // Validate project exists
+        $project = MemoraProject::findOrFail($projectId);
+
         return MemoraProofing::create([
-            'project_id' => $projectId,
-            'name' => $data['name'] ?? 'MemoraProofing',
-            'max_revisions' => $data['maxRevisions'] ?? 3,
-            'status' => 'active',
+            'project_uuid' => $projectId,
+            'name' => $data['name'] ?? 'Proofing',
+            'max_revisions' => $data['maxRevisions'] ?? 5,
+            'status' => $data['status'] ?? 'draft',
+            'color' => $data['color'] ?? $project->color ?? '#F59E0B',
         ]);
     }
 
@@ -61,7 +66,10 @@ class ProofingService
      */
     public function find(string $projectId, string $id): MemoraProofing
     {
-        $proofing = MemoraProofing::where('project_id', $projectId)->findOrFail($id);
+        // Validate project exists
+        MemoraProject::findOrFail($projectId);
+
+        $proofing = MemoraProofing::where('project_uuid', $projectId)->findOrFail($id);
 
         // Load counts
         $mediaCount = MemoraMedia::where('phase_id', $id)->where('phase', 'proofing')->count();

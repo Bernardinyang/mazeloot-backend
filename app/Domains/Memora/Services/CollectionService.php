@@ -3,6 +3,7 @@
 namespace App\Domains\Memora\Services;
 
 use App\Domains\Memora\Models\MemoraCollection;
+use App\Domains\Memora\Models\MemoraProject;
 use App\Services\Pagination\PaginationService;
 
 class CollectionService
@@ -24,7 +25,10 @@ class CollectionService
      */
     public function list(string $projectId, ?int $page = null, ?int $perPage = null)
     {
-        $query = MemoraCollection::where('project_id', $projectId)
+        // Validate project exists
+        MemoraProject::findOrFail($projectId);
+
+        $query = MemoraCollection::where('project_uuid', $projectId)
             ->orderBy('created_at', 'desc');
 
         // Paginate the query
@@ -51,11 +55,16 @@ class CollectionService
      */
     public function create(string $projectId, array $data): MemoraCollection
     {
+        // Validate project exists
+        $project = MemoraProject::findOrFail($projectId);
+
         return MemoraCollection::create([
-            'project_id' => $projectId,
+            'user_uuid' => $project->user_uuid,
+            'project_uuid' => $projectId,
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
-            'status' => $data['status'] ?? 'active',
+            'status' => $data['status'] ?? 'draft',
+            'color' => $data['color'] ?? $project->color ?? '#8B5CF6',
         ]);
     }
 
@@ -81,7 +90,7 @@ class CollectionService
      */
     public function find(string $projectId, string $id): MemoraCollection
     {
-        return MemoraCollection::where('project_id', $projectId)->findOrFail($id);
+        return MemoraCollection::where('project_uuid', $projectId)->findOrFail($id);
     }
 
     /**

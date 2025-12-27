@@ -6,6 +6,7 @@ use App\Domains\Memora\Enums\ProjectStatusEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -44,7 +45,6 @@ class MemoraProject extends Model
         'has_selections',
         'has_proofing',
         'has_collections',
-        'parent_uuid',
         'preset_uuid',
         'watermark_uuid',
         'settings',
@@ -112,13 +112,18 @@ class MemoraProject extends Model
         return $this->hasMany(MemoraCollection::class, 'project_uuid', 'uuid');
     }
 
-    public function parent(): BelongsTo
+    /**
+     * Get the users who have starred this project.
+     */
+    public function starredByUsers(): BelongsToMany
     {
-        return $this->belongsTo(MemoraProject::class, 'parent_uuid', 'uuid');
-    }
-
-    public function children(): HasMany
-    {
-        return $this->hasMany(MemoraProject::class, 'parent_uuid', 'uuid');
+        return $this->belongsToMany(
+            \App\Models\User::class,
+            'user_starred_projects',
+            'project_uuid',
+            'user_uuid',
+            'uuid',
+            'uuid'
+        )->withTimestamps();
     }
 }

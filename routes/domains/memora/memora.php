@@ -25,6 +25,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/{id}', [ProjectController::class, 'show']);
         Route::patch('/{id}', [ProjectController::class, 'update']);
         Route::delete('/{id}', [ProjectController::class, 'destroy']);
+        Route::post('/{id}/star', [ProjectController::class, 'toggleStar']);
         Route::get('/{id}/phases', [ProjectController::class, 'phases']);
 
         // MemoraProofing

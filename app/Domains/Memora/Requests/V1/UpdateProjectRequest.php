@@ -19,6 +19,10 @@ class UpdateProjectRequest extends FormRequest
             'status' => ['sometimes', 'in:draft,active,archived'],
             'settings' => ['nullable', 'array'],
             'mediaSets' => ['nullable', 'array'],
+            'color' => ['sometimes', 'string', 'max:7'],
+            'presetId' => ['nullable', 'uuid'],
+            'watermarkId' => ['nullable', 'uuid'],
+            'eventDate' => ['nullable', 'date'],
         ];
     }
 }

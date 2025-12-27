@@ -44,6 +44,10 @@ class SelectionService
             $selectionData['password'] = $data['password'];
         }
 
+        if (isset($data['selection_limit']) || isset($data['selectionLimit'])) {
+            $selectionData['selection_limit'] = $data['selection_limit'] ?? $data['selectionLimit'] ?? null;
+        }
+
         $selection = MemoraSelection::query()->create($selectionData);
         return new SelectionResource($this->findModel($selection->uuid));
     }

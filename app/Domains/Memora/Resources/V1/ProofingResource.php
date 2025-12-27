@@ -9,8 +9,8 @@ class ProofingResource extends JsonResource
     public function toArray($request): array
     {
         return [
-            'id' => $this->id,
-            'projectId' => $this->project_id,
+            'id' => $this->uuid,
+            'projectId' => $this->project_uuid,
             'name' => $this->name,
             'status' => $this->status,
             'maxRevisions' => $this->max_revisions,

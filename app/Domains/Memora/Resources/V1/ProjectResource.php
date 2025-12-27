@@ -3,6 +3,7 @@
 namespace App\Domains\Memora\Resources\V1;
 
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Auth;
 
 class ProjectResource extends JsonResource
 {
@@ -14,7 +15,7 @@ class ProjectResource extends JsonResource
     public function toArray($request): array
     {
         return [
-            'id' => $this->id,
+            'id' => $this->uuid,
             'name' => $this->name,
             'description' => $this->description,
             'status' => $this->status,
@@ -42,10 +43,43 @@ class ProjectResource extends JsonResource
             'hasSelections' => $this->has_selections,
             'hasProofing' => $this->has_proofing,
             'hasCollections' => $this->has_collections,
-            'parentId' => $this->parent_id,
-            'presetId' => $this->preset_id,
-            'watermarkId' => $this->watermark_id,
+            'presetId' => $this->preset_uuid,
+            'watermarkId' => $this->watermark_uuid,
+            'color' => $this->color,
+            // Extract eventDate from settings if it exists
+            'date' => $this->settings['eventDate'] ?? null,
+            'eventDate' => $this->settings['eventDate'] ?? null,
+            // Preview images from phase cover photos (up to 4)
+            'previewImages' => $this->getPreviewImages(),
+            'isStarred' => Auth::check() && $this->relationLoaded('starredByUsers') 
+                ? $this->starredByUsers->isNotEmpty() 
+                : false,
         ];
+    }
+
+    /**
+     * Get preview images from all phase cover photos
+     * Returns up to 4 cover photo URLs
+     *
+     * @return array
+     */
+    private function getPreviewImages(): array
+    {
+        $previewImages = [];
+
+        // Collect cover photos from selections
+        if ($this->relationLoaded('selections')) {
+            foreach ($this->selections as $selection) {
+                if ($selection->cover_photo_url) {
+                    $previewImages[] = $selection->cover_photo_url;
+                    if (count($previewImages) >= 4) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        return $previewImages;
     }
 }
 

@@ -170,6 +170,21 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the projects starred by this user.
+     */
+    public function starredProjects(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            \App\Domains\Memora\Models\MemoraProject::class,
+            'user_starred_projects',
+            'user_uuid',
+            'project_uuid',
+            'uuid',
+            'uuid'
+        )->withTimestamps();
+    }
+
+    /**
      * Check if the user has a specific role.
      *
      * @param UserRoleEnum $role

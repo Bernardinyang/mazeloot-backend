@@ -5,6 +5,7 @@ namespace App\Domains\Memora\Services;
 use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraProject;
 use App\Services\Pagination\PaginationService;
+use Illuminate\Support\Facades\Auth;
 
 class ProjectService
 {
@@ -25,16 +26,11 @@ class ProjectService
      */
     public function list(array $filters = [], ?int $page = null, ?int $perPage = null)
     {
-        $query = MemoraProject::query()->with(['mediaSets']);
+        $query = MemoraProject::query()->with(['mediaSets', 'starredByUsers']);
 
         // Filter by status
         if (isset($filters['status']) && $filters['status'] !== 'all') {
             $query->where('status', $filters['status']);
-        }
-
-        // Filter by parent
-        if (isset($filters['parentId'])) {
-            $query->where('parent_id', $filters['parentId']);
         }
 
         // Search
@@ -46,8 +42,13 @@ class ProjectService
             });
         }
 
-        // Default ordering
-        $query->orderBy('created_at', 'desc');
+        // Apply sorting
+        if (isset($filters['sortBy']) && !empty($filters['sortBy'])) {
+            $this->applySorting($query, $filters['sortBy']);
+        } else {
+            // Default ordering
+            $query->orderBy('created_at', 'desc');
+        }
 
         // Paginate the query
         $perPage = $perPage ?? 10;
@@ -76,42 +77,115 @@ class ProjectService
      */
     public function find(string $id): MemoraProject
     {
-        return MemoraProject::with(['mediaSets', 'selections', 'proofing', 'collections'])->findOrFail($id);
+        $project = MemoraProject::with([
+            'mediaSets',
+            'starredByUsers',
+            'selections' => function ($query) {
+                $query->with(['mediaSets' => function ($q) {
+                    $q->withCount(['media' => function ($mediaQuery) {
+                        $mediaQuery->whereNull('deleted_at');
+                    }])->orderBy('order');
+                }])
+                // Add subqueries for media counts (excluding soft-deleted media)
+                ->addSelect([
+                    'media_count' => \App\Domains\Memora\Models\MemoraMedia::query()
+                        ->selectRaw('COALESCE(COUNT(*), 0)')
+                        ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
+                        ->whereColumn('memora_media_sets.selection_uuid', 'memora_selections.uuid')
+                        ->whereNull('memora_media.deleted_at')
+                        ->limit(1),
+                    'selected_count' => \App\Domains\Memora\Models\MemoraMedia::query()
+                        ->selectRaw('COALESCE(COUNT(*), 0)')
+                        ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
+                        ->whereColumn('memora_media_sets.selection_uuid', 'memora_selections.uuid')
+                        ->where('memora_media.is_selected', true)
+                        ->whereNull('memora_media.deleted_at')
+                        ->limit(1),
+                ]);
+            },
+            'proofing',
+            'collections'
+        ])->findOrFail($id);
+
+        // Map the subquery results to the expected attribute names for selections
+        foreach ($project->selections as $selection) {
+            $selection->setAttribute('media_count', (int)($selection->media_count ?? 0));
+            $selection->setAttribute('selected_count', (int)($selection->selected_count ?? 0));
+        }
+
+        return $project;
     }
 
     /**
      * Create a new project
      *
      * @param array $data
-     * @param int $userId
+     * @param string $userUuid
      * @return MemoraProject
      */
-    public function create(array $data, int $userId): MemoraProject
+    public function create(array $data, string $userUuid): MemoraProject
     {
         $project = MemoraProject::create([
-            'user_id' => $userId,
+            'user_uuid' => $userUuid,
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
             'status' => $data['status'] ?? 'draft',
             'has_selections' => $data['hasSelections'] ?? false,
             'has_proofing' => $data['hasProofing'] ?? false,
             'has_collections' => $data['hasCollections'] ?? false,
-            'parent_id' => $data['parentId'] ?? null,
-            'preset_id' => $data['presetId'] ?? null,
-            'watermark_id' => $data['watermarkId'] ?? null,
+            'preset_uuid' => $data['presetId'] ?? null,
+            'watermark_uuid' => $data['watermarkId'] ?? null,
             'settings' => $data['settings'] ?? [],
+            'color' => $data['color'] ?? '#3B82F6',
         ]);
 
         // Create media sets if provided
         if (isset($data['mediaSets']) && is_array($data['mediaSets'])) {
             foreach ($data['mediaSets'] as $setData) {
                 MemoraMediaSet::create([
-                    'project_id' => $project->id,
+                    'project_uuid' => $project->uuid,
                     'name' => $setData['name'],
                     'description' => $setData['description'] ?? null,
                     'order' => $setData['order'] ?? 0,
                 ]);
             }
+        }
+
+        $projectColor = $project->color ?? '#3B82F6';
+
+        // Create selection phase if enabled
+        if ($data['hasSelections'] ?? false) {
+            $selectionService = app(\App\Domains\Memora\Services\SelectionService::class);
+            $selectionSettings = $data['selectionSettings'] ?? [];
+            $selectionService->create([
+                'project_uuid' => $project->uuid,
+                'name' => $selectionSettings['name'] ?? 'Selections',
+                'description' => $selectionSettings['description'] ?? null,
+                'color' => $projectColor,
+                'selection_limit' => $selectionSettings['selectionLimit'] ?? 0,
+            ]);
+        }
+
+        // Create proofing phase if enabled
+        if ($data['hasProofing'] ?? false) {
+            $proofingService = app(\App\Domains\Memora\Services\ProofingService::class);
+            $proofingSettings = $data['proofingSettings'] ?? [];
+            $proofingService->create($project->uuid, [
+                'name' => $proofingSettings['name'] ?? 'Proofing',
+                'maxRevisions' => $proofingSettings['maxRevisions'] ?? 5,
+                'color' => $projectColor,
+            ]);
+        }
+
+        // Create collection phase if enabled
+        if ($data['hasCollections'] ?? false) {
+            $collectionService = app(\App\Domains\Memora\Services\CollectionService::class);
+            $collectionSettings = $data['collectionSettings'] ?? [];
+            $collectionService->create($project->uuid, [
+                'name' => $collectionSettings['name'] ?? 'Collections',
+                'description' => $collectionSettings['description'] ?? null,
+                'color' => $projectColor,
+            ]);
         }
 
         return $project->load('mediaSets');
@@ -133,6 +207,20 @@ class ProjectService
         if (isset($data['description'])) $updateData['description'] = $data['description'];
         if (isset($data['status'])) $updateData['status'] = $data['status'];
         if (isset($data['settings'])) $updateData['settings'] = $data['settings'];
+        if (isset($data['color'])) $updateData['color'] = $data['color'];
+        if (isset($data['presetId'])) $updateData['preset_uuid'] = $data['presetId'];
+        if (isset($data['watermarkId'])) $updateData['watermark_uuid'] = $data['watermarkId'];
+        if (isset($data['eventDate'])) {
+            // Store event date in settings or as a separate field if migration exists
+            // For now, we'll store it in settings
+            $settings = $updateData['settings'] ?? $project->settings ?? [];
+            if ($data['eventDate'] === null) {
+                unset($settings['eventDate']);
+            } else {
+                $settings['eventDate'] = $data['eventDate'];
+            }
+            $updateData['settings'] = $settings;
+        }
 
         $project->update($updateData);
 
@@ -146,7 +234,13 @@ class ProjectService
     }
 
     /**
-     * Delete a project
+     * Delete a project and all related data
+     * This will cascade delete:
+     * - Selections (and their media sets, media, starred selections)
+     * - Proofing (and their media sets, media)
+     * - Collections
+     * - Media sets (and their media, starred media)
+     * - Media (and their starred media, feedback)
      *
      * @param string $id
      * @return bool
@@ -154,7 +248,19 @@ class ProjectService
     public function delete(string $id): bool
     {
         $project = MemoraProject::findOrFail($id);
-        return $project->delete();
+        
+        // Use forceDelete to actually delete from database
+        // This will trigger database cascade deletes for all foreign keys
+        // which will automatically delete:
+        // - All selections (cascade from project_uuid)
+        // - All proofing (cascade from project_uuid)
+        // - All collections (cascade from project_uuid)
+        // - All media sets (cascade from project_uuid, selection_uuid, proof_uuid)
+        // - All media (cascade from media_set_uuid)
+        // - All starred selections (cascade from selection_uuid)
+        // - All starred media (cascade from media_uuid)
+        // - All media feedback (cascade from media_uuid)
+        return $project->forceDelete();
     }
 
     /**
@@ -173,33 +279,87 @@ class ProjectService
 
         return [
             'selection' => $selection ? [
-                'id' => $selection->id,
-                'projectId' => $selection->project_id,
+                'id' => $selection->uuid,
+                'projectId' => $selection->project_uuid,
                 'name' => $selection->name,
-                'status' => $selection->status,
+                'status' => $selection->status?->value ?? $selection->status,
                 'selectionCompletedAt' => $selection->selection_completed_at?->toIso8601String(),
                 'autoDeleteDate' => $selection->auto_delete_date?->toIso8601String(),
                 'createdAt' => $selection->created_at->toIso8601String(),
                 'updatedAt' => $selection->updated_at->toIso8601String(),
             ] : null,
             'proofing' => $proofing ? [
-                'id' => $proofing->id,
-                'projectId' => $proofing->project_id,
+                'id' => $proofing->uuid,
+                'projectId' => $proofing->project_uuid,
                 'name' => $proofing->name,
-                'status' => $proofing->status,
+                'status' => $proofing->status?->value ?? $proofing->status,
                 'maxRevisions' => $proofing->max_revisions,
                 'currentRevision' => $proofing->current_revision,
                 'createdAt' => $proofing->created_at->toIso8601String(),
                 'updatedAt' => $proofing->updated_at->toIso8601String(),
             ] : null,
             'collection' => $collection ? [
-                'id' => $collection->id,
-                'projectId' => $collection->project_id,
+                'id' => $collection->uuid,
+                'projectId' => $collection->project_uuid,
                 'name' => $collection->name,
-                'status' => $collection->status,
+                'status' => $collection->status?->value ?? $collection->status,
                 'createdAt' => $collection->created_at->toIso8601String(),
                 'updatedAt' => $collection->updated_at->toIso8601String(),
             ] : null,
         ];
+    }
+
+    /**
+     * Toggle star status for a project
+     *
+     * @param string $id Project UUID
+     * @return array{starred: bool} Returns whether the project is now starred
+     */
+    public function toggleStar(string $id): array
+    {
+        $project = MemoraProject::findOrFail($id);
+        $user = Auth::user();
+
+        if (!$user) {
+            throw new \RuntimeException('User not authenticated');
+        }
+
+        // Toggle the star relationship
+        $user->starredProjects()->toggle($project->uuid);
+
+        // Check if it's now starred
+        $isStarred = $user->starredProjects()->where('project_uuid', $project->uuid)->exists();
+
+        return [
+            'starred' => $isStarred,
+        ];
+    }
+
+    /**
+     * Apply sorting to projects query based on sortBy parameter
+     * 
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string $sortBy Format: 'field-direction' (e.g., 'created-desc', 'name-asc')
+     */
+    protected function applySorting($query, string $sortBy): void
+    {
+        $parts = explode('-', $sortBy);
+        $field = $parts[0] ?? 'created';
+        $direction = strtoupper($parts[1] ?? 'desc');
+
+        // Validate direction
+        if (!in_array($direction, ['ASC', 'DESC'])) {
+            $direction = 'DESC';
+        }
+
+        // Map frontend sort values to database fields
+        $fieldMap = [
+            'created' => 'created_at',
+            'name' => 'name',
+        ];
+
+        $dbField = $fieldMap[$field] ?? 'created_at';
+
+        $query->orderBy($dbField, $direction);
     }
 }

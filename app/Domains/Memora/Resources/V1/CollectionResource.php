@@ -9,8 +9,8 @@ class CollectionResource extends JsonResource
     public function toArray($request): array
     {
         return [
-            'id' => $this->id,
-            'projectId' => $this->project_id,
+            'id' => $this->uuid,
+            'projectId' => $this->project_uuid,
             'project' => $this->whenLoaded('project', function () {
                 return new ProjectResource($this->project);
             }, null),

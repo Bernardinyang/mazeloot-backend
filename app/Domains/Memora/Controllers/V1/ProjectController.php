@@ -28,7 +28,7 @@ class ProjectController extends Controller
         $filters = [
             'status' => $request->query('status', 'all'),
             'search' => $request->query('search'),
-            'parentId' => $request->query('parentId'),
+            'sortBy' => $request->query('sortBy'),
         ];
 
         $page = max(1, (int) $request->query('page', 1));
@@ -55,7 +55,12 @@ class ProjectController extends Controller
      */
     public function store(StoreProjectRequest $request): JsonResponse
     {
-        $project = $this->projectService->create($request->validated(), $request->user()->id);
+        $user = $request->user();
+        if (!$user) {
+            return ApiResponse::error('User not authenticated', 'UNAUTHORIZED', 401);
+        }
+        
+        $project = $this->projectService->create($request->validated(), $user->uuid);
         return ApiResponse::success(new ProjectResource($project), 201);
     }
 
@@ -87,6 +92,16 @@ class ProjectController extends Controller
     {
         $phases = $this->projectService->getPhases($id);
         return ApiResponse::success($phases);
+    }
+
+    /**
+     * Toggle star status for a project
+     * POST /api/v1/projects/:id/star
+     */
+    public function toggleStar(string $id): JsonResponse
+    {
+        $result = $this->projectService->toggleStar($id);
+        return ApiResponse::success($result);
     }
 }
 
