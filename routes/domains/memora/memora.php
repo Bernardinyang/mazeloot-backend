@@ -50,6 +50,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
             Route::post('/{mediaId}/star', [MediaController::class, 'toggleStar']);
             Route::delete('/{mediaId}', [MediaController::class, 'deleteFromSet']);
             Route::post('/{mediaId}/feedback', [MediaController::class, 'addFeedback']);
+            Route::patch('/{mediaId}/feedback/{feedbackId}', [MediaController::class, 'updateFeedback']);
+            Route::delete('/{mediaId}/feedback/{feedbackId}', [MediaController::class, 'deleteFeedback']);
         });
     });
 

@@ -2,6 +2,8 @@
 
 namespace App\Domains\Memora\Controllers\V1;
 
+use App\Domains\Memora\Models\MemoraMedia;
+use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Requests\V1\AddMediaFeedbackRequest;
 use App\Domains\Memora\Requests\V1\MoveCopyMediaRequest;
 use App\Domains\Memora\Requests\V1\RenameMediaRequest;
@@ -69,36 +71,207 @@ class MediaController extends Controller
         return ApiResponse::success(new MediaFeedbackResource($feedback), 201);
     }
 
-    public function addFeedback(AddMediaFeedbackRequest $request, string $mediaId): JsonResponse
+    /**
+     * Add feedback to media
+     * Note: Route parameters are resolved by name, so we need to accept all route parameters
+     * to ensure Laravel resolves them correctly.
+     * Route: /proofing/{proofingId}/sets/{setId}/media/{mediaId}/feedback
+     */
+    public function addFeedback(AddMediaFeedbackRequest $request, string $proofingId, string $setId, string $mediaId): JsonResponse
     {
-        $feedback = $this->mediaService->addFeedback($mediaId, $request->validated());
-
-        return ApiResponse::success(new MediaFeedbackResource($feedback), 201);
+        try {
+            // Log to help debug parameter resolution
+            Log::info('Adding feedback to media', [
+                'media_id' => $mediaId,
+                'proofing_id' => $proofingId,
+                'set_id' => $setId,
+                'media_id_length' => strlen($mediaId),
+                'is_uuid_format' => preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $mediaId),
+            ]);
+            
+            // Validate that mediaId is not the same as proofingId (safety check)
+            if ($mediaId === $proofingId) {
+                Log::error('CRITICAL: mediaId matches proofingId! Route parameter resolution issue.', [
+                    'media_id' => $mediaId,
+                    'proofing_id' => $proofingId,
+                    'set_id' => $setId,
+                ]);
+                return ApiResponse::error('Invalid media ID', 'INVALID_MEDIA_ID', 400);
+            }
+            
+            $feedback = $this->mediaService->addFeedback($mediaId, $request->validated());
+            return ApiResponse::success(new MediaFeedbackResource($feedback), 201);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::error('Media not found when adding feedback', [
+                'media_id' => $mediaId,
+                'proofing_id' => $proofingId,
+                'set_id' => $setId,
+                'exception_message' => $e->getMessage(),
+            ]);
+            return ApiResponse::error('Media not found', 'MEDIA_NOT_FOUND', 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to add feedback', [
+                'media_id' => $mediaId,
+                'proofing_id' => $proofingId,
+                'set_id' => $setId,
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return ApiResponse::error('Failed to add feedback', 'FEEDBACK_FAILED', 500);
+        }
     }
 
-    public function updateFeedback(Request $request, string $mediaId, string $feedbackId): JsonResponse
+    /**
+     * Update feedback
+     * Note: Route parameters include proofingId and setId for validation
+     */
+    public function updateFeedback(Request $request, string $proofingId, string $setId, string $mediaId, string $feedbackId): JsonResponse
     {
         $request->validate([
             'content' => ['required', 'string'],
         ]);
 
         try {
+            // Validate that media exists and belongs to the set/proofing
+            $media = MemoraMedia::where('uuid', $mediaId)->first();
+            if (!$media) {
+                return ApiResponse::error('Media not found or does not belong to the specified set', 'MEDIA_NOT_FOUND', 404);
+            }
+            
+            if ($media->media_set_uuid !== $setId) {
+                return ApiResponse::error('Media not found or does not belong to the specified set', 'MEDIA_NOT_FOUND', 404);
+            }
+            
+            $set = MemoraMediaSet::where('uuid', $setId)->first();
+            if (!$set) {
+                return ApiResponse::error('Set not found or does not belong to the specified proofing', 'SET_NOT_FOUND', 404);
+            }
+            
+            // Validate set belongs to proofing
+            // If phase/phase_id are null, we still allow if media belongs to the set
+            $setBelongsToProofing = ($set->phase === 'proofing' && $set->phase_id === $proofingId);
+            $mediaBelongsToSet = ($media->media_set_uuid === $setId);
+            
+            if (!$setBelongsToProofing && !$mediaBelongsToSet) {
+                return ApiResponse::error('Set not found or does not belong to the specified proofing', 'SET_NOT_FOUND', 404);
+            }
+
             $feedback = $this->mediaService->updateFeedback($feedbackId, $request->only('content'));
             return ApiResponse::success(new MediaFeedbackResource($feedback));
         } catch (\Exception $e) {
+            Log::error('Failed to update feedback', [
+                'feedback_id' => $feedbackId,
+                'media_id' => $mediaId,
+                'proofing_id' => $proofingId,
+                'set_id' => $setId,
+                'exception' => $e->getMessage(),
+            ]);
             return ApiResponse::error($e->getMessage(), 'UPDATE_FAILED', 400);
         }
     }
 
-    public function deleteFeedback(string $mediaId, string $feedbackId): JsonResponse
+    /**
+     * Delete feedback
+     * Note: Route parameters include proofingId and setId for validation
+     */
+    public function deleteFeedback(string $proofingId, string $setId, string $mediaId, string $feedbackId): JsonResponse
     {
         try {
+            // Validate that media exists and belongs to the set/proofing
+            $media = MemoraMedia::where('uuid', $mediaId)->first();
+            if (!$media) {
+                Log::warning('Media not found for deleteFeedback', [
+                    'media_id' => $mediaId,
+                    'set_id' => $setId,
+                    'proofing_id' => $proofingId,
+                ]);
+                return ApiResponse::error('Media not found or does not belong to the specified set', 'MEDIA_NOT_FOUND', 404);
+            }
+            
+            if ($media->media_set_uuid !== $setId) {
+                Log::warning('Media does not belong to set', [
+                    'media_id' => $mediaId,
+                    'media_set_uuid' => $media->media_set_uuid,
+                    'expected_set_id' => $setId,
+                    'proofing_id' => $proofingId,
+                ]);
+                return ApiResponse::error('Media not found or does not belong to the specified set', 'MEDIA_NOT_FOUND', 404);
+            }
+            
+            $set = MemoraMediaSet::where('uuid', $setId)->first();
+            if (!$set) {
+                Log::warning('Set not found for deleteFeedback', [
+                    'set_id' => $setId,
+                    'proofing_id' => $proofingId,
+                    'media_id' => $mediaId,
+                    'all_sets_for_proofing' => MemoraMediaSet::where('phase', 'proofing')
+                        ->where('phase_id', $proofingId)
+                        ->pluck('uuid')
+                        ->toArray(),
+                ]);
+                return ApiResponse::error('Set not found or does not belong to the specified proofing', 'SET_NOT_FOUND', 404);
+            }
+            
+            Log::info('Set found for deleteFeedback', [
+                'set_id' => $setId,
+                'set_uuid' => $set->uuid,
+                'set_phase' => $set->phase,
+                'set_phase_id' => $set->phase_id,
+                'expected_proofing_id' => $proofingId,
+                'media_id' => $mediaId,
+                'media_set_uuid' => $media->media_set_uuid,
+                'phase_match' => $set->phase === 'proofing',
+                'phase_id_match' => $set->phase_id === $proofingId,
+            ]);
+            
+            // Validate set belongs to proofing
+            // If phase/phase_id are null, we still allow if media belongs to the set
+            // (This handles cases where sets might not have phase/phase_id set)
+            $setBelongsToProofing = ($set->phase === 'proofing' && $set->phase_id === $proofingId);
+            $mediaBelongsToSet = ($media->media_set_uuid === $setId);
+            
+            if (!$setBelongsToProofing && !$mediaBelongsToSet) {
+                Log::warning('Set does not belong to proofing and media does not belong to set', [
+                    'set_id' => $setId,
+                    'set_uuid' => $set->uuid,
+                    'set_phase' => $set->phase,
+                    'set_phase_id' => $set->phase_id,
+                    'expected_proofing_id' => $proofingId,
+                    'media_id' => $mediaId,
+                    'media_set_uuid' => $media->media_set_uuid,
+                    'phase_match' => $set->phase === 'proofing',
+                    'phase_id_match' => $set->phase_id === $proofingId,
+                    'media_belongs_to_set' => $mediaBelongsToSet,
+                ]);
+                return ApiResponse::error('Set not found or does not belong to the specified proofing', 'SET_NOT_FOUND', 404);
+            }
+            
+            // If set phase/phase_id are null but media belongs to set, log a warning but allow
+            if (!$setBelongsToProofing && $mediaBelongsToSet) {
+                Log::warning('Set phase/phase_id are null but media belongs to set - allowing operation', [
+                    'set_id' => $setId,
+                    'set_uuid' => $set->uuid,
+                    'set_phase' => $set->phase,
+                    'set_phase_id' => $set->phase_id,
+                    'expected_proofing_id' => $proofingId,
+                    'media_id' => $mediaId,
+                    'media_set_uuid' => $media->media_set_uuid,
+                ]);
+            }
+
             $deleted = $this->mediaService->deleteFeedback($feedbackId);
             if ($deleted) {
                 return ApiResponse::success(['message' => 'Feedback deleted successfully']);
             }
             return ApiResponse::error('Failed to delete feedback', 'DELETE_FAILED', 500);
         } catch (\Exception $e) {
+            Log::error('Failed to delete feedback', [
+                'feedback_id' => $feedbackId,
+                'media_id' => $mediaId,
+                'proofing_id' => $proofingId,
+                'set_id' => $setId,
+                'exception' => $e->getMessage(),
+            ]);
             return ApiResponse::error($e->getMessage(), 'DELETE_FAILED', 400);
         }
     }

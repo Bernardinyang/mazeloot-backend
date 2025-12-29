@@ -84,6 +84,20 @@ class MemoraMediaFeedback extends Model
     }
 
     /**
+     * Recursively load all nested replies (unlimited depth)
+     */
+    public function loadNestedReplies(): void
+    {
+        if (!$this->relationLoaded('replies')) {
+            $this->load('replies');
+        }
+
+        foreach ($this->replies as $reply) {
+            $reply->loadNestedReplies();
+        }
+    }
+
+    /**
      * Create a new factory instance for the model.
      */
     protected static function newFactory()

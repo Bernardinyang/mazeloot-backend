@@ -231,11 +231,19 @@ class MediaService
      */
     public function addFeedback(string $mediaId, array $data): MemoraMediaFeedback
     {
-        $media = MemoraMedia::findOrFail($mediaId);
+        // Check if media exists and is not soft-deleted
+        $media = MemoraMedia::where('uuid', $mediaId)->first();
+        
+        if (!$media) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException(
+                "No query results for model [App\\Domains\\Memora\\Models\\MemoraMedia] {$mediaId}"
+            );
+        }
 
         // Handle created_by - it can be a string (email) or an object
+        // For authenticated users, use their email if createdBy is not provided
         $createdBy = null;
-        if (isset($data['createdBy'])) {
+        if (isset($data['createdBy']) && $data['createdBy'] !== null && $data['createdBy'] !== '') {
             if (is_string($data['createdBy'])) {
                 // If it's a string (email), convert to JSON object with formatted name
                 $email = $data['createdBy'];
@@ -255,6 +263,15 @@ class MediaService
                 // If it's already JSON encoded, use as is
                 $createdBy = $data['createdBy'];
             }
+        } elseif (Auth::check()) {
+            // If no createdBy provided but user is authenticated, use authenticated user's email
+            $user = Auth::user();
+            $email = $user->email;
+            $formattedName = $this->formatNameFromEmail($email);
+            $createdBy = json_encode([
+                'email' => $email,
+                'name' => $formattedName,
+            ]);
         }
 
         // Handle mentions - ensure it's a JSON array
@@ -373,10 +390,37 @@ class MediaService
      * @param string|null $sortBy Sort field and direction (e.g., 'uploaded-desc', 'name-asc', 'date-taken-desc')
      * @return \Illuminate\Database\Eloquent\Collection
      */
+    /**
+     * Recursively load replies for a feedback query (helper method)
+     * This creates a closure that loads nested replies up to maxDepth levels
+     */
+    private function loadRecursiveReplies($query, int $depth = 0, int $maxDepth = 20): void
+    {
+        if ($depth >= $maxDepth) {
+            return; // Prevent infinite recursion
+        }
+        
+        $query->orderBy('created_at', 'asc');
+        
+        // Load nested replies recursively
+        $query->with(['replies' => function ($q) use ($depth, $maxDepth) {
+            $this->loadRecursiveReplies($q, $depth + 1, $maxDepth);
+        }]);
+    }
+
     public function getSetMedia(string $setUuid, ?string $sortBy = null, ?int $page = null, ?int $perPage = null)
     {
+        // Load feedback with recursive replies (up to 20 levels deep)
         $query = MemoraMedia::where('media_set_uuid', $setUuid)
-            ->with(['feedback.replies', 'file']);
+            ->with([
+                'feedback' => function ($query) {
+                    $query->whereNull('parent_uuid')->orderBy('created_at', 'asc')
+                        ->with(['replies' => function ($q) {
+                            $this->loadRecursiveReplies($q, 0, 20);
+                        }]);
+                },
+                'file'
+            ]);
 
         // Only load starredByUsers if user is authenticated
         if (Auth::check()) {
