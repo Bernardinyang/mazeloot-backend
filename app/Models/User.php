@@ -154,6 +154,18 @@ class User extends Authenticatable
         )->withTimestamps();
     }
 
+    public function starredProofing(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            \App\Domains\Memora\Models\MemoraProofing::class,
+            'user_starred_proofing',
+            'user_uuid',
+            'proofing_uuid',
+            'uuid',
+            'uuid'
+        )->withTimestamps();
+    }
+
     /**
      * Get the media starred by this user.
      */

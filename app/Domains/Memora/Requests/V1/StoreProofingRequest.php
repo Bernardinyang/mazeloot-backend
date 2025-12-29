@@ -15,7 +15,9 @@ class StoreProofingRequest extends FormRequest
     {
         return [
             'name' => ['nullable', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:1000'],
             'maxRevisions' => ['nullable', 'integer', 'min:1', 'max:10'],
+            'color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
         ];
     }
 }

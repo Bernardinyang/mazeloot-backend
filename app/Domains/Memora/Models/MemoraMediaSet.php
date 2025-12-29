@@ -40,6 +40,7 @@ class MemoraMediaSet extends Model
         'user_uuid',
         'project_uuid',
         'selection_uuid',
+        'proof_uuid',
         'name',
         'description',
         'order',
@@ -64,6 +65,11 @@ class MemoraMediaSet extends Model
     public function selection(): BelongsTo
     {
         return $this->belongsTo(MemoraSelection::class, 'selection_uuid', 'uuid');
+    }
+
+    public function proofing(): BelongsTo
+    {
+        return $this->belongsTo(MemoraProofing::class, 'proof_uuid', 'uuid');
     }
 
     public function media(): HasMany

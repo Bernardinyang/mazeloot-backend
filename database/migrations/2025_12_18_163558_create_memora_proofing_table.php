@@ -15,11 +15,17 @@ return new class extends Migration {
         Schema::create('memora_proofing', static function (Blueprint $table) {
             $table->unsignedBigInteger('id')->nullable();
             $table->uuid('uuid')->primary()->default(DB::raw('(UUID())'));
+            $table->foreignUuid('user_uuid')->constrained('users', 'uuid')->cascadeOnDelete();
             $table->foreignUuid('folder_uuid')->nullable()->constrained('memora_folders', 'uuid')->cascadeOnDelete();
             $table->foreignUuid('project_uuid')->nullable()->constrained('memora_projects', 'uuid')->cascadeOnDelete();
             $table->string('name');
+            $table->text('description')->nullable();
             $table->enum('status', ProofingStatusEnum::values())->default(ProofingStatusEnum::DRAFT->value);
             $table->string('color', 7)->default('#F59E0B'); // Default amber/orange color
+            $table->string('cover_photo_url')->nullable();
+            $table->json('cover_focal_point')->nullable();
+            $table->string('password')->nullable();
+            $table->json('allowed_emails')->nullable();
             $table->integer('max_revisions')->default(5);
             $table->integer('current_revision')->default(0);
             $table->timestamp('completed_at')->nullable();

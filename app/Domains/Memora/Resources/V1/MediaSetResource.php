@@ -16,11 +16,15 @@ class MediaSetResource extends JsonResource
             'order' => $this->order,
             'selectionLimit' => $this->selection_limit,
             'selectionUuid' => $this->selection_uuid,
+            'proofUuid' => $this->proof_uuid,
             'media' => $this->whenLoaded('media', function () {
                 return MediaResource::collection($this->media);
             }, []),
             'selection' => $this->whenLoaded('selection', function () {
                 return new SelectionResource($this->selection);
+            }, null),
+            'proofing' => $this->whenLoaded('proofing', function () {
+                return new ProofingResource($this->proofing);
             }, null),
             'project' => $this->whenLoaded('project', function () {
                 return new ProjectResource($this->project);

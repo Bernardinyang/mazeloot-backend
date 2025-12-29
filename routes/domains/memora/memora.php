@@ -4,6 +4,7 @@ use App\Domains\Memora\Controllers\V1\CollectionController;
 use App\Domains\Memora\Controllers\V1\CoverLayoutController;
 use App\Domains\Memora\Controllers\V1\CoverStyleController;
 use App\Domains\Memora\Controllers\V1\MediaController;
+use App\Domains\Memora\Controllers\V1\MediaSetController;
 use App\Domains\Memora\Controllers\V1\ProjectController;
 use App\Domains\Memora\Controllers\V1\ProofingController;
 use Illuminate\Support\Facades\Route;
@@ -18,6 +19,40 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::middleware(['auth:sanctum'])->group(function () {
+    // Proofing (standalone routes)
+    Route::get('/proofing', [ProofingController::class, 'index']);
+    Route::post('/proofing', [ProofingController::class, 'storeStandalone']);
+    Route::get('/proofing/{id}', [ProofingController::class, 'showStandalone']);
+    Route::patch('/proofing/{id}', [ProofingController::class, 'updateStandalone']);
+    Route::delete('/proofing/{id}', [ProofingController::class, 'destroyStandalone']);
+    Route::post('/proofing/{id}/publish', [ProofingController::class, 'publishStandalone']);
+    Route::post('/proofing/{id}/star', [ProofingController::class, 'toggleStarStandalone']);
+    Route::post('/proofing/{id}/cover-photo', [ProofingController::class, 'setCoverPhotoStandalone']);
+    Route::post('/proofing/{id}/recover', [ProofingController::class, 'recoverStandalone']);
+
+    // Media Sets within a standalone proofing
+    Route::prefix('proofing/{proofingId}/sets')->group(function () {
+        Route::get('/', [MediaSetController::class, 'indexForProofing']);
+        Route::post('/', [MediaSetController::class, 'storeForProofing']);
+        Route::get('/{id}', [MediaSetController::class, 'showForProofing']);
+        Route::patch('/{id}', [MediaSetController::class, 'updateForProofing']);
+        Route::delete('/{id}', [MediaSetController::class, 'destroyForProofing']);
+        Route::post('/reorder', [MediaSetController::class, 'reorderForProofing']);
+
+        // Media within a set
+        Route::prefix('{setId}/media')->group(function () {
+            Route::get('/', [MediaController::class, 'getSetMedia']);
+            Route::post('/', [MediaController::class, 'uploadToSet']);
+            Route::post('/move', [MediaController::class, 'moveToSet']);
+            Route::post('/copy', [MediaController::class, 'copyToSet']);
+            Route::patch('/{mediaId}/rename', [MediaController::class, 'rename']);
+            Route::patch('/{mediaId}/replace', [MediaController::class, 'replace']);
+            Route::post('/{mediaId}/star', [MediaController::class, 'toggleStar']);
+            Route::delete('/{mediaId}', [MediaController::class, 'deleteFromSet']);
+            Route::post('/{mediaId}/feedback', [MediaController::class, 'addFeedback']);
+        });
+    });
+
     // Projects
     Route::prefix('projects')->group(function () {
         Route::get('/', [ProjectController::class, 'index']);
@@ -33,9 +68,39 @@ Route::middleware(['auth:sanctum'])->group(function () {
             Route::post('/', [ProofingController::class, 'store']);
             Route::get('/{id}', [ProofingController::class, 'show']);
             Route::patch('/{id}', [ProofingController::class, 'update']);
+            Route::delete('/{id}', [ProofingController::class, 'destroy']);
+            Route::post('/{id}/publish', [ProofingController::class, 'publish']);
+            Route::post('/{id}/star', [ProofingController::class, 'toggleStar']);
+            Route::post('/{id}/cover-photo', [ProofingController::class, 'setCoverPhoto']);
+            Route::post('/{id}/recover', [ProofingController::class, 'recover']);
             Route::post('/{id}/revisions', [ProofingController::class, 'uploadRevision']);
             Route::post('/{id}/complete', [ProofingController::class, 'complete']);
             Route::post('/{id}/move-to-collection', [ProofingController::class, 'moveToCollection']);
+
+            // Media Sets within a project-based proofing
+            Route::prefix('{proofingId}/sets')->group(function () {
+                Route::get('/', [MediaSetController::class, 'indexForProofing']);
+                Route::post('/', [MediaSetController::class, 'storeForProofing']);
+                Route::get('/{id}', [MediaSetController::class, 'showForProofing']);
+                Route::patch('/{id}', [MediaSetController::class, 'updateForProofing']);
+                Route::delete('/{id}', [MediaSetController::class, 'destroyForProofing']);
+                Route::post('/reorder', [MediaSetController::class, 'reorderForProofing']);
+
+                // Media within a set
+                Route::prefix('{setId}/media')->group(function () {
+                    Route::get('/', [MediaController::class, 'getSetMedia']);
+                    Route::post('/', [MediaController::class, 'uploadToSet']);
+                    Route::post('/move', [MediaController::class, 'moveToSet']);
+                    Route::post('/copy', [MediaController::class, 'copyToSet']);
+                    Route::patch('/{mediaId}/rename', [MediaController::class, 'rename']);
+                    Route::patch('/{mediaId}/replace', [MediaController::class, 'replace']);
+                    Route::post('/{mediaId}/star', [MediaController::class, 'toggleStar']);
+                    Route::delete('/{mediaId}', [MediaController::class, 'deleteFromSet']);
+                    Route::post('/{mediaId}/feedback', [MediaController::class, 'addFeedback']);
+                    Route::patch('/{mediaId}/feedback/{feedbackId}', [MediaController::class, 'updateFeedback']);
+                    Route::delete('/{mediaId}/feedback/{feedbackId}', [MediaController::class, 'deleteFeedback']);
+                });
+            });
         });
 
         // Collections

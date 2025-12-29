@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\GuestProofingToken;
 use App\Models\GuestSelectionToken;
 use App\Support\Responses\ApiResponse;
 use Closure;
@@ -27,7 +28,13 @@ class GuestTokenAuth
             );
         }
 
+        // Try to find selection token first
         $guestToken = GuestSelectionToken::where('token', $token)->first();
+
+        // If not found, try proofing token
+        if (!$guestToken) {
+            $guestToken = GuestProofingToken::where('token', $token)->first();
+        }
 
         if (!$guestToken) {
             return ApiResponse::error(

@@ -24,7 +24,7 @@ class MediaService
     {
         $query = MemoraMedia::where('phase', $phaseType)
             ->where('phase_id', $phaseId)
-            ->with(['feedback', 'file'])
+            ->with(['feedback.replies', 'file'])
             ->orderBy('order');
 
         if ($setUuid) {
@@ -233,12 +233,137 @@ class MediaService
     {
         $media = MemoraMedia::findOrFail($mediaId);
 
-        return MemoraMediaFeedback::create([
-            'media_id' => $mediaId,
+        // Handle created_by - it can be a string (email) or an object
+        $createdBy = null;
+        if (isset($data['createdBy'])) {
+            if (is_string($data['createdBy'])) {
+                // If it's a string (email), convert to JSON object with formatted name
+                $email = $data['createdBy'];
+                $formattedName = $this->formatNameFromEmail($email);
+                $createdBy = json_encode([
+                    'email' => $email,
+                    'name' => $formattedName,
+                ]);
+            } elseif (is_array($data['createdBy'])) {
+                // If it's already an array, ensure name is formatted if it's an email
+                $createdByArray = $data['createdBy'];
+                if (isset($createdByArray['email']) && (!isset($createdByArray['name']) || $createdByArray['name'] === $createdByArray['email'])) {
+                    $createdByArray['name'] = $this->formatNameFromEmail($createdByArray['email']);
+                }
+                $createdBy = json_encode($createdByArray);
+            } else {
+                // If it's already JSON encoded, use as is
+                $createdBy = $data['createdBy'];
+            }
+        }
+
+        // Handle mentions - ensure it's a JSON array
+        $mentions = null;
+        if (isset($data['mentions']) && is_array($data['mentions']) && count($data['mentions']) > 0) {
+            // Validate and sanitize email addresses
+            $mentions = array_filter(array_map(function ($email) {
+                $email = trim($email);
+                return filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null;
+            }, $data['mentions']));
+            
+            // Remove duplicates and re-index array
+            $mentions = array_values(array_unique($mentions));
+            
+            // If no valid emails, set to null
+            if (empty($mentions)) {
+                $mentions = null;
+            }
+        }
+
+        $feedback = MemoraMediaFeedback::create([
+            'media_uuid' => $mediaId,
+            'parent_uuid' => $data['parentId'] ?? null,
+            'timestamp' => $data['timestamp'] ?? null,
+            'mentions' => $mentions ? json_encode($mentions) : null,
             'type' => $data['type'],
             'content' => $data['content'],
-            'created_by' => $data['createdBy'] ?? null,
+            'created_by' => $createdBy,
         ]);
+
+        // Dispatch event for real-time updates
+        \App\Domains\Memora\Events\MediaFeedbackCreated::dispatch($feedback);
+
+        return $feedback;
+    }
+
+    /**
+     * Update feedback
+     */
+    public function updateFeedback(string $feedbackId, array $data): MemoraMediaFeedback
+    {
+        $feedback = MemoraMediaFeedback::findOrFail($feedbackId);
+        
+        // Check if comment is within 2 minutes
+        $createdAt = $feedback->created_at;
+        $now = now();
+        $diffMinutes = $now->diffInMinutes($createdAt);
+        
+        if ($diffMinutes > 2) {
+            throw new \Exception('Comment can only be edited within 2 minutes of creation');
+        }
+        
+        $feedback->update([
+            'content' => $data['content'],
+        ]);
+
+        // Dispatch event for real-time updates
+        \App\Domains\Memora\Events\MediaFeedbackUpdated::dispatch($feedback);
+
+        return $feedback->fresh();
+    }
+
+    /**
+     * Delete feedback
+     */
+    public function deleteFeedback(string $feedbackId): bool
+    {
+        $feedback = MemoraMediaFeedback::findOrFail($feedbackId);
+        
+        // Check if comment has replies
+        if ($feedback->replies()->count() > 0) {
+            throw new \Exception('Cannot delete comment with replies');
+        }
+        
+        // Check if comment is within 2 minutes
+        $createdAt = $feedback->created_at;
+        $now = now();
+        $diffMinutes = $now->diffInMinutes($createdAt);
+        
+        if ($diffMinutes > 2) {
+            throw new \Exception('Comment can only be deleted within 2 minutes of creation');
+        }
+        
+        return $feedback->delete();
+    }
+
+    /**
+     * Format a display name from an email address
+     * Example: "bernardinyang.bci@gmail.com" -> "Bernardinyang Bci"
+     */
+    protected function formatNameFromEmail(string $email): string
+    {
+        if (!str_contains($email, '@')) {
+            return $email;
+        }
+
+        // Extract the part before @
+        $localPart = explode('@', $email)[0];
+
+        // Replace dots and underscores with spaces
+        $formatted = str_replace(['.', '_'], ' ', $localPart);
+
+        // Capitalize words
+        $words = explode(' ', $formatted);
+        $capitalizedWords = array_map(function ($word) {
+            return ucfirst(strtolower($word));
+        }, $words);
+
+        return implode(' ', $capitalizedWords) ?: $email;
     }
 
     /**
@@ -251,7 +376,7 @@ class MediaService
     public function getSetMedia(string $setUuid, ?string $sortBy = null, ?int $page = null, ?int $perPage = null)
     {
         $query = MemoraMedia::where('media_set_uuid', $setUuid)
-            ->with(['feedback', 'file']);
+            ->with(['feedback.replies', 'file']);
 
         // Only load starredByUsers if user is authenticated
         if (Auth::check()) {
@@ -276,7 +401,7 @@ class MediaService
 
             // If we used a join for sorting, reload relationships to ensure they're available
             if ($sortBy && str_starts_with($sortBy, 'name-')) {
-                $relationships = ['feedback', 'file'];
+                $relationships = ['feedback.replies', 'file'];
                 if (Auth::check()) {
                     $relationships[] = 'starredByUsers';
                 }
@@ -304,7 +429,7 @@ class MediaService
         // If we used a join for sorting, reload relationships to ensure they're available
         // This is necessary because joins can interfere with eager loading
         if ($sortBy && str_starts_with($sortBy, 'name-')) {
-            $relationships = ['feedback', 'file'];
+            $relationships = ['feedback.replies', 'file'];
             if (Auth::check()) {
                 $relationships[] = 'starredByUsers';
             }
@@ -582,7 +707,7 @@ class MediaService
 
         // Get all media starred by the user
         $query = $user->starredMedia()
-            ->with(['feedback', 'file', 'mediaSet.selection', 'starredByUsers' => function ($q) use ($user) {
+            ->with(['feedback.replies', 'file', 'mediaSet.selection', 'starredByUsers' => function ($q) use ($user) {
                 $q->where('user_uuid', $user->uuid);
             }]);
 
@@ -601,7 +726,7 @@ class MediaService
             $paginator = $paginationService->paginate($query, $perPage, $page);
 
             // Reload relationships to ensure they're available
-            $relationships = ['feedback', 'file', 'mediaSet.selection', 'starredByUsers'];
+            $relationships = ['feedback.replies', 'file', 'mediaSet.selection', 'starredByUsers'];
             $paginator->getCollection()->load($relationships);
 
             // Transform items to resources

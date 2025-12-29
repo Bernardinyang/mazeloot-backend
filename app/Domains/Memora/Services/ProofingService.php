@@ -3,34 +3,63 @@
 namespace App\Domains\Memora\Services;
 
 use App\Domains\Memora\Models\MemoraMedia;
+use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraProject;
 use App\Domains\Memora\Models\MemoraProofing;
+use App\Domains\Memora\Resources\V1\ProofingResource;
+use App\Services\Pagination\PaginationService;
 use App\Services\Upload\UploadService;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class ProofingService
 {
     protected UploadService $uploadService;
+    protected PaginationService $paginationService;
 
-    public function __construct(UploadService $uploadService)
+    public function __construct(UploadService $uploadService, PaginationService $paginationService)
     {
         $this->uploadService = $uploadService;
+        $this->paginationService = $paginationService;
     }
 
     /**
-     * Create a proofing phase
+     * Create a proofing phase (standalone or project-based)
      */
-    public function create(string $projectId, array $data): MemoraProofing
+    public function create(array $data): MemoraProofing
     {
-        // Validate project exists
-        $project = MemoraProject::findOrFail($projectId);
+        $user = Auth::user();
+        if (!$user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $projectUuid = $data['project_uuid'] ?? $data['projectUuid'] ?? null;
+        $project = null;
+
+        if ($projectUuid) {
+            // Validate project exists
+            $project = MemoraProject::findOrFail($projectUuid);
+        }
 
         return MemoraProofing::create([
-            'project_uuid' => $projectId,
+            'user_uuid' => $user->uuid,
+            'project_uuid' => $projectUuid,
             'name' => $data['name'] ?? 'Proofing',
+            'description' => (isset($data['description']) && trim($data['description']) !== '') ? trim($data['description']) : null,
             'max_revisions' => $data['maxRevisions'] ?? 5,
             'status' => $data['status'] ?? 'draft',
-            'color' => $data['color'] ?? $project->color ?? '#F59E0B',
+            'color' => $data['color'] ?? $project?->color ?? '#F59E0B',
         ]);
+    }
+
+    /**
+     * Create a proofing phase (project-based, for backward compatibility)
+     */
+    public function createForProject(string $projectId, array $data): MemoraProofing
+    {
+        $data['project_uuid'] = $projectId;
+        return $this->create($data);
     }
 
     /**
@@ -39,8 +68,9 @@ class ProofingService
     public function uploadRevision(string $projectId, string $id, string $mediaId, int $revisionNumber, $file): array
     {
         $proofing = $this->find($projectId, $id);
-        $media = MemoraMedia::where('phase_id', $id)
-            ->where('phase', 'proofing')
+        $media = MemoraMedia::whereHas('mediaSet', function ($query) use ($id) {
+            $query->where('proof_uuid', $id);
+        })
             ->findOrFail($mediaId);
 
         // Upload the revision file via upload service
@@ -62,19 +92,44 @@ class ProofingService
     }
 
     /**
-     * Get a proofing phase
+     * Get a proofing phase (standalone or project-based)
+     * @param string|null $projectId If provided, validates proofing belongs to that project. If null, finds any proofing by ID.
      */
-    public function find(string $projectId, string $id): MemoraProofing
+    public function find(?string $projectId, string $id): MemoraProofing
     {
-        // Validate project exists
-        MemoraProject::findOrFail($projectId);
+        $user = Auth::user();
+        if (!$user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
 
-        $proofing = MemoraProofing::where('project_uuid', $projectId)->findOrFail($id);
+        $query = MemoraProofing::where('user_uuid', $user->uuid)->where('uuid', $id);
 
-        // Load counts
-        $mediaCount = MemoraMedia::where('phase_id', $id)->where('phase', 'proofing')->count();
-        $completedCount = MemoraMedia::where('phase_id', $id)
-            ->where('phase', 'proofing')
+        if ($projectId) {
+            // Validate project exists and proofing belongs to it
+            MemoraProject::findOrFail($projectId);
+            $query->where('project_uuid', $projectId);
+        }
+        // If no projectId provided, find proofing regardless of project association
+
+        $proofing = $query->firstOrFail();
+
+        // Load relationships for the resource
+        $proofing->load(['mediaSets' => function ($query) {
+            $query->withCount('media')->orderBy('order');
+        }]);
+        
+        // Load starredByUsers for the current user only
+        $proofing->load(['starredByUsers' => function ($query) use ($user) {
+            $query->where('user_uuid', $user->uuid);
+        }]);
+
+        // Load counts through media sets
+        $mediaCount = MemoraMedia::whereHas('mediaSet', function ($query) use ($id) {
+            $query->where('proof_uuid', $id);
+        })->count();
+        $completedCount = MemoraMedia::whereHas('mediaSet', function ($query) use ($id) {
+            $query->where('proof_uuid', $id);
+        })
             ->where('is_completed', true)
             ->count();
 
@@ -101,40 +156,695 @@ class ProofingService
     }
 
     /**
-     * Update a proofing phase
+     * Update a proofing phase (standalone or project-based)
      */
-    public function update(string $projectId, string $id, array $data): MemoraProofing
+    public function update(?string $projectId, string $id, array $data): MemoraProofing
     {
-        $proofing = $this->find($projectId, $id);
+        $user = Auth::user();
+        if (!$user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $query = MemoraProofing::where('user_uuid', $user->uuid)->where('uuid', $id);
+        
+        if ($projectId) {
+            $query->where('project_uuid', $projectId);
+        }
+        // If no projectId provided, find proofing regardless of project association
+        
+        $proofing = $query->firstOrFail();
 
         $updateData = [];
         if (isset($data['name'])) $updateData['name'] = $data['name'];
+        if (array_key_exists('description', $data)) {
+            $desc = $data['description'];
+            if ($desc === null || $desc === '') {
+                $updateData['description'] = null;
+            } else {
+                $updateData['description'] = trim((string) $desc);
+            }
+        }
         if (isset($data['maxRevisions'])) $updateData['max_revisions'] = $data['maxRevisions'];
         if (isset($data['status'])) $updateData['status'] = $data['status'];
+        if (isset($data['color'])) $updateData['color'] = $data['color'];
+        if (isset($data['cover_photo_url'])) $updateData['cover_photo_url'] = $data['cover_photo_url'];
+        if (isset($data['cover_focal_point'])) $updateData['cover_focal_point'] = $data['cover_focal_point'];
+        
+        // Handle allowedEmails (camelCase) or allowed_emails (snake_case)
+        if (array_key_exists('allowedEmails', $data) || array_key_exists('allowed_emails', $data)) {
+            $emails = $data['allowedEmails'] ?? $data['allowed_emails'] ?? [];
+            // Ensure it's an array
+            $emails = is_array($emails) ? $emails : [];
+            
+            Log::info('Processing allowed_emails', [
+                'proofing_id' => $id,
+                'raw_input' => $emails,
+                'is_array' => is_array($emails),
+            ]);
+            
+            // Filter and validate emails
+            $validEmails = [];
+            foreach ($emails as $email) {
+                $trimmed = trim($email ?? '');
+                if (empty($trimmed)) {
+                    continue;
+                }
+                $lowercased = strtolower($trimmed);
+                if (filter_var($lowercased, FILTER_VALIDATE_EMAIL)) {
+                    $validEmails[] = $lowercased;
+                }
+            }
+            
+            // Remove duplicates and re-index
+            $validEmails = array_values(array_unique($validEmails));
+            
+            // Always set as array, even if empty (don't set to null)
+            $updateData['allowed_emails'] = $validEmails;
+            
+            Log::info('Updating proofing allowed_emails', [
+                'proofing_id' => $id,
+                'input_emails' => $emails,
+                'valid_emails' => $validEmails,
+                'update_data_keys' => array_keys($updateData),
+            ]);
+        }
+
+        // Handle password update
+        if (array_key_exists('password', $data)) {
+            if (!empty($data['password'])) {
+                $updateData['password'] = $data['password'];
+            } else {
+                $updateData['password'] = null;
+            }
+        }
+
+        Log::info('Proofing update data before save', [
+            'proofing_id' => $id,
+            'update_data' => $updateData,
+            'has_allowed_emails' => isset($updateData['allowed_emails']),
+        ]);
 
         $proofing->update($updateData);
 
-        return $proofing->fresh();
+        $updated = $proofing->fresh();
+        
+        Log::info('Proofing updated', [
+            'proofing_id' => $id,
+            'allowed_emails_after_save' => $updated->allowed_emails,
+        ]);
+
+        return $updated;
+    }
+
+    /**
+     * Update a proofing phase (project-based, for backward compatibility)
+     */
+    public function updateForProject(string $projectId, string $id, array $data): MemoraProofing
+    {
+        return $this->update($projectId, $id, $data);
+    }
+
+    /**
+     * Update a proofing phase (standalone)
+     */
+    public function updateStandalone(string $id, array $data): MemoraProofing
+    {
+        return $this->update(null, $id, $data);
     }
 
     /**
      * Move media to collection
+     * Moves media by updating their media_set_uuid to point to a project-level set
      */
     public function moveToCollection(string $projectId, string $id, array $mediaIds, string $collectionUuid): array
     {
         $proofing = $this->find($projectId, $id);
-
-        $moved = MemoraMedia::where('phase_id', $id)
-            ->where('phase', 'proofing')
-            ->whereIn('id', $mediaIds)
+        
+        // Verify collection exists
+        $collection = \App\Domains\Memora\Models\MemoraCollection::where('project_uuid', $projectId)
+            ->where('uuid', $collectionUuid)
+            ->firstOrFail();
+        
+        // Get the first project-level media set (not tied to selection or proofing)
+        // Collections use project-level sets
+        $collectionSet = \App\Domains\Memora\Models\MemoraMediaSet::where('project_uuid', $projectId)
+            ->whereNull('selection_uuid')
+            ->whereNull('proof_uuid')
+            ->orderBy('order')
+            ->first();
+        
+        if (!$collectionSet) {
+            // Create a default set for the collection
+            $collectionSet = \App\Domains\Memora\Models\MemoraMediaSet::create([
+                'user_uuid' => \Illuminate\Support\Facades\Auth::user()->uuid,
+                'project_uuid' => $projectId,
+                'name' => 'Default Set',
+                'order' => 0,
+            ]);
+        }
+        
+        // Move media by updating their media_set_uuid
+        $moved = MemoraMedia::whereHas('mediaSet', function ($query) use ($id) {
+            $query->where('proof_uuid', $id);
+        })
+            ->whereIn('uuid', $mediaIds)
             ->update([
-                'collection_id' => $collectionUuid,
-                'phase' => 'collection',
+                'media_set_uuid' => $collectionSet->uuid,
             ]);
 
         return [
             'movedCount' => $moved,
             'collectionId' => $collectionUuid,
         ];
+    }
+
+    /**
+     * Get all proofing with optional search, sort, filter, and pagination parameters
+     *
+     * @param string|null $projectUuid Filter by project UUID
+     * @param string|null $search Search query (searches in name)
+     * @param string|null $sortBy Sort field and direction (e.g., 'created-desc', 'name-asc', 'status-asc')
+     * @param string|null $status Filter by status (e.g., 'draft', 'completed', 'active')
+     * @param bool|null $starred Filter by starred status
+     * @param int $page Page number (default: 1)
+     * @param int $perPage Items per page (default: 10)
+     * @return array Paginated response with data and pagination metadata
+     */
+    public function getAll(
+        ?string $projectUuid = null,
+        ?string $search = null,
+        ?string $sortBy = null,
+        ?string $status = null,
+        ?bool   $starred = null,
+        int $page = 1,
+        int $perPage = 10
+    ): array
+    {
+        $user = Auth::user();
+        if (!$user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $query = MemoraProofing::query()
+            ->where('user_uuid', $user->uuid)
+            ->with(['project'])
+            ->with(['mediaSets' => function ($query) {
+                $query->withCount('media')->orderBy('order');
+            }])
+            ->with(['starredByUsers' => function ($query) use ($user) {
+                $query->where('user_uuid', $user->uuid);
+            }])
+            // Add subqueries for media counts to avoid N+1 queries
+            ->addSelect([
+                'media_count' => MemoraMedia::query()->selectRaw('COALESCE(COUNT(*), 0)')
+                    ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
+                    ->whereColumn('memora_media_sets.proof_uuid', 'memora_proofing.uuid')
+                    ->limit(1),
+                'completed_count' => MemoraMedia::query()->selectRaw('COALESCE(COUNT(*), 0)')
+                    ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
+                    ->whereColumn('memora_media_sets.proof_uuid', 'memora_proofing.uuid')
+                    ->where('memora_media.is_completed', true)
+                    ->limit(1),
+            ]);
+
+        // Filter by project UUID
+        if ($projectUuid) {
+            $query->where('project_uuid', $projectUuid);
+        }
+
+        // Search by name
+        if ($search && trim($search)) {
+            $query->where('name', 'LIKE', '%' . trim($search) . '%');
+        }
+
+        // Filter by status
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        // Filter by starred status (if proofing has starred relationship)
+        // Note: This assumes proofing has a starred relationship similar to selections
+        // If not implemented yet, this will be ignored
+        if ($starred !== null) {
+            // TODO: Implement starred relationship for proofing if needed
+            // For now, we'll skip this filter
+        }
+
+        // Apply sorting
+        if ($sortBy) {
+            $this->applySorting($query, $sortBy);
+        } else {
+            // Default sort: created_at desc
+            $query->orderBy('created_at', 'desc');
+        }
+
+        // Paginate the query
+        $paginator = $this->paginationService->paginate($query, $perPage, $page);
+
+        // Map the subquery results to the expected attribute names
+        foreach ($paginator->items() as $proofing) {
+            $proofing->setAttribute('media_count', (int)($proofing->media_count ?? 0));
+            $proofing->setAttribute('completed_count', (int)($proofing->completed_count ?? 0));
+            $proofing->setAttribute('pending_count', $proofing->media_count - $proofing->completed_count);
+            // Set set count from loaded relationship
+            if ($proofing->relationLoaded('mediaSets')) {
+                $proofing->setAttribute('set_count', $proofing->mediaSets->count());
+            }
+        }
+
+        // Transform items to resources
+        $data = ProofingResource::collection($paginator->items());
+
+        // Format response with pagination metadata
+        return [
+            'data' => $data,
+            'pagination' => [
+                'page' => $paginator->currentPage(),
+                'limit' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'totalPages' => $paginator->lastPage(),
+            ],
+        ];
+    }
+
+    /**
+     * Apply sorting to the query based on sortBy parameter
+     *
+     * @param Builder $query
+     * @param string $sortBy Format: 'field-direction' (e.g., 'created-desc', 'name-asc')
+     */
+    protected function applySorting(Builder $query, string $sortBy): void
+    {
+        $parts = explode('-', $sortBy);
+        $field = $parts[0] ?? 'created_at';
+        $direction = strtoupper($parts[1] ?? 'desc');
+
+        // Validate direction
+        if (!in_array($direction, ['ASC', 'DESC'])) {
+            $direction = 'DESC';
+        }
+
+        // Map frontend sort values to database fields
+        $fieldMap = [
+            'created' => 'created_at',
+            'name' => 'name',
+            'status' => 'status',
+        ];
+
+        $dbField = $fieldMap[$field] ?? 'created_at';
+
+        $query->orderBy($dbField, $direction);
+    }
+
+    /**
+     * Get selected filenames for proofing
+     */
+    public function getSelectedFilenames(string $id, ?string $setId = null): array
+    {
+        $query = MemoraMedia::query()
+            ->whereHas('mediaSet', function ($q) use ($id, $setId) {
+                $q->where('proof_uuid', $id);
+                if ($setId) {
+                    $q->where('uuid', $setId);
+                }
+            })
+            ->where('is_selected', true)
+            ->with('file')
+            ->orderBy('order');
+
+        $mediaItems = $query->get();
+
+        $filenames = $mediaItems->map(function ($media) {
+            return $media->file?->filename ?? null;
+        })
+            ->filter()
+            ->values()
+            ->toArray();
+
+        return [
+            'filenames' => $filenames,
+            'count' => count($filenames),
+        ];
+    }
+
+    /**
+     * Delete a proofing phase and all its sets and media
+     */
+    public function delete(?string $projectId, string $id): bool
+    {
+        $user = Auth::user();
+        if (!$user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $query = MemoraProofing::where('user_uuid', $user->uuid)->where('uuid', $id);
+        
+        if ($projectId) {
+            $query->where('project_uuid', $projectId);
+        }
+        // If no projectId provided, find proofing regardless of project association
+        
+        $proofing = $query->firstOrFail();
+        
+        // Load media sets relationship if not already loaded
+        if (!$proofing->relationLoaded('mediaSets')) {
+            $proofing->load(['mediaSets.media.feedback.replies', 'mediaSets.media.file']);
+        }
+        
+        // Get all media sets for this proofing
+        $mediaSets = $proofing->mediaSets;
+        
+        // Soft delete all media in all sets, then delete all sets
+        foreach ($mediaSets as $set) {
+            // Ensure media is loaded for this set
+            if (!$set->relationLoaded('media')) {
+                $set->load('media');
+            }
+            
+            // Soft delete all media in this set
+            foreach ($set->media as $media) {
+                $media->delete();
+            }
+            // Soft delete the set
+            $set->delete();
+        }
+        
+        // Soft delete the proofing itself
+        return $proofing->delete();
+    }
+
+    /**
+     * Delete a proofing phase (standalone)
+     */
+    public function deleteStandalone(string $id): bool
+    {
+        return $this->delete(null, $id);
+    }
+
+    /**
+     * Publish a proofing phase (toggle between draft and active)
+     */
+    public function publish(?string $projectId, string $id): MemoraProofing
+    {
+        $user = Auth::user();
+        if (!$user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $query = MemoraProofing::where('user_uuid', $user->uuid)->where('uuid', $id);
+        
+        if ($projectId) {
+            $query->where('project_uuid', $projectId);
+        }
+        // If no projectId provided, find proofing regardless of project association
+        
+        $proofing = $query->firstOrFail();
+
+        $newStatus = match ($proofing->status->value) {
+            'draft' => 'active',
+            'active' => 'draft',
+            'completed' => 'active',
+            default => 'active',
+        };
+
+        // Validate that at least one email is in allowed_emails before publishing to active
+        if ($newStatus === 'active') {
+            $allowedEmails = $proofing->allowed_emails ?? [];
+            if (empty($allowedEmails) || !is_array($allowedEmails) || count(array_filter($allowedEmails)) === 0) {
+                throw new \Illuminate\Validation\ValidationException(
+                    validator([], []),
+                    ['allowed_emails' => ['At least one email address must be added to "Allowed Emails" before publishing the proofing.']]
+                );
+            }
+        }
+
+        $proofing->update(['status' => $newStatus]);
+
+        return $proofing->fresh();
+    }
+
+    /**
+     * Publish a proofing phase (standalone)
+     */
+    public function publishStandalone(string $id): MemoraProofing
+    {
+        return $this->publish(null, $id);
+    }
+
+    /**
+     * Toggle star status for a proofing phase
+     */
+    public function toggleStar(?string $projectId, string $id): array
+    {
+        $user = Auth::user();
+        if (!$user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $query = MemoraProofing::where('user_uuid', $user->uuid)->where('uuid', $id);
+        
+        if ($projectId) {
+            $query->where('project_uuid', $projectId);
+        }
+        // If no projectId provided, find proofing regardless of project association
+        
+        $proofing = $query->firstOrFail();
+
+        // Toggle the star relationship
+        $user->starredProofing()->toggle($proofing->uuid);
+
+        // Check if it's now starred
+        $isStarred = $user->starredProofing()->where('proofing_uuid', $proofing->uuid)->exists();
+
+        return [
+            'starred' => $isStarred,
+        ];
+    }
+
+    /**
+     * Toggle star status for a proofing phase (standalone)
+     */
+    public function toggleStarStandalone(string $id): array
+    {
+        return $this->toggleStar(null, $id);
+    }
+
+    /**
+     * Set cover photo from media
+     */
+    public function setCoverPhotoFromMedia(?string $projectId, string $proofingId, string $mediaUuid, ?array $focalPoint = null): MemoraProofing
+    {
+        $user = Auth::user();
+        if (!$user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $query = MemoraProofing::where('user_uuid', $user->uuid)->where('uuid', $proofingId);
+        
+        // Only filter by project_uuid if projectId is explicitly provided
+        if ($projectId !== null && $projectId !== '') {
+            $query->where('project_uuid', $projectId);
+        }
+        // If no projectId provided, find proofing regardless of project association
+        
+        $proofing = $query->firstOrFail();
+
+        // Find the media and verify it belongs to this proofing
+        // First, find the media with its relationships
+        $media = MemoraMedia::query()
+            ->where('uuid', $mediaUuid)
+            ->where('user_uuid', $user->uuid)
+            ->with(['file', 'mediaSet'])
+            ->first();
+        
+        if (!$media) {
+            Log::error('Media not found', [
+                'media_uuid' => $mediaUuid,
+                'proofing_id' => $proofingId,
+                'user_uuid' => $user->uuid,
+            ]);
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Media not found');
+        }
+        
+        // Verify the mediaSet exists and belongs to this proofing
+        if (!$media->media_set_uuid) {
+            Log::error('Media has no media_set_uuid', [
+                'media_uuid' => $mediaUuid,
+                'media_set_uuid' => $media->media_set_uuid,
+            ]);
+            throw new \RuntimeException('Media does not have an associated set');
+        }
+        
+        // Load the mediaSet relationship if not loaded, including soft-deleted
+        if (!$media->relationLoaded('mediaSet') || !$media->mediaSet) {
+            $mediaSet = MemoraMediaSet::withTrashed()
+                ->where('uuid', $media->media_set_uuid)
+                ->first();
+            
+            if (!$mediaSet) {
+                Log::error('MediaSet not found', [
+                    'media_uuid' => $mediaUuid,
+                    'media_set_uuid' => $media->media_set_uuid,
+                ]);
+                throw new \RuntimeException('Media set not found');
+            }
+            
+            $media->setRelation('mediaSet', $mediaSet);
+        }
+        
+        // Verify the mediaSet belongs to this proofing
+        if ($media->mediaSet->proof_uuid !== $proofingId) {
+            Log::error('Media set does not belong to proofing', [
+                'media_uuid' => $mediaUuid,
+                'media_set_uuid' => $media->media_set_uuid,
+                'media_set_proof_uuid' => $media->mediaSet->proof_uuid,
+                'expected_proof_uuid' => $proofingId,
+            ]);
+            throw new \RuntimeException('Media does not belong to this proofing');
+        }
+
+        // Get cover URL from the media's file
+        $coverUrl = null;
+        
+        // Try to load file relationship if not loaded and media has a user_file_uuid
+        if (!$media->relationLoaded('file') && $media->user_file_uuid) {
+            try {
+                $media->load('file');
+            } catch (\Exception $e) {
+                Log::warning('Failed to load file relationship for media', [
+                    'media_uuid' => $mediaUuid,
+                    'user_file_uuid' => $media->user_file_uuid,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+        
+        if ($media->file) {
+            $file = $media->file;
+            $fileType = $file->type?->value ?? $file->type;
+            
+            if ($fileType === 'video') {
+                $coverUrl = $file->url ?? null;
+            } else {
+                // Check metadata for variants (metadata is cast as array, but handle null case)
+                $metadata = $file->metadata;
+                
+                // Handle case where metadata might be stored as JSON string (shouldn't happen with cast, but be safe)
+                if (is_string($metadata)) {
+                    $metadata = json_decode($metadata, true);
+                }
+                
+                // Safely access variants
+                if ($metadata && is_array($metadata) && isset($metadata['variants']) && is_array($metadata['variants'])) {
+                    if (isset($metadata['variants']['thumb'])) {
+                        $coverUrl = $metadata['variants']['thumb'];
+                    } elseif (isset($metadata['variants']['large'])) {
+                        $coverUrl = $metadata['variants']['large'];
+                    }
+                }
+                
+                // Fallback to file URL if no variant found
+                if (!$coverUrl) {
+                    $coverUrl = $file->url ?? null;
+                }
+            }
+        }
+        
+        // Fallback: check if media has a direct URL (for legacy media or if file relationship fails)
+        if (!$coverUrl) {
+            $coverUrl = $media->url ?? null;
+        }
+
+        if (!$coverUrl) {
+            $fileUrl = $media->file ? ($media->file->url ?? 'none') : 'no file relationship';
+            Log::error('Failed to get cover URL for media', [
+                'media_uuid' => $mediaUuid,
+                'proofing_id' => $proofingId,
+                'has_file' => $media->file ? 'yes' : 'no',
+                'file_url' => $fileUrl,
+                'media_url' => $media->url ?? 'none',
+                'file_metadata' => $media->file ? ($media->file->metadata ?? 'none') : 'none',
+            ]);
+            throw new \RuntimeException('Media does not have a valid URL for cover photo');
+        }
+
+        $updateData = [
+            'cover_photo_url' => $coverUrl,
+        ];
+
+        if ($focalPoint !== null) {
+            // Ensure focal point is properly formatted as JSON
+            if (is_array($focalPoint)) {
+                $updateData['cover_focal_point'] = $focalPoint;
+            } else {
+                // Try to decode if it's a JSON string
+                $decoded = json_decode($focalPoint, true);
+                $updateData['cover_focal_point'] = $decoded !== null ? $decoded : $focalPoint;
+            }
+        }
+
+        try {
+            $proofing->update($updateData);
+        } catch (\Exception $e) {
+            Log::error('Failed to update proofing cover photo', [
+                'proofing_id' => $proofingId,
+                'media_uuid' => $mediaUuid,
+                'cover_url' => $coverUrl,
+                'focal_point' => $focalPoint,
+                'update_data' => $updateData,
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e;
+        }
+
+        return $proofing->fresh();
+    }
+
+    /**
+     * Set cover photo from media (standalone)
+     */
+    public function setCoverPhotoFromMediaStandalone(string $proofingId, string $mediaUuid, ?array $focalPoint = null): MemoraProofing
+    {
+        return $this->setCoverPhotoFromMedia(null, $proofingId, $mediaUuid, $focalPoint);
+    }
+
+    /**
+     * Recover deleted media
+     */
+    public function recover(?string $projectId, string $id, array $mediaIds): array
+    {
+        $user = Auth::user();
+        if (!$user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $query = MemoraProofing::where('user_uuid', $user->uuid)->where('uuid', $id);
+        
+        if ($projectId) {
+            $query->where('project_uuid', $projectId);
+        }
+        // If no projectId provided, find proofing regardless of project association
+        
+        $proofing = $query->firstOrFail();
+
+        $recovered = MemoraMedia::query()->whereHas('mediaSet', function ($query) use ($id) {
+            $query->where('proof_uuid', $id);
+        })
+            ->whereIn('uuid', $mediaIds)
+            ->withTrashed()
+            ->restore();
+
+        return [
+            'recoveredCount' => count($mediaIds),
+        ];
+    }
+
+    /**
+     * Recover deleted media (standalone)
+     */
+    public function recoverStandalone(string $id, array $mediaIds): array
+    {
+        return $this->recover(null, $id, $mediaIds);
     }
 }

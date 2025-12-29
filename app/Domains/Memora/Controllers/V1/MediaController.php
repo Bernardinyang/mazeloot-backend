@@ -76,6 +76,33 @@ class MediaController extends Controller
         return ApiResponse::success(new MediaFeedbackResource($feedback), 201);
     }
 
+    public function updateFeedback(Request $request, string $mediaId, string $feedbackId): JsonResponse
+    {
+        $request->validate([
+            'content' => ['required', 'string'],
+        ]);
+
+        try {
+            $feedback = $this->mediaService->updateFeedback($feedbackId, $request->only('content'));
+            return ApiResponse::success(new MediaFeedbackResource($feedback));
+        } catch (\Exception $e) {
+            return ApiResponse::error($e->getMessage(), 'UPDATE_FAILED', 400);
+        }
+    }
+
+    public function deleteFeedback(string $mediaId, string $feedbackId): JsonResponse
+    {
+        try {
+            $deleted = $this->mediaService->deleteFeedback($feedbackId);
+            if ($deleted) {
+                return ApiResponse::success(['message' => 'Feedback deleted successfully']);
+            }
+            return ApiResponse::error('Failed to delete feedback', 'DELETE_FAILED', 500);
+        } catch (\Exception $e) {
+            return ApiResponse::error($e->getMessage(), 'DELETE_FAILED', 400);
+        }
+    }
+
     /**
      * Delete media from a set
      */

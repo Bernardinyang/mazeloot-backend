@@ -49,7 +49,6 @@ Route::middleware(['auth:sanctum'])->prefix('selections')->group(function () {
             Route::patch('/{mediaId}/replace', [MediaController::class, 'replace']);
             Route::post('/{mediaId}/star', [MediaController::class, 'toggleStar']);
             Route::delete('/{mediaId}', [MediaController::class, 'deleteFromSet']);
-            Route::post('/{mediaId}/feedback', [MediaController::class, 'addFeedback']);
         });
     });
 

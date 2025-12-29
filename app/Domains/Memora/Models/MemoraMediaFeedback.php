@@ -5,6 +5,7 @@ namespace App\Domains\Memora\Models;
 use App\Domains\Memora\Enums\MediaFeedbackTypeEnum;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class MemoraMediaFeedback extends Model
@@ -32,6 +33,9 @@ class MemoraMediaFeedback extends Model
 
     protected $fillable = [
         'media_uuid',
+        'parent_uuid',
+        'timestamp',
+        'mentions',
         'type',
         'content',
         'created_by',
@@ -39,6 +43,9 @@ class MemoraMediaFeedback extends Model
 
     protected $casts = [
         'type' => MediaFeedbackTypeEnum::class,
+        'timestamp' => 'decimal:2',
+        'created_by' => 'array', // Cast JSON to array
+        'mentions' => 'array', // Cast JSON to array
     ];
 
     /**
@@ -58,6 +65,22 @@ class MemoraMediaFeedback extends Model
     public function media(): BelongsTo
     {
         return $this->belongsTo(MemoraMedia::class, 'media_uuid', 'uuid');
+    }
+
+    /**
+     * Get the parent comment (for replies)
+     */
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(MemoraMediaFeedback::class, 'parent_uuid', 'uuid');
+    }
+
+    /**
+     * Get all replies to this comment
+     */
+    public function replies(): HasMany
+    {
+        return $this->hasMany(MemoraMediaFeedback::class, 'parent_uuid', 'uuid')->orderBy('created_at', 'asc');
     }
 
     /**

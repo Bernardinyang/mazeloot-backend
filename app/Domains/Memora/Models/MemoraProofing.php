@@ -5,6 +5,8 @@ namespace App\Domains\Memora\Models;
 use App\Domains\Memora\Enums\ProofingStatusEnum;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -41,18 +43,26 @@ class MemoraProofing extends Model
     public $incrementing = false;
     
     protected $fillable = [
+        'user_uuid',
         'project_uuid',
         'name',
+        'description',
         'status',
         'color',
         'max_revisions',
         'current_revision',
         'completed_at',
+        'cover_photo_url',
+        'cover_focal_point',
+        'allowed_emails',
+        'password',
     ];
 
     protected $casts = [
         'status' => ProofingStatusEnum::class,
         'completed_at' => 'datetime',
+        'cover_focal_point' => 'array',
+        'allowed_emails' => 'array',
     ];
 
     /**
@@ -72,6 +82,26 @@ class MemoraProofing extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(MemoraProject::class, 'project_uuid', 'uuid');
+    }
+
+    public function mediaSets(): HasMany
+    {
+        return $this->hasMany(MemoraMediaSet::class, 'proof_uuid', 'uuid');
+    }
+
+    /**
+     * Get the users who have starred this proofing.
+     */
+    public function starredByUsers(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            \App\Models\User::class,
+            'user_starred_proofing',
+            'proofing_uuid',
+            'user_uuid',
+            'uuid',
+            'uuid'
+        )->withTimestamps();
     }
 
     /**

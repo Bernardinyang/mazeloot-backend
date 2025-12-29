@@ -2,7 +2,10 @@
 
 namespace App\Domains\Memora\Controllers\V1;
 
+use App\Domains\Memora\Models\MemoraProofing;
 use App\Domains\Memora\Models\MemoraSelection;
+use App\Domains\Memora\Requests\V1\AddMediaFeedbackRequest;
+use App\Domains\Memora\Resources\V1\MediaFeedbackResource;
 use App\Domains\Memora\Resources\V1\MediaResource;
 use App\Domains\Memora\Services\MediaService;
 use App\Http\Controllers\Controller;
@@ -88,6 +91,159 @@ class PublicMediaController extends Controller
                 'exception' => $e->getMessage(),
             ]);
             return ApiResponse::error('Failed to toggle selected status', 'TOGGLE_FAILED', 500);
+        }
+    }
+
+    /**
+     * Get media for a specific proofing set (protected by guest token) with optional sorting
+     */
+    public function getProofingSetMedia(Request $request, string $id, string $setUuid): JsonResponse
+    {
+        $guestToken = $request->attributes->get('guest_token');
+
+        // Verify the token belongs to this proofing
+        if ($guestToken->proofing_uuid !== $id) {
+            return ApiResponse::error('Token does not match proofing', 'INVALID_TOKEN', 403);
+        }
+
+        // Allow access if proofing status is 'active' or 'completed' (view-only for completed)
+        $proofing = MemoraProofing::query()->where('uuid', $id)->firstOrFail();
+        if (!in_array($proofing->status->value, ['active', 'completed'])) {
+            return ApiResponse::error('Proofing is not accessible', 'PROOFING_NOT_ACCESSIBLE', 403);
+        }
+
+        $sortBy = $request->query('sort_by');
+        $media = $this->mediaService->getSetMedia($setUuid, $sortBy);
+        return ApiResponse::success(MediaResource::collection($media));
+    }
+
+    /**
+     * Toggle selected status for a proofing media item (protected by guest token)
+     */
+    public function toggleProofingSelected(Request $request, string $id, string $mediaId): JsonResponse
+    {
+        $guestToken = $request->attributes->get('guest_token');
+
+        // Verify the token belongs to this proofing
+        if ($guestToken->proofing_uuid !== $id) {
+            return ApiResponse::error('Token does not match proofing', 'INVALID_TOKEN', 403);
+        }
+
+        // Verify proofing is active
+        $proofing = MemoraProofing::query()->where('uuid', $id)->firstOrFail();
+        if ($proofing->status->value !== 'active') {
+            return ApiResponse::error('Proofing is not active', 'PROOFING_NOT_ACTIVE', 403);
+        }
+
+        try {
+            // Get current selected status
+            $media = \App\Domains\Memora\Models\MemoraMedia::findOrFail($mediaId);
+            $isSelected = !$media->is_selected;
+
+            // Toggle selected status
+            $updatedMedia = $this->mediaService->markSelected($mediaId, $isSelected);
+
+            return ApiResponse::success(new MediaResource($updatedMedia));
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ApiResponse::error('Media not found', 'MEDIA_NOT_FOUND', 404);
+        } catch (\RuntimeException $e) {
+            return ApiResponse::error($e->getMessage(), 'SELECTION_LIMIT_REACHED', 400);
+        } catch (\Exception $e) {
+            Log::error('Failed to toggle selected status for proofing media', [
+                'proofing_id' => $id,
+                'media_id' => $mediaId,
+                'exception' => $e->getMessage(),
+            ]);
+            return ApiResponse::error('Failed to toggle selected status', 'TOGGLE_FAILED', 500);
+        }
+    }
+
+    /**
+     * Add feedback to proofing media (protected by guest token)
+     */
+    public function addProofingFeedback(AddMediaFeedbackRequest $request, string $id, string $setId, string $mediaId): JsonResponse
+    {
+        $guestToken = $request->attributes->get('guest_token');
+
+        // Verify the token belongs to this proofing
+        if ($guestToken->proofing_uuid !== $id) {
+            return ApiResponse::error('Token does not match proofing', 'INVALID_TOKEN', 403);
+        }
+
+        // Verify proofing is active or completed (allow comments on completed proofing)
+        $proofing = MemoraProofing::query()->where('uuid', $id)->firstOrFail();
+        if (!in_array($proofing->status->value, ['active', 'completed'])) {
+            return ApiResponse::error('Proofing is not accessible', 'PROOFING_NOT_ACCESSIBLE', 403);
+        }
+
+        try {
+            $feedback = $this->mediaService->addFeedback($mediaId, $request->validated());
+            return ApiResponse::success(new MediaFeedbackResource($feedback), 201);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ApiResponse::error('Media not found', 'MEDIA_NOT_FOUND', 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to add feedback to proofing media', [
+                'proofing_id' => $id,
+                'set_id' => $setId,
+                'media_id' => $mediaId,
+                'exception' => $e->getMessage(),
+            ]);
+            return ApiResponse::error('Failed to add feedback', 'FEEDBACK_FAILED', 500);
+        }
+    }
+
+    /**
+     * Update feedback for proofing media (protected by guest token)
+     */
+    public function updateProofingFeedback(Request $request, string $id, string $setId, string $mediaId, string $feedbackId): JsonResponse
+    {
+        $guestToken = $request->attributes->get('guest_token');
+
+        // Verify the token belongs to this proofing
+        if ($guestToken->proofing_uuid !== $id) {
+            return ApiResponse::error('Token does not match proofing', 'INVALID_TOKEN', 403);
+        }
+
+        $request->validate([
+            'content' => ['required', 'string'],
+        ]);
+
+        try {
+            $feedback = $this->mediaService->updateFeedback($feedbackId, $request->only('content'));
+            return ApiResponse::success(new MediaFeedbackResource($feedback));
+        } catch (\Exception $e) {
+            Log::error('Failed to update feedback', [
+                'feedback_id' => $feedbackId,
+                'exception' => $e->getMessage(),
+            ]);
+            return ApiResponse::error($e->getMessage(), 'UPDATE_FAILED', 400);
+        }
+    }
+
+    /**
+     * Delete feedback for proofing media (protected by guest token)
+     */
+    public function deleteProofingFeedback(Request $request, string $id, string $setId, string $mediaId, string $feedbackId): JsonResponse
+    {
+        $guestToken = $request->attributes->get('guest_token');
+
+        // Verify the token belongs to this proofing
+        if ($guestToken->proofing_uuid !== $id) {
+            return ApiResponse::error('Token does not match proofing', 'INVALID_TOKEN', 403);
+        }
+
+        try {
+            $deleted = $this->mediaService->deleteFeedback($feedbackId);
+            if ($deleted) {
+                return ApiResponse::success(['message' => 'Feedback deleted successfully']);
+            }
+            return ApiResponse::error('Failed to delete feedback', 'DELETE_FAILED', 500);
+        } catch (\Exception $e) {
+            Log::error('Failed to delete feedback', [
+                'feedback_id' => $feedbackId,
+                'exception' => $e->getMessage(),
+            ]);
+            return ApiResponse::error($e->getMessage(), 'DELETE_FAILED', 400);
         }
     }
 }
