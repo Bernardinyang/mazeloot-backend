@@ -112,7 +112,8 @@ class ProjectService
         }
 
         // Map the subquery results to the expected attribute names for selections
-        foreach ($project->selections as $selection) {
+        if ($project->selections->isNotEmpty()) {
+            $selection = $project->selections->first();
             $selection->setAttribute('media_count', (int) ($selection->media_count ?? 0));
             $selection->setAttribute('selected_count', (int) ($selection->selected_count ?? 0));
         }
@@ -243,12 +244,69 @@ class ProjectService
             $updateData['settings'] = $settings;
         }
 
+        // Update phase flags if provided
+        if (isset($data['hasSelections'])) {
+            $updateData['has_selections'] = $data['hasSelections'];
+        }
+        if (isset($data['hasProofing'])) {
+            $updateData['has_proofing'] = $data['hasProofing'];
+        }
+        if (isset($data['hasCollections'])) {
+            $updateData['has_collections'] = $data['hasCollections'];
+        }
+
         $project->update($updateData);
 
         // Update media sets if provided
         if (isset($data['mediaSets']) && is_array($data['mediaSets'])) {
             // Handle media sets update logic
             // This is a simplified version - full implementation would handle adds/updates/deletes
+        }
+
+        // Update phase settings if provided
+        if (isset($data['selectionSettings']) && $project->has_selections) {
+            $selectionService = app(\App\Domains\Memora\Services\SelectionService::class);
+            $selection = $project->selections()->first();
+            if ($selection) {
+                $updateData = [];
+                if (isset($data['selectionSettings']['name'])) {
+                    $updateData['name'] = $data['selectionSettings']['name'];
+                }
+                if (isset($data['selectionSettings']['description'])) {
+                    $updateData['description'] = $data['selectionSettings']['description'];
+                }
+                if (isset($data['selectionSettings']['selectionLimit'])) {
+                    $updateData['selectionLimit'] = $data['selectionSettings']['selectionLimit'];
+                }
+                if (!empty($updateData)) {
+                    $selectionService->update($selection->uuid, $updateData);
+                }
+            }
+        }
+
+        if (isset($data['proofingSettings']) && $project->has_proofing) {
+            $proofingService = app(\App\Domains\Memora\Services\ProofingService::class);
+            $proofing = $project->proofing()->first();
+            if ($proofing) {
+                $updateData = [];
+                if (isset($data['proofingSettings']['name'])) {
+                    $updateData['name'] = $data['proofingSettings']['name'];
+                }
+                if (isset($data['proofingSettings']['description'])) {
+                    $updateData['description'] = $data['proofingSettings']['description'];
+                }
+                if (isset($data['proofingSettings']['maxRevisions'])) {
+                    $updateData['maxRevisions'] = $data['proofingSettings']['maxRevisions'];
+                }
+                if (!empty($updateData)) {
+                    $proofingService->update($project->uuid, $proofing->uuid, $updateData);
+                }
+            }
+        }
+
+        if (isset($data['collectionSettings']) && $project->has_collections) {
+            // Collections don't have a single entity to update, they're multiple collections
+            // This would need to be handled differently if needed
         }
 
         return $project->load('mediaSets');

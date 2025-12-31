@@ -32,6 +32,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/proofing/{id}/cover-photo', [ProofingController::class, 'setCoverPhotoStandalone']);
     Route::post('/proofing/{id}/recover', [ProofingController::class, 'recoverStandalone']);
     Route::post('/proofing/{id}/revisions', [ProofingController::class, 'uploadRevisionStandalone']);
+    Route::post('/proofing/{id}/complete', [ProofingController::class, 'completeStandalone']);
 
     // Closure Requests
     Route::post('/closure-requests', [ClosureRequestController::class, 'store']);

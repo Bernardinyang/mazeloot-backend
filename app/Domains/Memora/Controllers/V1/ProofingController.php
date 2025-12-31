@@ -327,6 +327,17 @@ class ProofingController extends Controller
         ]);
     }
 
+    public function completeStandalone(string $id): JsonResponse
+    {
+        $proofing = $this->proofingService->completeStandalone($id);
+
+        return ApiResponse::success([
+            'id' => $proofing->id,
+            'status' => $proofing->status,
+            'completedAt' => $proofing->completed_at?->toIso8601String(),
+        ]);
+    }
+
     public function moveToCollection(Request $request, string $projectId, string $id): JsonResponse
     {
         $request->validate([

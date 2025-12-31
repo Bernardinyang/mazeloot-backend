@@ -217,14 +217,33 @@ class ProofingService
     /**
      * Complete proofing
      */
-    public function complete(string $projectId, string $id): MemoraProofing
+    public function complete(?string $projectId, string $id): MemoraProofing
     {
-        $proofing = MemoraProofing::where('user_uuid', Auth::user()->uuid)
-            ->where('uuid', $id)
-            ->firstOrFail();
+        $query = MemoraProofing::where('user_uuid', Auth::user()->uuid)
+            ->where('uuid', $id);
 
         if ($projectId) {
-            $proofing->where('project_uuid', $projectId);
+            $query->where('project_uuid', $projectId);
+        }
+
+        $proofing = $query->firstOrFail();
+
+        // Validate all media is completed
+        $mediaCount = MemoraMedia::whereHas('mediaSet', function ($query) use ($id) {
+            $query->where('proof_uuid', $id);
+        })->count();
+
+        $completedCount = MemoraMedia::whereHas('mediaSet', function ($query) use ($id) {
+            $query->where('proof_uuid', $id);
+        })
+            ->where('is_completed', true)
+            ->count();
+
+        if ($mediaCount > 0 && $completedCount < $mediaCount) {
+            throw new \Illuminate\Validation\ValidationException(
+                validator([], []),
+                ['proofing' => ['Cannot complete proofing: not all media items are completed.']]
+            );
         }
 
         // Update only database columns using update() to avoid computed attributes
@@ -235,6 +254,14 @@ class ProofingService
 
         // Reload with relationships and recompute counts
         return $this->find($projectId, $id);
+    }
+
+    /**
+     * Complete a proofing phase (standalone)
+     */
+    public function completeStandalone(string $id): MemoraProofing
+    {
+        return $this->complete(null, $id);
     }
 
     /**

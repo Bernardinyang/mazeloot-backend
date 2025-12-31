@@ -21,62 +21,71 @@ class ProjectResource extends JsonResource
             'status' => $this->status,
             'createdAt' => $this->created_at->toIso8601String(),
             'updatedAt' => $this->updated_at->toIso8601String(),
-            'preset' => $this->whenLoaded('preset', function () {
-                return new PresetResource($this->preset);
-            }, null),
-            'watermark' => $this->whenLoaded('watermark', function () {
-                return new WatermarkResource($this->watermark);
-            }, null),
-            'mediaSets' => $this->whenLoaded('mediaSets', function () {
-                return MediaSetResource::collection($this->mediaSets);
-            }, []),
-            'selections' => $this->whenLoaded('selections', function () {
-                return SelectionResource::collection($this->selections);
-            }, []),
-            'proofing' => $this->whenLoaded('proofing', function () {
-                return ProofingResource::collection($this->proofing);
-            }, []),
-            'collections' => $this->whenLoaded('collections', function () {
-                return CollectionResource::collection($this->collections);
-            }, []),
-            'settings' => $this->settings ?? [],
-            'hasSelections' => $this->has_selections,
-            'hasProofing' => $this->has_proofing,
-            'hasCollections' => $this->has_collections,
             'presetId' => $this->preset_uuid,
             'watermarkId' => $this->watermark_uuid,
             'color' => $this->color,
+            'hasSelections' => $this->has_selections,
+            'hasProofing' => $this->has_proofing,
+            'hasCollections' => $this->has_collections,
+            'selection' => $this->getSelection(),
+            'proofing' => $this->getProofing(),
+            'collection' => $this->getCollection(),
             // Extract eventDate from settings if it exists
-            'date' => $this->settings['eventDate'] ?? null,
             'eventDate' => $this->settings['eventDate'] ?? null,
-            // Preview images from phase cover photos (up to 4)
-            'previewImages' => $this->getPreviewImages(),
-            'isStarred' => Auth::check() && $this->relationLoaded('starredByUsers')
-                ? $this->starredByUsers->isNotEmpty()
-                : false,
         ];
     }
 
     /**
-     * Get preview images from all phase cover photos
-     * Returns up to 4 cover photo URLs
+     * Get selection phase
      */
-    private function getPreviewImages(): array
+    private function getSelection()
     {
-        $previewImages = [];
-
-        // Collect cover photos from selections
-        if ($this->relationLoaded('selections')) {
-            foreach ($this->selections as $selection) {
-                if ($selection->cover_photo_url) {
-                    $previewImages[] = $selection->cover_photo_url;
-                    if (count($previewImages) >= 4) {
-                        break;
-                    }
-                }
+        // Always try to get selection if has_selections is true
+        if ($this->has_selections) {
+            // Check if relationship is loaded
+            if ($this->relationLoaded('selections') && $this->selections->isNotEmpty()) {
+                return new SelectionResource($this->selections->first());
             }
+            // If not loaded or empty, try to load it manually
+            $selection = $this->selections()->first();
+            return $selection ? new SelectionResource($selection) : null;
         }
+        return null;
+    }
 
-        return $previewImages;
+    /**
+     * Get proofing phase
+     */
+    private function getProofing()
+    {
+        // Always try to get proofing if has_proofing is true
+        if ($this->has_proofing) {
+            // Check if relationship is loaded
+            if ($this->relationLoaded('proofing') && $this->proofing->isNotEmpty()) {
+                return new ProofingResource($this->proofing->first());
+            }
+            // If not loaded or empty, try to load it manually
+            $proofing = $this->proofing()->first();
+            return $proofing ? new ProofingResource($proofing) : null;
+        }
+        return null;
+    }
+
+    /**
+     * Get collection phase
+     */
+    private function getCollection()
+    {
+        // Always try to get collection if has_collections is true
+        if ($this->has_collections) {
+            // Check if relationship is loaded
+            if ($this->relationLoaded('collections') && $this->collections->isNotEmpty()) {
+                return new CollectionResource($this->collections->first());
+            }
+            // If not loaded or empty, try to load it manually
+            $collection = $this->collections()->first();
+            return $collection ? new CollectionResource($collection) : null;
+        }
+        return null;
     }
 }

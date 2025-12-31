@@ -23,6 +23,20 @@ class UpdateProjectRequest extends FormRequest
             'presetId' => ['nullable', 'uuid'],
             'watermarkId' => ['nullable', 'uuid'],
             'eventDate' => ['nullable', 'date'],
+            'hasSelections' => ['nullable', 'boolean'],
+            'hasProofing' => ['nullable', 'boolean'],
+            'hasCollections' => ['nullable', 'boolean'],
+            // Phase settings
+            'selectionSettings' => ['nullable', 'array'],
+            'selectionSettings.name' => ['nullable', 'string', 'max:255'],
+            'selectionSettings.description' => ['nullable', 'string'],
+            'selectionSettings.selectionLimit' => ['nullable', 'integer', 'min:0'],
+            'proofingSettings' => ['nullable', 'array'],
+            'proofingSettings.name' => ['nullable', 'string', 'max:255'],
+            'proofingSettings.maxRevisions' => ['nullable', 'integer', 'min:1', 'max:20'],
+            'collectionSettings' => ['nullable', 'array'],
+            'collectionSettings.name' => ['nullable', 'string', 'max:255'],
+            'collectionSettings.description' => ['nullable', 'string'],
         ];
     }
 }
