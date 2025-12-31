@@ -9,26 +9,25 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Str;
 
 class MemoraMediaSet extends Model
 {
     use HasFactory, SoftDeletes;
-    
+
     /**
      * The primary key for the model.
      *
      * @var string
      */
     protected $primaryKey = 'uuid';
-    
+
     /**
      * The "type" of the primary key ID.
      *
      * @var string
      */
     protected $keyType = 'string';
-    
+
     /**
      * Indicates if the IDs are auto-incrementing.
      *

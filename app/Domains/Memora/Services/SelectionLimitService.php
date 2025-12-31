@@ -5,16 +5,15 @@ namespace App\Domains\Memora\Services;
 use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraSelection;
-use Illuminate\Support\Facades\Log;
 
 class SelectionLimitService
 {
     /**
      * Check if a selection is allowed based on limits
      *
-     * @param string $selectionId Selection UUID
-     * @param string|null $setId Media Set UUID (optional)
-     * @param int $currentSelectedCount Current number of selected items
+     * @param  string  $selectionId  Selection UUID
+     * @param  string|null  $setId  Media Set UUID (optional)
+     * @param  int  $currentSelectedCount  Current number of selected items
      * @return bool True if selection is allowed, false otherwise
      */
     public function checkSelectionLimit(string $selectionId, ?string $setId = null, int $currentSelectedCount = 0): bool
@@ -31,6 +30,7 @@ class SelectionLimitService
         if ($selection && $selection->reset_selection_limit_at) {
             // If limit was reset, we need to count selections made after the reset
             $selectedAfterReset = $this->getSelectedCountAfterReset($selectionId, $setId, $selection->reset_selection_limit_at);
+
             return $selectedAfterReset < $limit;
         }
 
@@ -41,8 +41,8 @@ class SelectionLimitService
     /**
      * Get remaining selections available
      *
-     * @param string $selectionId Selection UUID
-     * @param string|null $setId Media Set UUID (optional)
+     * @param  string  $selectionId  Selection UUID
+     * @param  string|null  $setId  Media Set UUID (optional)
      * @return int|null Remaining selections (null if unlimited)
      */
     public function getRemainingSelections(string $selectionId, ?string $setId = null): ?int
@@ -62,9 +62,9 @@ class SelectionLimitService
     /**
      * Check if more selections can be made
      *
-     * @param string $selectionId Selection UUID
-     * @param string|null $setId Media Set UUID (optional)
-     * @param int $currentSelectedCount Current number of selected items
+     * @param  string  $selectionId  Selection UUID
+     * @param  string|null  $setId  Media Set UUID (optional)
+     * @param  int  $currentSelectedCount  Current number of selected items
      * @return bool True if more selections can be made
      */
     public function canSelectMore(string $selectionId, ?string $setId = null, int $currentSelectedCount = 0): bool
@@ -86,8 +86,8 @@ class SelectionLimitService
      * - Set limit = null, Selection limit = null → Effective limit = null (unlimited)
      * - Set limit = 5, Selection limit = null → Effective limit = 5 (set limit used)
      *
-     * @param string $selectionId Selection UUID
-     * @param string|null $setId Media Set UUID (optional)
+     * @param  string  $selectionId  Selection UUID
+     * @param  string|null  $setId  Media Set UUID (optional)
      * @return int|null The limit (null if unlimited)
      */
     protected function getSelectionLimit(string $selectionId, ?string $setId = null): ?int
@@ -115,8 +115,8 @@ class SelectionLimitService
     /**
      * Get current count of selected media items
      *
-     * @param string $selectionId Selection UUID
-     * @param string|null $setId Media Set UUID (optional)
+     * @param  string  $selectionId  Selection UUID
+     * @param  string|null  $setId  Media Set UUID (optional)
      * @return int Current selected count
      */
     protected function getCurrentSelectedCount(string $selectionId, ?string $setId = null): int
@@ -137,12 +137,12 @@ class SelectionLimitService
     /**
      * Get count of selected items after reset timestamp
      *
-     * @param string $selectionId Selection UUID
-     * @param string|null $setId Media Set UUID (optional)
-     * @param \Illuminate\Support\Carbon $resetTimestamp Reset timestamp
+     * @param  string  $selectionId  Selection UUID
+     * @param  string|null  $setId  Media Set UUID (optional)
+     * @param  \Illuminate\Support\Carbon  $resetTimestamp  Reset timestamp
      * @return int Count of selections made after reset
      */
-    protected function getSelectedCountAfterReset(string $selectionId, ?string $setId = null, $resetTimestamp): int
+    protected function getSelectedCountAfterReset(string $selectionId, ?string $setId, $resetTimestamp): int
     {
         $query = MemoraMedia::query()
             ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
@@ -158,4 +158,3 @@ class SelectionLimitService
         return $query->count();
     }
 }
-

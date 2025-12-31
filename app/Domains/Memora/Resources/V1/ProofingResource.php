@@ -18,7 +18,7 @@ class ProofingResource extends JsonResource
             'color' => $this->color,
             'coverPhotoUrl' => $this->cover_photo_url,
             'coverFocalPoint' => $this->cover_focal_point,
-            'hasPassword' => !empty($this->getAttribute('password')),
+            'hasPassword' => ! empty($this->getAttribute('password')),
             'allowedEmails' => $this->allowed_emails ?? [],
             'primaryEmail' => $this->primary_email,
             'maxRevisions' => $this->max_revisions,
@@ -30,8 +30,8 @@ class ProofingResource extends JsonResource
             'completedCount' => $this->when(isset($this->completed_count), $this->completed_count),
             'pendingCount' => $this->when(isset($this->pending_count), $this->pending_count),
             'setCount' => $this->when(isset($this->set_count), $this->set_count) ?? ($this->relationLoaded('mediaSets') ? $this->mediaSets->count() : 0),
-            'isStarred' => \Illuminate\Support\Facades\Auth::check() && $this->relationLoaded('starredByUsers') 
-                ? $this->starredByUsers->isNotEmpty() 
+            'isStarred' => \Illuminate\Support\Facades\Auth::check() && $this->relationLoaded('starredByUsers')
+                ? $this->starredByUsers->isNotEmpty()
                 : false,
             'project' => $this->whenLoaded('project', function () {
                 return new ProjectResource($this->project);
@@ -42,4 +42,3 @@ class ProofingResource extends JsonResource
         ];
     }
 }
-

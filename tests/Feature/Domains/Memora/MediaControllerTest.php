@@ -72,4 +72,3 @@ class MediaControllerTest extends TestCase
         $response->assertStatus(401);
     }
 }
-

@@ -43,10 +43,10 @@ class ProofingClosureApprovedNotification extends Notification implements Should
         $media = $this->closureRequest->media;
 
         return (new MailMessage)
-            ->subject('Closure Request Approved - ' . $proofing->name)
+            ->subject('Closure Request Approved - '.$proofing->name)
             ->line('Your closure request has been approved by the client.')
-            ->line('**Proofing:** ' . $proofing->name)
-            ->line('**Media:** ' . ($media->file->filename ?? 'Media item'))
+            ->line('**Proofing:** '.$proofing->name)
+            ->line('**Media:** '.($media->file->filename ?? 'Media item'))
             ->line('This version is now marked as completed. You can now upload a new version with the requested updates.')
             ->action('View Closure Request', $url)
             ->line('Thank you for using our application!');

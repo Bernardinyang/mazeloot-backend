@@ -61,4 +61,3 @@ class LogActivityJob implements ShouldQueue
         );
     }
 }
-

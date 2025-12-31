@@ -2,8 +2,8 @@
 
 namespace App\Domains\Memora\Controllers\V1;
 
-use App\Domains\Memora\Models\MemoraProofingApprovalRequest;
 use App\Domains\Memora\Models\MemoraMedia;
+use App\Domains\Memora\Models\MemoraProofingApprovalRequest;
 use App\Domains\Memora\Services\ProofingApprovalRequestService;
 use App\Http\Controllers\Controller;
 use App\Support\Responses\ApiResponse;
@@ -52,7 +52,8 @@ class ProofingApprovalRequestController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            return ApiResponse::error('Failed to create approval request: ' . $e->getMessage(), 500);
+
+            return ApiResponse::error('Failed to create approval request: '.$e->getMessage(), 500);
         }
     }
 
@@ -63,13 +64,13 @@ class ProofingApprovalRequestController extends Controller
     {
         try {
             $approvalRequest = $this->approvalRequestService->findByToken($token);
-            
-            if (!$approvalRequest) {
+
+            if (! $approvalRequest) {
                 return ApiResponse::error('Approval request not found', 404);
             }
 
             $approvalRequest->load('user');
-            
+
             return ApiResponse::success([
                 'approval_request' => [
                     'uuid' => $approvalRequest->uuid,
@@ -81,7 +82,7 @@ class ProofingApprovalRequestController extends Controller
                         'name' => $approvalRequest->proofing->name,
                         'primary_email' => $approvalRequest->proofing->primary_email,
                         'allowed_emails' => $approvalRequest->proofing->allowed_emails,
-                        'has_password' => !empty($approvalRequest->proofing->password),
+                        'has_password' => ! empty($approvalRequest->proofing->password),
                         'project_uuid' => $approvalRequest->proofing->project_uuid,
                         'max_revisions' => $approvalRequest->proofing->max_revisions,
                     ],
@@ -103,6 +104,7 @@ class ProofingApprovalRequestController extends Controller
                 'token' => $token,
                 'error' => $e->getMessage(),
             ]);
+
             return ApiResponse::error('Failed to fetch approval request', 500);
         }
     }
@@ -133,7 +135,8 @@ class ProofingApprovalRequestController extends Controller
                 'token' => $token,
                 'error' => $e->getMessage(),
             ]);
-            return ApiResponse::error('Failed to approve approval request: ' . $e->getMessage(), 500);
+
+            return ApiResponse::error('Failed to approve approval request: '.$e->getMessage(), 500);
         }
     }
 
@@ -165,7 +168,8 @@ class ProofingApprovalRequestController extends Controller
                 'token' => $token,
                 'error' => $e->getMessage(),
             ]);
-            return ApiResponse::error('Failed to reject approval request: ' . $e->getMessage(), 500);
+
+            return ApiResponse::error('Failed to reject approval request: '.$e->getMessage(), 500);
         }
     }
 
@@ -185,7 +189,8 @@ class ProofingApprovalRequestController extends Controller
                 'media_id' => $mediaId,
                 'error' => $e->getMessage(),
             ]);
-            return ApiResponse::error('Failed to fetch approval requests: ' . $e->getMessage(), 500);
+
+            return ApiResponse::error('Failed to fetch approval requests: '.$e->getMessage(), 500);
         }
     }
 
@@ -197,21 +202,21 @@ class ProofingApprovalRequestController extends Controller
         $guestToken = $request->attributes->get('guest_token');
 
         // Verify guest token exists
-        if (!$guestToken) {
+        if (! $guestToken) {
             return ApiResponse::error('Guest token is required', 'GUEST_TOKEN_MISSING', 401);
         }
 
         try {
             $media = MemoraMedia::findOrFail($mediaId);
-            
+
             // Verify media belongs to proofing associated with guest token
             $mediaSet = $media->mediaSet;
-            if (!$mediaSet) {
+            if (! $mediaSet) {
                 return ApiResponse::error('Media does not belong to any set', 'INVALID_MEDIA', 404);
             }
 
             $proofing = $mediaSet->proofing;
-            if (!$proofing || $proofing->uuid !== $guestToken->proofing_uuid) {
+            if (! $proofing || $proofing->uuid !== $guestToken->proofing_uuid) {
                 return ApiResponse::error('Media does not belong to this proofing', 'UNAUTHORIZED', 403);
             }
 
@@ -243,7 +248,8 @@ class ProofingApprovalRequestController extends Controller
                 'media_id' => $mediaId,
                 'error' => $e->getMessage(),
             ]);
-            return ApiResponse::error('Failed to fetch approval requests: ' . $e->getMessage(), 500);
+
+            return ApiResponse::error('Failed to fetch approval requests: '.$e->getMessage(), 500);
         }
     }
 }

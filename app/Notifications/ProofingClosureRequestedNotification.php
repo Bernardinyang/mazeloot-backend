@@ -43,10 +43,10 @@ class ProofingClosureRequestedNotification extends Notification implements Shoul
         $media = $this->closureRequest->media;
 
         return (new MailMessage)
-            ->subject('Closure Request for ' . $proofing->name)
+            ->subject('Closure Request for '.$proofing->name)
             ->line('A closure request has been submitted for a revision in your proofing.')
-            ->line('**Proofing:** ' . $proofing->name)
-            ->line('**Media:** ' . ($media->file->filename ?? 'Media item'))
+            ->line('**Proofing:** '.$proofing->name)
+            ->line('**Media:** '.($media->file->filename ?? 'Media item'))
             ->line('Please review the comments and action items, then confirm if all discussed items are complete.')
             ->action('Review Closure Request', $url)
             ->line('Thank you for using our application!');

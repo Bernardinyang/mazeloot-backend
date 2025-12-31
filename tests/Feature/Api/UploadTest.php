@@ -2,11 +2,11 @@
 
 namespace Tests\Feature\Api;
 
-use Tests\TestCase;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
+use Tests\TestCase;
 
 class UploadTest extends TestCase
 {
@@ -92,7 +92,7 @@ class UploadTest extends TestCase
         // Set a very small max size for testing (1KB)
         $originalMaxSize = config('upload.max_size');
         config(['upload.max_size' => 1024]);
-        
+
         // Create a file larger than the limit (5KB)
         $file = UploadedFile::fake()->create('large.jpg', 5000);
 

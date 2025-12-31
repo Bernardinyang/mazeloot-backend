@@ -34,4 +34,3 @@ class GuestProofingController extends Controller
         ], 201);
     }
 }
-

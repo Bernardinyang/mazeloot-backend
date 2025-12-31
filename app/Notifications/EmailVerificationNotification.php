@@ -37,8 +37,8 @@ class EmailVerificationNotification extends Notification implements ShouldQueue
     {
         return (new MailMessage)
             ->subject('Verify Your Email Address')
-            ->line('Thank you for registering with ' . config('app.name') . '.')
-            ->line('Your verification code is: **' . $this->code . '**')
+            ->line('Thank you for registering with '.config('app.name').'.')
+            ->line('Your verification code is: **'.$this->code.'**')
             ->line('This code will expire in 15 minutes.')
             ->line('If you did not create an account, no further action is required.');
     }

@@ -2,25 +2,24 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
-use App\Services\Upload\Contracts\UploadProviderInterface;
-use App\Services\Upload\Providers\LocalProvider;
-use App\Services\Upload\Providers\S3Provider;
-use App\Services\Upload\Providers\CloudflareR2Provider;
-use App\Services\Upload\Providers\CloudinaryProvider;
-use App\Services\Upload\UploadService;
-use App\Services\Payment\Contracts\PaymentProviderInterface;
-use App\Services\Payment\Contracts\SubscriptionProviderInterface;
-use App\Services\Payment\Providers\StripeProvider;
-use App\Services\Payment\Providers\PayPalProvider;
-use App\Services\Payment\Providers\PaystackProvider;
-use App\Services\Payment\Providers\FlutterwaveProvider;
-use App\Services\Payment\PaymentService;
 use App\Services\Currency\CurrencyService;
 use App\Services\Currency\ExchangeRateService;
-use App\Services\Pricing\PricingService;
 use App\Services\Pagination\PaginationService;
+use App\Services\Payment\Contracts\PaymentProviderInterface;
+use App\Services\Payment\PaymentService;
+use App\Services\Payment\Providers\FlutterwaveProvider;
+use App\Services\Payment\Providers\PayPalProvider;
+use App\Services\Payment\Providers\PaystackProvider;
+use App\Services\Payment\Providers\StripeProvider;
+use App\Services\Pricing\PricingService;
 use App\Services\Quotas\QuotaService;
+use App\Services\Upload\Contracts\UploadProviderInterface;
+use App\Services\Upload\Providers\CloudflareR2Provider;
+use App\Services\Upload\Providers\CloudinaryProvider;
+use App\Services\Upload\Providers\LocalProvider;
+use App\Services\Upload\Providers\S3Provider;
+use App\Services\Upload\UploadService;
+use Illuminate\Support\ServiceProvider;
 
 class GlobalServicesProvider extends ServiceProvider
 {

@@ -34,4 +34,3 @@ class WatermarkResource extends JsonResource
         ];
     }
 }
-

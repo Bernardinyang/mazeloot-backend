@@ -4,8 +4,8 @@ namespace Tests\Unit\Domains\Memora\Services;
 
 use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraMediaSet;
-use App\Domains\Memora\Models\MemoraProofing;
 use App\Domains\Memora\Models\MemoraProject;
+use App\Domains\Memora\Models\MemoraProofing;
 use App\Domains\Memora\Services\ProofingService;
 use App\Models\User;
 use App\Models\UserFile;
@@ -20,7 +20,9 @@ class ProofingServiceTest extends TestCase
     use RefreshDatabase;
 
     protected ProofingService $service;
+
     protected $mockUploadService;
+
     protected $mockPaginationService;
 
     protected function setUp(): void
@@ -271,4 +273,3 @@ class ProofingServiceTest extends TestCase
         parent::tearDown();
     }
 }
-

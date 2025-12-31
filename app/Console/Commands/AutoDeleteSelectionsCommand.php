@@ -33,8 +33,8 @@ class AutoDeleteSelectionsCommand extends Command
 
             if ($result['selected_media_deleted'] > 0) {
                 $this->info(
-                    "Successfully deleted {$result['selected_media_deleted']} selected media item(s). " .
-                    "Selections remain intact."
+                    "Successfully deleted {$result['selected_media_deleted']} selected media item(s). ".
+                    'Selections remain intact.'
                 );
             } else {
                 $this->info('No expired selections found.');
@@ -42,7 +42,8 @@ class AutoDeleteSelectionsCommand extends Command
 
             return Command::SUCCESS;
         } catch (\Exception $e) {
-            $this->error("Failed to auto-delete selections: " . $e->getMessage());
+            $this->error('Failed to auto-delete selections: '.$e->getMessage());
+
             return Command::FAILURE;
         }
     }

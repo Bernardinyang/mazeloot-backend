@@ -90,11 +90,11 @@ class ActivityLog extends Model
     public function scopeForSubject($query, string $subjectType, $subjectUuid = null)
     {
         $query->where('subject_type', $subjectType);
-        
+
         if ($subjectUuid !== null) {
             $query->where('subject_uuid', $subjectUuid);
         }
-        
+
         return $query;
     }
 

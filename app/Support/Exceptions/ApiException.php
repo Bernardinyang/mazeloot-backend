@@ -2,10 +2,10 @@
 
 namespace App\Support\Exceptions;
 
+use App\Support\Responses\ApiResponse;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use App\Support\Responses\ApiResponse;
 
 class ApiException extends Exception
 {

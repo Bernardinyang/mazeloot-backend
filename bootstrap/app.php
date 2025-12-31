@@ -23,22 +23,23 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (\Illuminate\Validation\ValidationException $e, \Illuminate\Http\Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
                 $errors = $e->errors();
-                
+
                 // Check if file upload failed due to PHP limits (file not received)
                 $isFileUpload = $request->has('file') || $request->has('files');
                 $hasActualFile = $request->hasFile('file') || $request->hasFile('files');
-                
-                if ($isFileUpload && !$hasActualFile) {
+
+                if ($isFileUpload && ! $hasActualFile) {
                     // File wasn't uploaded - likely PHP upload limits
                     $phpMaxSize = ini_get('upload_max_filesize');
                     $phpPostMaxSize = ini_get('post_max_size');
+
                     return response()->json([
                         'message' => "File upload failed. File may be too large. PHP limits: upload_max_filesize={$phpMaxSize}, post_max_size={$phpPostMaxSize}. Please reduce file size or increase PHP limits.",
                         'status' => 422,
                         'code' => 'UPLOAD_SIZE_EXCEEDED',
                     ], 422);
                 }
-                
+
                 // Log validation errors for debugging
                 \Illuminate\Support\Facades\Log::warning('Validation failed', [
                     'errors' => $errors,
@@ -48,20 +49,20 @@ return Application::configure(basePath: dirname(__DIR__))
                         'mime' => $request->file('file')->getMimeType(),
                     ] : null,
                 ]);
-                
+
                 // Get the first error message from the first field
                 $firstError = null;
-                if (!empty($errors)) {
+                if (! empty($errors)) {
                     $firstFieldErrors = reset($errors);
                     $firstError = is_array($firstFieldErrors) ? reset($firstFieldErrors) : $firstFieldErrors;
                 }
-                
+
                 // Provide a more specific fallback message based on the request
                 $fallbackMessage = 'Validation failed. Please check your input.';
                 if ($request->hasFile('file') || $request->hasFile('files')) {
                     $fallbackMessage = 'File upload validation failed. Please check file size and type.';
                 }
-                
+
                 return response()->json([
                     'message' => $firstError ?: $fallbackMessage,
                     'status' => 422,

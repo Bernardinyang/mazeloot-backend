@@ -22,7 +22,7 @@ class StoreMediaSetRequest extends FormRequest
                 'string',
                 'max:255',
                 function ($attribute, $value, $fail) use ($selectionId) {
-                    if (!$selectionId) {
+                    if (! $selectionId) {
                         return;
                     }
 
@@ -42,4 +42,3 @@ class StoreMediaSetRequest extends FormRequest
         ];
     }
 }
-

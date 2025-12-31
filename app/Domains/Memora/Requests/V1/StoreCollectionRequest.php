@@ -20,4 +20,3 @@ class StoreCollectionRequest extends FormRequest
         ];
     }
 }
-

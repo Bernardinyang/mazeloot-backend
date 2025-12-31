@@ -13,7 +13,7 @@ use Illuminate\Http\Request;
 
 /**
  * Public Proofing Controller
- * 
+ *
  * Handles public/guest access to proofing.
  * These endpoints are protected by guest token middleware (not user authentication).
  * Users must generate a guest token before accessing these routes.
@@ -21,6 +21,7 @@ use Illuminate\Http\Request;
 class PublicProofingController extends Controller
 {
     protected ProofingService $proofingService;
+
     protected GuestProofingService $guestProofingService;
 
     public function __construct(ProofingService $proofingService, GuestProofingService $guestProofingService)
@@ -61,6 +62,7 @@ class PublicProofingController extends Controller
                 'proofing_id' => $id,
                 'exception' => $e->getMessage(),
             ]);
+
             return ApiResponse::error('Failed to check proofing status', 'CHECK_FAILED', 500);
         }
     }
@@ -73,7 +75,7 @@ class PublicProofingController extends Controller
         $guestToken = $request->attributes->get('guest_token');
 
         // Verify guest token exists
-        if (!$guestToken) {
+        if (! $guestToken) {
             return ApiResponse::error('Guest token is required', 'GUEST_TOKEN_MISSING', 401);
         }
 
@@ -90,12 +92,12 @@ class PublicProofingController extends Controller
                     $query->withCount('media')->orderBy('order');
                 }])
                 ->firstOrFail();
-            
+
             // Allow access if proofing status is 'active' or 'completed' (view-only for completed)
-            if (!in_array($proofing->status->value, ['active', 'completed'])) {
+            if (! in_array($proofing->status->value, ['active', 'completed'])) {
                 return ApiResponse::error('Proofing is not accessible', 'PROOFING_NOT_ACCESSIBLE', 403);
             }
-            
+
             return ApiResponse::success(new ProofingResource($proofing));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ApiResponse::error('Proofing not found', 'NOT_FOUND', 404);
@@ -105,6 +107,7 @@ class PublicProofingController extends Controller
                 'token_id' => $guestToken->uuid ?? null,
                 'exception' => $e->getMessage(),
             ]);
+
             return ApiResponse::error('Failed to fetch proofing', 'FETCH_FAILED', 500);
         }
     }
@@ -136,7 +139,7 @@ class PublicProofingController extends Controller
             }
 
             // Check if proofing is accessible
-            if (!in_array($proofing->status->value, ['active', 'completed'])) {
+            if (! in_array($proofing->status->value, ['active', 'completed'])) {
                 return ApiResponse::error('Proofing is not accessible', 'PROOFING_NOT_ACCESSIBLE', 403);
             }
 
@@ -151,6 +154,7 @@ class PublicProofingController extends Controller
                 'proofing_id' => $id,
                 'exception' => $e->getMessage(),
             ]);
+
             return ApiResponse::error('Failed to verify password', 'VERIFY_FAILED', 500);
         }
     }
@@ -163,7 +167,7 @@ class PublicProofingController extends Controller
         $guestToken = $request->attributes->get('guest_token');
 
         // Verify guest token exists
-        if (!$guestToken) {
+        if (! $guestToken) {
             return ApiResponse::error('Guest token is required', 'GUEST_TOKEN_MISSING', 401);
         }
 
@@ -192,7 +196,7 @@ class PublicProofingController extends Controller
 
         // Get project UUID from proofing
         $proofing = MemoraProofing::where('uuid', $id)->firstOrFail();
-        if (!$proofing->project_uuid) {
+        if (! $proofing->project_uuid) {
             return ApiResponse::error('Proofing is not linked to a project', 'NO_PROJECT', 400);
         }
 
@@ -205,4 +209,3 @@ class PublicProofingController extends Controller
         return ApiResponse::success(new ProofingResource($completedProofing));
     }
 }
-

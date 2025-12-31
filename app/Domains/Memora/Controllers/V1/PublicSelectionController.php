@@ -14,7 +14,7 @@ use Illuminate\Http\Request;
 
 /**
  * Public Selection Controller
- * 
+ *
  * Handles public/guest access to selections.
  * These endpoints are protected by guest token middleware (not user authentication).
  * Users must generate a guest token before accessing these routes.
@@ -22,6 +22,7 @@ use Illuminate\Http\Request;
 class PublicSelectionController extends Controller
 {
     protected SelectionService $selectionService;
+
     protected GuestSelectionService $guestSelectionService;
 
     public function __construct(SelectionService $selectionService, GuestSelectionService $guestSelectionService)
@@ -62,6 +63,7 @@ class PublicSelectionController extends Controller
                 'selection_id' => $id,
                 'exception' => $e->getMessage(),
             ]);
+
             return ApiResponse::error('Failed to check selection status', 'CHECK_FAILED', 500);
         }
     }
@@ -74,7 +76,7 @@ class PublicSelectionController extends Controller
         $guestToken = $request->attributes->get('guest_token');
 
         // Verify guest token exists
-        if (!$guestToken) {
+        if (! $guestToken) {
             return ApiResponse::error('Guest token is required', 'GUEST_TOKEN_MISSING', 401);
         }
 
@@ -91,12 +93,12 @@ class PublicSelectionController extends Controller
                     $query->withCount('media')->orderBy('order');
                 }])
                 ->firstOrFail();
-            
+
             // Allow access if selection status is 'active' or 'completed' (view-only for completed)
-            if (!in_array($selection->status->value, ['active', 'completed'])) {
+            if (! in_array($selection->status->value, ['active', 'completed'])) {
                 return ApiResponse::error('Selection is not accessible', 'SELECTION_NOT_ACCESSIBLE', 403);
             }
-            
+
             return ApiResponse::success(new SelectionResource($selection));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ApiResponse::error('Selection not found', 'NOT_FOUND', 404);
@@ -106,6 +108,7 @@ class PublicSelectionController extends Controller
                 'token_id' => $guestToken->uuid ?? null,
                 'exception' => $e->getMessage(),
             ]);
+
             return ApiResponse::error('Failed to fetch selection', 'FETCH_FAILED', 500);
         }
     }
@@ -137,7 +140,7 @@ class PublicSelectionController extends Controller
             }
 
             // Check if selection is accessible
-            if (!in_array($selection->status->value, ['active', 'completed'])) {
+            if (! in_array($selection->status->value, ['active', 'completed'])) {
                 return ApiResponse::error('Selection is not accessible', 'SELECTION_NOT_ACCESSIBLE', 403);
             }
 
@@ -152,6 +155,7 @@ class PublicSelectionController extends Controller
                 'selection_id' => $id,
                 'exception' => $e->getMessage(),
             ]);
+
             return ApiResponse::error('Failed to verify password', 'VERIFY_FAILED', 500);
         }
     }
@@ -164,7 +168,7 @@ class PublicSelectionController extends Controller
         $guestToken = $request->attributes->get('guest_token');
 
         // Verify guest token exists
-        if (!$guestToken) {
+        if (! $guestToken) {
             return ApiResponse::error('Guest token is required', 'GUEST_TOKEN_MISSING', 401);
         }
 
@@ -205,4 +209,3 @@ class PublicSelectionController extends Controller
         return ApiResponse::success($selection);
     }
 }
-

@@ -1,9 +1,9 @@
 <?php
 
-use App\Domains\Memora\Controllers\V1\ProofingApprovalRequestController;
 use App\Domains\Memora\Controllers\V1\ClosureRequestController;
 use App\Domains\Memora\Controllers\V1\GuestProofingController;
 use App\Domains\Memora\Controllers\V1\GuestSelectionController;
+use App\Domains\Memora\Controllers\V1\ProofingApprovalRequestController;
 use App\Domains\Memora\Controllers\V1\PublicMediaController;
 use App\Domains\Memora\Controllers\V1\PublicMediaSetController;
 use App\Domains\Memora\Controllers\V1\PublicProofingController;
@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Route;
 |
 | Routes for public/guest access to selections.
 | These endpoints are separate from authenticated user endpoints.
-| 
+|
 | Note: While these are "public" routes (no user authentication required),
 | they are still protected by guest token middleware. Users must generate
 | a guest token via the /token endpoint before accessing these routes.
@@ -29,10 +29,10 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('public/selections')->group(function () {
     // Check selection status (truly public - no authentication required)
     Route::get('/{id}/status', [PublicSelectionController::class, 'checkStatus']);
-    
+
     // Verify password (truly public - no authentication required)
     Route::post('/{id}/verify-password', [PublicSelectionController::class, 'verifyPassword']);
-    
+
     // Generate guest token (truly public - no authentication required)
     Route::post('/{id}/token', [GuestSelectionController::class, 'generateToken']);
 
@@ -52,10 +52,10 @@ Route::prefix('public/selections')->group(function () {
 Route::prefix('public/proofing')->group(function () {
     // Check proofing status (truly public - no authentication required)
     Route::get('/{id}/status', [PublicProofingController::class, 'checkStatus']);
-    
+
     // Verify password (truly public - no authentication required)
     Route::post('/{id}/verify-password', [PublicProofingController::class, 'verifyPassword']);
-    
+
     // Generate guest token (truly public - no authentication required)
     Route::post('/{id}/token', [GuestProofingController::class, 'generateToken']);
 
@@ -95,4 +95,3 @@ Route::prefix('public')->middleware(['guest.token'])->group(function () {
     Route::get('/media/{mediaId}/approval-requests', [ProofingApprovalRequestController::class, 'getByMediaPublic']);
     Route::get('/media/{mediaId}/revisions', [PublicMediaController::class, 'getRevisions']);
 });
-

@@ -306,4 +306,3 @@ class CoverStylesSeeder extends Seeder
         }
     }
 }
-

@@ -9,7 +9,6 @@ use App\Domains\Memora\Resources\V1\SelectionResource;
 use App\Services\Pagination\PaginationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -22,6 +21,7 @@ class SelectionService
     {
         $this->paginationService = $paginationService;
     }
+
     /**
      * Create a selection (standalone or project-based based on project_uuid in data)
      */
@@ -41,7 +41,7 @@ class SelectionService
             'color' => $data['color'] ?? '#10B981',
         ];
 
-        if (!empty($data['password'])) {
+        if (! empty($data['password'])) {
             $selectionData['password'] = $data['password'];
         }
 
@@ -50,19 +50,19 @@ class SelectionService
         }
 
         $selection = MemoraSelection::query()->create($selectionData);
+
         return new SelectionResource($this->findModel($selection->uuid));
     }
 
     /**
      * Get a selection model by ID (internal use)
      *
-     * @param string $id Selection UUID
-     * @return MemoraSelection
+     * @param  string  $id  Selection UUID
      */
     protected function findModel(string $id): MemoraSelection
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
@@ -89,8 +89,8 @@ class SelectionService
             ->firstOrFail();
 
         // Map the subquery results to the expected attribute names
-        $selection->setAttribute('media_count', (int)($selection->media_count ?? 0));
-        $selection->setAttribute('selected_count', (int)($selection->selected_count ?? 0));
+        $selection->setAttribute('media_count', (int) ($selection->media_count ?? 0));
+        $selection->setAttribute('selected_count', (int) ($selection->selected_count ?? 0));
 
         return $selection;
     }
@@ -98,13 +98,13 @@ class SelectionService
     /**
      * Get all selections with optional search, sort, filter, and pagination parameters
      *
-     * @param string|null $projectUuid Filter by project UUID
-     * @param string|null $search Search query (searches in name)
-     * @param string|null $sortBy Sort field and direction (e.g., 'created-desc', 'name-asc', 'status-asc')
-     * @param string|null $status Filter by status (e.g., 'draft', 'completed', 'active')
-     * @param bool|null $starred Filter by starred status
-     * @param int $page Page number (default: 1)
-     * @param int $perPage Items per page (default: 10)
+     * @param  string|null  $projectUuid  Filter by project UUID
+     * @param  string|null  $search  Search query (searches in name)
+     * @param  string|null  $sortBy  Sort field and direction (e.g., 'created-desc', 'name-asc', 'status-asc')
+     * @param  string|null  $status  Filter by status (e.g., 'draft', 'completed', 'active')
+     * @param  bool|null  $starred  Filter by starred status
+     * @param  int  $page  Page number (default: 1)
+     * @param  int  $perPage  Items per page (default: 10)
      * @return array Paginated response with data and pagination metadata
      */
     public function getAll(
@@ -112,11 +112,10 @@ class SelectionService
         ?string $search = null,
         ?string $sortBy = null,
         ?string $status = null,
-        ?bool   $starred = null,
+        ?bool $starred = null,
         int $page = 1,
         int $perPage = 10
-    ): array
-    {
+    ): array {
         $query = MemoraSelection::query()->where('user_uuid', Auth::user()->uuid)
             ->with(['mediaSets' => function ($query) {
                 $query->withCount('media')->orderBy('order');
@@ -144,7 +143,7 @@ class SelectionService
 
         // Search by name
         if ($search && trim($search)) {
-            $query->where('name', 'LIKE', '%' . trim($search) . '%');
+            $query->where('name', 'LIKE', '%'.trim($search).'%');
         }
 
         // Filter by status
@@ -180,8 +179,8 @@ class SelectionService
 
         // Map the subquery results to the expected attribute names
         foreach ($paginator->items() as $selection) {
-            $selection->setAttribute('media_count', (int)($selection->media_count ?? 0));
-            $selection->setAttribute('selected_count', (int)($selection->selected_count ?? 0));
+            $selection->setAttribute('media_count', (int) ($selection->media_count ?? 0));
+            $selection->setAttribute('selected_count', (int) ($selection->selected_count ?? 0));
         }
 
         // Transform items to resources
@@ -202,8 +201,7 @@ class SelectionService
     /**
      * Apply sorting to the query based on sortBy parameter
      *
-     * @param Builder $query
-     * @param string $sortBy Format: 'field-direction' (e.g., 'created-desc', 'name-asc')
+     * @param  string  $sortBy  Format: 'field-direction' (e.g., 'created-desc', 'name-asc')
      */
     protected function applySorting(Builder $query, string $sortBy): void
     {
@@ -212,7 +210,7 @@ class SelectionService
         $direction = strtoupper($parts[1] ?? 'desc');
 
         // Validate direction
-        if (!in_array($direction, ['ASC', 'DESC'])) {
+        if (! in_array($direction, ['ASC', 'DESC'])) {
             $direction = 'DESC';
         }
 
@@ -231,7 +229,7 @@ class SelectionService
     public function publish(string $id): SelectionResource
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
@@ -249,7 +247,7 @@ class SelectionService
         // Validate that at least one email is in allowed_emails before publishing to active
         if ($newStatus === 'active') {
             $allowedEmails = $selection->allowed_emails ?? [];
-            if (empty($allowedEmails) || !is_array($allowedEmails) || count(array_filter($allowedEmails)) === 0) {
+            if (empty($allowedEmails) || ! is_array($allowedEmails) || count(array_filter($allowedEmails)) === 0) {
                 throw new \Illuminate\Validation\ValidationException(
                     validator([], []),
                     ['allowed_emails' => ['At least one email address must be added to "Allowed Emails" before publishing the selection.']]
@@ -280,7 +278,9 @@ class SelectionService
             ->firstOrFail();
 
         $updateData = [];
-        if (isset($data['name'])) $updateData['name'] = $data['name'];
+        if (isset($data['name'])) {
+            $updateData['name'] = $data['name'];
+        }
         // Always handle description if it exists in the data (even if null)
         if (array_key_exists('description', $data)) {
             $desc = $data['description'];
@@ -290,13 +290,19 @@ class SelectionService
                 $updateData['description'] = trim((string) $desc);
             }
         }
-        if (isset($data['status'])) $updateData['status'] = $data['status'];
-        if (isset($data['color'])) $updateData['color'] = $data['color'];
-        if (isset($data['cover_photo_url'])) $updateData['cover_photo_url'] = $data['cover_photo_url'];
+        if (isset($data['status'])) {
+            $updateData['status'] = $data['status'];
+        }
+        if (isset($data['color'])) {
+            $updateData['color'] = $data['color'];
+        }
+        if (isset($data['cover_photo_url'])) {
+            $updateData['cover_photo_url'] = $data['cover_photo_url'];
+        }
 
         // Handle password update - store in plain text if provided, or set to null if empty string
         if (array_key_exists('password', $data)) {
-            if (!empty($data['password'])) {
+            if (! empty($data['password'])) {
                 $updateData['password'] = $data['password'];
             } else {
                 $updateData['password'] = null;
@@ -308,7 +314,7 @@ class SelectionService
             $emails = $data['allowed_emails'] ?? $data['allowedEmails'] ?? [];
             // Ensure it's an array and filter out empty values
             $emails = is_array($emails) ? array_filter(array_map('trim', $emails)) : [];
-            $updateData['allowed_emails'] = !empty($emails) ? array_values($emails) : null;
+            $updateData['allowed_emails'] = ! empty($emails) ? array_values($emails) : null;
         }
 
         // Handle selection_limit update (support both snake_case and camelCase)
@@ -327,7 +333,7 @@ class SelectionService
         if ($newStatus === 'active') {
             // Get the current allowed_emails (either from update data or existing selection)
             $allowedEmails = $updateData['allowed_emails'] ?? $selection->allowed_emails ?? [];
-            if (empty($allowedEmails) || !is_array($allowedEmails) || count(array_filter($allowedEmails)) === 0) {
+            if (empty($allowedEmails) || ! is_array($allowedEmails) || count(array_filter($allowedEmails)) === 0) {
                 throw new \Illuminate\Validation\ValidationException(
                     validator([], []),
                     ['allowed_emails' => ['At least one email address must be added to "Allowed Emails" before publishing the selection.']]
@@ -393,7 +399,7 @@ class SelectionService
             $selection->load(['mediaSets' => function ($query) {
                 $query->withCount('media')->orderBy('order');
             }]);
-            
+
             if ($user) {
                 $selection->load(['starredByUsers' => function ($q) use ($user) {
                     $q->where('user_uuid', $user->uuid);
@@ -522,7 +528,7 @@ class SelectionService
         if ($media->file) {
             $file = $media->file;
             $fileType = $file->type?->value ?? $file->type;
-            
+
             if ($fileType === 'video') {
                 // For videos, use the actual video URL
                 $coverUrl = $file->url ?? null;
@@ -537,7 +543,7 @@ class SelectionService
             }
         }
 
-        if (!$coverUrl) {
+        if (! $coverUrl) {
             throw new \RuntimeException('Media does not have a valid URL');
         }
 
@@ -562,7 +568,7 @@ class SelectionService
     /**
      * Toggle star status for a selection
      *
-     * @param string $id Selection UUID
+     * @param  string  $id  Selection UUID
      * @return array{starred: bool} Returns whether the selection is now starred
      */
     public function toggleStar(string $id): array
@@ -613,7 +619,7 @@ class SelectionService
                         $selectedMediaDeleted++;
                     } catch (\Exception $e) {
                         Log::error(
-                            "Failed to auto-delete selected media {$media->uuid}: " . $e->getMessage()
+                            "Failed to auto-delete selected media {$media->uuid}: ".$e->getMessage()
                         );
                     }
                 }
@@ -625,7 +631,7 @@ class SelectionService
             } catch (\Exception $e) {
                 // Log error but continue with other selections
                 Log::error(
-                    "Failed to auto-delete expired selection {$selection->uuid}: " . $e->getMessage()
+                    "Failed to auto-delete expired selection {$selection->uuid}: ".$e->getMessage()
                 );
             }
         }
@@ -641,24 +647,24 @@ class SelectionService
     public function delete(string $id): bool
     {
         $selection = $this->findModel($id);
-        
+
         // Load media sets relationship if not already loaded
-        if (!$selection->relationLoaded('mediaSets')) {
+        if (! $selection->relationLoaded('mediaSets')) {
             $selection->load('mediaSets.media');
         }
-        
+
         // Get all media sets for this selection
         $mediaSets = $selection->mediaSets;
-        
+
         // Soft delete all media in all sets, then delete all sets, then delete selection in a transaction
         return DB::transaction(function () use ($mediaSets, $selection) {
             // Soft delete all media in all sets, then delete all sets
             foreach ($mediaSets as $set) {
                 // Ensure media is loaded for this set
-                if (!$set->relationLoaded('media')) {
+                if (! $set->relationLoaded('media')) {
                     $set->load('media');
                 }
-                
+
                 // Soft delete all media in this set
                 // Loop through each media item to ensure soft deletes work correctly
                 foreach ($set->media as $media) {
@@ -667,7 +673,7 @@ class SelectionService
                 // Soft delete the set
                 $set->delete();
             }
-            
+
             // Soft delete the selection itself
             return $selection->delete();
         });

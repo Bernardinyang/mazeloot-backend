@@ -97,7 +97,7 @@ class EmailVerificationCode extends Model
      */
     public function isValid(): bool
     {
-        return !$this->isExpired() && !$this->isVerified();
+        return ! $this->isExpired() && ! $this->isVerified();
     }
 
     /**

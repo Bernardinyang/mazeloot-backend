@@ -36,6 +36,7 @@ class CoverStyleController extends Controller
     public function show(string $uuid): JsonResponse
     {
         $coverStyle = MemoraCoverStyle::findOrFail($uuid);
+
         return ApiResponse::success(new CoverStyleResource($coverStyle));
     }
 
@@ -46,7 +47,7 @@ class CoverStyleController extends Controller
     public function showBySlug(string $slug): JsonResponse
     {
         $coverStyle = MemoraCoverStyle::where('slug', $slug)->firstOrFail();
+
         return ApiResponse::success(new CoverStyleResource($coverStyle));
     }
 }
-

@@ -22,4 +22,3 @@ class UploadMediaToSetRequest extends FormRequest
         ];
     }
 }
-

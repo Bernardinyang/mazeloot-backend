@@ -9,9 +9,6 @@ class UserPolicy
     /**
      * Determine if the user can create admin users.
      * Only super admins can create admin users.
-     *
-     * @param  User  $user
-     * @return bool
      */
     public function createAdmin(User $user): bool
     {
@@ -21,10 +18,6 @@ class UserPolicy
     /**
      * Determine if the user can update a user's role to admin.
      * Only super admins can promote users to admin.
-     *
-     * @param  User  $user
-     * @param  User  $model
-     * @return bool
      */
     public function promoteToAdmin(User $user, User $model): bool
     {
@@ -40,10 +33,6 @@ class UserPolicy
     /**
      * Determine if the user can update a user's role.
      * Only super admins can change roles.
-     *
-     * @param  User  $user
-     * @param  User  $model
-     * @return bool
      */
     public function updateRole(User $user, User $model): bool
     {
@@ -58,9 +47,6 @@ class UserPolicy
 
     /**
      * Determine if the user can view any users.
-     *
-     * @param  User  $user
-     * @return bool
      */
     public function viewAny(User $user): bool
     {
@@ -69,10 +55,6 @@ class UserPolicy
 
     /**
      * Determine if the user can view the user.
-     *
-     * @param  User  $user
-     * @param  User  $model
-     * @return bool
      */
     public function view(User $user, User $model): bool
     {
@@ -82,10 +64,6 @@ class UserPolicy
 
     /**
      * Determine if the user can update the user.
-     *
-     * @param  User  $user
-     * @param  User  $model
-     * @return bool
      */
     public function update(User $user, User $model): bool
     {
@@ -95,10 +73,6 @@ class UserPolicy
 
     /**
      * Determine if the user can delete the user.
-     *
-     * @param  User  $user
-     * @param  User  $model
-     * @return bool
      */
     public function delete(User $user, User $model): bool
     {

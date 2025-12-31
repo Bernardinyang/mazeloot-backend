@@ -90,4 +90,3 @@ class ActivityLogServiceProcessQueuedLogTest extends TestCase
         $this->activityLogService = app(ActivityLogService::class);
     }
 }
-

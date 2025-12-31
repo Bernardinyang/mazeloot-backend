@@ -44,12 +44,12 @@ class ProofingApprovalRequestedNotification extends Notification implements Shou
         $maxRevisions = $proofing->max_revisions ?? 5;
 
         return (new MailMessage)
-            ->subject('Approval Request for ' . $proofing->name . ' - Revision Limit Exceeded')
+            ->subject('Approval Request for '.$proofing->name.' - Revision Limit Exceeded')
             ->line('An approval request has been submitted for a media item in your proofing.')
-            ->line('**Proofing:** ' . $proofing->name)
-            ->line('**Media:** ' . ($media->file->filename ?? 'Media item'))
-            ->line('**Reason:** The maximum revision limit (' . $maxRevisions . ' revisions) has been reached. Approval is required to proceed.')
-            ->line($this->approvalRequest->message ? '**Message:** ' . $this->approvalRequest->message : '')
+            ->line('**Proofing:** '.$proofing->name)
+            ->line('**Media:** '.($media->file->filename ?? 'Media item'))
+            ->line('**Reason:** The maximum revision limit ('.$maxRevisions.' revisions) has been reached. Approval is required to proceed.')
+            ->line($this->approvalRequest->message ? '**Message:** '.$this->approvalRequest->message : '')
             ->action('Review Approval Request', $url)
             ->line('Thank you for using our application!');
     }

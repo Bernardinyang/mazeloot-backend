@@ -12,13 +12,12 @@ class ActivityLogService
     /**
      * Log an activity.
      *
-     * @param string $action Action name (e.g., 'created', 'updated', 'deleted', 'viewed')
-     * @param Model|null $subject The model being acted upon
-     * @param string|null $description Human-readable description
-     * @param array|null $properties Additional metadata
-     * @param Model|null $causer The model that caused the activity (defaults to authenticated user)
-     * @param Request|null $request The request object to extract IP, user agent, etc.
-     * @return ActivityLog
+     * @param  string  $action  Action name (e.g., 'created', 'updated', 'deleted', 'viewed')
+     * @param  Model|null  $subject  The model being acted upon
+     * @param  string|null  $description  Human-readable description
+     * @param  array|null  $properties  Additional metadata
+     * @param  Model|null  $causer  The model that caused the activity (defaults to authenticated user)
+     * @param  Request|null  $request  The request object to extract IP, user agent, etc.
      */
     public function log(
         string $action,
@@ -36,7 +35,7 @@ class ActivityLogService
         if ($causer) {
             $causerType = get_class($causer);
             $causerUuid = $causer->getKey();
-            
+
             // If causer is a User, also set user_uuid for easier querying (use uuid column)
             if ($causer instanceof \App\Models\User) {
                 $userUuid = $causer->uuid;
@@ -56,11 +55,11 @@ class ActivityLogService
         $userAgent = $request?->userAgent();
 
         // Build description if not provided
-        if (!$description && $subject) {
+        if (! $description && $subject) {
             $subjectName = class_basename($subject);
-            $description = ucfirst($action) . ' ' . $subjectName;
+            $description = ucfirst($action).' '.$subjectName;
             if ($subject->getKey()) {
-                $description .= ' #' . $subject->getKey();
+                $description .= ' #'.$subject->getKey();
             }
         }
 
@@ -174,7 +173,7 @@ class ActivityLogService
         if ($causer) {
             $causerType = get_class($causer);
             $causerUuid = $causer->getKey();
-            
+
             if ($causer instanceof \App\Models\User) {
                 $userUuid = $causer->uuid;
             }
@@ -193,11 +192,11 @@ class ActivityLogService
         $userAgent = $request?->userAgent();
 
         // Build description if not provided
-        if (!$description && $subject) {
+        if (! $description && $subject) {
             $subjectName = class_basename($subject);
-            $description = ucfirst($action) . ' ' . $subjectName;
+            $description = ucfirst($action).' '.$subjectName;
             if ($subject->getKey()) {
-                $description .= ' #' . $subject->getKey();
+                $description .= ' #'.$subject->getKey();
             }
         }
 
@@ -251,4 +250,3 @@ class ActivityLogService
         ]);
     }
 }
-

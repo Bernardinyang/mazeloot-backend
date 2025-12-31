@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -19,7 +18,7 @@ return new class extends Migration
 
             // Composite primary key
             $table->primary(['user_uuid', 'selection_uuid']);
-            
+
             // Index for faster lookups
             $table->index('user_uuid');
             $table->index('selection_uuid');

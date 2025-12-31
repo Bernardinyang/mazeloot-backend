@@ -18,7 +18,7 @@ return new class extends Migration
 
             // Composite primary key
             $table->primary(['user_uuid', 'project_uuid']);
-            
+
             // Index for faster lookups
             $table->index('user_uuid');
             $table->index('project_uuid');

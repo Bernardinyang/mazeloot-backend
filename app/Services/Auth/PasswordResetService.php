@@ -60,7 +60,7 @@ class PasswordResetService
             ->whereNull('used_at')
             ->first();
 
-        if (!$resetToken) {
+        if (! $resetToken) {
             return null;
         }
 
@@ -78,7 +78,7 @@ class PasswordResetService
     {
         $resetToken = $this->verifyCode($user, $code);
 
-        if (!$resetToken) {
+        if (! $resetToken) {
             return false;
         }
 
@@ -91,4 +91,3 @@ class PasswordResetService
         return true;
     }
 }
-

@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Enums\UserRoleEnum;
 use App\Support\Responses\ApiResponse;
 use Closure;
 use Illuminate\Http\Request;
@@ -19,7 +18,7 @@ class EnsureUserIsSuperAdmin
     {
         $user = $request->user();
 
-        if (!$user || !$user->isSuperAdmin()) {
+        if (! $user || ! $user->isSuperAdmin()) {
             return ApiResponse::errorForbidden('This action requires super admin privileges.');
         }
 

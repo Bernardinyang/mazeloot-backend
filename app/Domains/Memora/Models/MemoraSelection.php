@@ -16,6 +16,7 @@ use Illuminate\Support\Str;
 class MemoraSelection extends Model
 {
     use HasFactory, SoftDeletes;
+
     /**
      * The primary key for the model.
      *

@@ -16,13 +16,14 @@ class MediaSetService
     {
         $this->paginationService = $paginationService;
     }
+
     /**
      * Create a media set in a selection
      */
     public function create(string $selectionId, array $data): MemoraMediaSet
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
@@ -64,9 +65,6 @@ class MediaSetService
     /**
      * Get all media sets for a selection with pagination
      *
-     * @param string $selectionId
-     * @param int|null $page
-     * @param int|null $perPage
      * @return array Paginated response with data and pagination metadata
      */
     public function getBySelection(string $selectionId, ?int $page = null, ?int $perPage = null)
@@ -97,9 +95,6 @@ class MediaSetService
     /**
      * Get all media sets for a proofing with pagination
      *
-     * @param string $proofingId
-     * @param int|null $page
-     * @param int|null $perPage
      * @return array Paginated response with data and pagination metadata
      */
     public function getByProofing(string $proofingId, ?int $page = null, ?int $perPage = null)
@@ -133,12 +128,12 @@ class MediaSetService
     public function delete(string $selectionId, string $id): bool
     {
         $set = $this->find($selectionId, $id);
-        
+
         // Load media relationship if not already loaded
-        if (!$set->relationLoaded('media')) {
+        if (! $set->relationLoaded('media')) {
             $set->load(['media.feedback.replies', 'media.file']);
         }
-        
+
         // Soft delete all media in this set, then delete the set in a transaction
         return DB::transaction(function () use ($set) {
             // Soft delete all media in this set
@@ -146,7 +141,7 @@ class MediaSetService
             foreach ($set->media as $media) {
                 $media->delete();
             }
-            
+
             // Soft delete the set itself
             return $set->delete();
         });
@@ -158,7 +153,7 @@ class MediaSetService
     public function find(string $selectionId, string $id): MemoraMediaSet
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
@@ -181,7 +176,7 @@ class MediaSetService
     public function findByProofing(string $proofingId, string $id): MemoraMediaSet
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
@@ -205,7 +200,7 @@ class MediaSetService
     public function reorder(string $selectionId, array $setUuids): bool
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
@@ -268,7 +263,7 @@ class MediaSetService
     public function createForProofing(string $proofingId, array $data): MemoraMediaSet
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
@@ -324,19 +319,19 @@ class MediaSetService
     public function deleteForProofing(string $proofingId, string $id): bool
     {
         $set = $this->findByProofing($proofingId, $id);
-        
+
         // Load media relationship if not already loaded
-        if (!$set->relationLoaded('media')) {
+        if (! $set->relationLoaded('media')) {
             $set->load(['media.feedback.replies', 'media.file']);
         }
-        
+
         // Soft delete all media in this set, then delete the set in a transaction
         return DB::transaction(function () use ($set) {
             // Soft delete all media in this set
             foreach ($set->media as $media) {
                 $media->delete();
             }
-            
+
             // Soft delete the set itself
             return $set->delete();
         });
@@ -348,7 +343,7 @@ class MediaSetService
     public function reorderForProofing(string $proofingId, array $setUuids): bool
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
@@ -370,4 +365,3 @@ class MediaSetService
         });
     }
 }
-

@@ -10,15 +10,15 @@ use Illuminate\Support\Str;
 class MemoraProofingApprovalRequest extends Model
 {
     use SoftDeletes;
-    
+
     protected $table = 'memora_proofing_approval_request';
-    
+
     protected $primaryKey = 'uuid';
-    
+
     protected $keyType = 'string';
-    
+
     public $incrementing = false;
-    
+
     protected $fillable = [
         'proofing_uuid',
         'media_uuid',

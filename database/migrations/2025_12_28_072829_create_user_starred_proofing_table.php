@@ -18,7 +18,7 @@ return new class extends Migration
 
             // Composite primary key
             $table->primary(['user_uuid', 'proofing_uuid']);
-            
+
             // Index for faster lookups
             $table->index('user_uuid');
             $table->index('proofing_uuid');
@@ -33,4 +33,3 @@ return new class extends Migration
         Schema::dropIfExists('user_starred_proofing');
     }
 };
-

@@ -10,25 +10,22 @@ interface UploadProviderInterface
     /**
      * Upload a file to the storage provider
      *
-     * @param UploadedFile $file
-     * @param array $options Optional: purpose, path, transformations
-     * @return UploadResult
+     * @param  array  $options  Optional: purpose, path, transformations
      */
     public function upload(UploadedFile $file, array $options = []): UploadResult;
 
     /**
      * Delete a file from the storage provider
      *
-     * @param string $path Storage path/identifier
-     * @return bool
+     * @param  string  $path  Storage path/identifier
      */
     public function delete(string $path): bool;
 
     /**
      * Generate a signed URL for temporary access
      *
-     * @param string $path Storage path/identifier
-     * @param int $expirationMinutes URL expiration time in minutes
+     * @param  string  $path  Storage path/identifier
+     * @param  int  $expirationMinutes  URL expiration time in minutes
      * @return string Signed URL
      */
     public function getSignedUrl(string $path, int $expirationMinutes = 60): string;
@@ -36,7 +33,7 @@ interface UploadProviderInterface
     /**
      * Get the public URL for a file
      *
-     * @param string $path Storage path/identifier
+     * @param  string  $path  Storage path/identifier
      * @return string Public URL
      */
     public function getPublicUrl(string $path): string;

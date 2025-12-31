@@ -2,16 +2,18 @@
 
 namespace Tests\Unit\Services;
 
-use Tests\TestCase;
-use App\Services\Upload\UploadService;
-use App\Services\Upload\Contracts\UploadProviderInterface;
 use App\Services\Quotas\QuotaService;
+use App\Services\Upload\Contracts\UploadProviderInterface;
+use App\Services\Upload\UploadService;
 use Mockery;
+use Tests\TestCase;
 
 class UploadServiceDeleteFilesTest extends TestCase
 {
     protected UploadService $uploadService;
+
     protected $mockProvider;
+
     protected $mockQuotaService;
 
     protected function setUp(): void
@@ -119,4 +121,3 @@ class UploadServiceDeleteFilesTest extends TestCase
         $this->uploadService->deleteFiles($filePath, $additionalPaths);
     }
 }
-

@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
 
 /**
  * Public Media Set Controller
- * 
+ *
  * Handles public/guest access to media sets.
  * These endpoints are protected by guest token middleware (not user authentication).
  * Users must generate a guest token before accessing these routes.
@@ -40,11 +40,12 @@ class PublicMediaSetController extends Controller
 
         // Allow access if selection status is 'active' or 'completed' (view-only for completed)
         $selection = MemoraSelection::query()->where('uuid', $id)->firstOrFail();
-        if (!in_array($selection->status->value, ['active', 'completed'])) {
+        if (! in_array($selection->status->value, ['active', 'completed'])) {
             return ApiResponse::error('Selection is not accessible', 'SELECTION_NOT_ACCESSIBLE', 403);
         }
 
         $sets = $this->mediaSetService->getBySelection($id);
+
         return ApiResponse::success(MediaSetResource::collection($sets));
     }
 
@@ -62,12 +63,12 @@ class PublicMediaSetController extends Controller
 
         // Allow access if selection status is 'active' or 'completed' (view-only for completed)
         $selection = MemoraSelection::query()->where('uuid', $id)->firstOrFail();
-        if (!in_array($selection->status->value, ['active', 'completed'])) {
+        if (! in_array($selection->status->value, ['active', 'completed'])) {
             return ApiResponse::error('Selection is not accessible', 'SELECTION_NOT_ACCESSIBLE', 403);
         }
 
         $set = $this->mediaSetService->find($id, $setUuid);
+
         return ApiResponse::success(new MediaSetResource($set));
     }
 }
-

@@ -5,19 +5,17 @@ namespace App\Services\Upload\DTOs;
 readonly class UploadResult
 {
     public function __construct(
-        public string  $url,
-        public string  $provider,
-        public string  $path,
-        public string  $mimeType,
-        public int     $size,
-        public string  $checksum,
-        public string  $originalFilename,
+        public string $url,
+        public string $provider,
+        public string $path,
+        public string $mimeType,
+        public int $size,
+        public string $checksum,
+        public string $originalFilename,
         public ?string $signedUrl = null,
-        public ?int    $width = null,
-        public ?int    $height = null,
-    )
-    {
-    }
+        public ?int $width = null,
+        public ?int $height = null,
+    ) {}
 
     /**
      * Convert to array for JSON response

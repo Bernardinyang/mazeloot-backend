@@ -18,7 +18,7 @@ class ImageUploadRequest extends FormRequest
             'required',
             'image',
             'mimes:jpeg,jpg,png,webp',
-            'max:' . ($maxSize / 1024), // Convert to KB
+            'max:'.($maxSize / 1024), // Convert to KB
         ];
 
         return [
@@ -46,4 +46,3 @@ class ImageUploadRequest extends FormRequest
         ];
     }
 }
-

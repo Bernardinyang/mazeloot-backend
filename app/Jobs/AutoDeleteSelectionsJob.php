@@ -43,12 +43,12 @@ class AutoDeleteSelectionsJob implements ShouldQueue
     {
         try {
             $result = $selectionService->autoDeleteExpiredSelections();
-            
+
             Log::info(
                 "Auto-deleted {$result['selected_media_deleted']} selected media item(s)"
             );
         } catch (\Exception $e) {
-            Log::error("Failed to auto-delete selections: " . $e->getMessage());
+            Log::error('Failed to auto-delete selections: '.$e->getMessage());
             throw $e;
         }
     }

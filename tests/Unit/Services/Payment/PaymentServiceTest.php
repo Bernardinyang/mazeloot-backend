@@ -2,18 +2,20 @@
 
 namespace Tests\Unit\Services\Payment;
 
-use Tests\TestCase;
-use App\Services\Payment\PaymentService;
+use App\Services\Currency\CurrencyService;
 use App\Services\Payment\Contracts\PaymentProviderInterface;
 use App\Services\Payment\DTOs\PaymentResult;
-use App\Services\Currency\CurrencyService;
+use App\Services\Payment\PaymentService;
 use Illuminate\Support\Facades\Cache;
 use Mockery;
+use Tests\TestCase;
 
 class PaymentServiceTest extends TestCase
 {
     protected PaymentService $paymentService;
+
     protected $mockProvider;
+
     protected $mockCurrencyService;
 
     protected function setUp(): void

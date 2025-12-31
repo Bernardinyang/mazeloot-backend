@@ -13,15 +13,15 @@ use Illuminate\Support\Str;
 class MemoraClosureRequest extends Model
 {
     use HasFactory, SoftDeletes;
-    
+
     protected $table = 'memora_closure_requests';
-    
+
     protected $primaryKey = 'uuid';
-    
+
     protected $keyType = 'string';
-    
+
     public $incrementing = false;
-    
+
     protected $fillable = [
         'proofing_uuid',
         'media_uuid',
@@ -76,4 +76,3 @@ class MemoraClosureRequest extends Model
         return MemoraClosureRequestFactory::new();
     }
 }
-

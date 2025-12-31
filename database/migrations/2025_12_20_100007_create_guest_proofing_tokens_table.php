@@ -36,4 +36,3 @@ return new class extends Migration
         Schema::dropIfExists('guest_proofing_tokens');
     }
 };
-

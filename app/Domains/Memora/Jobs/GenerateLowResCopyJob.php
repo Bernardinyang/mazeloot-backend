@@ -42,4 +42,3 @@ class GenerateLowResCopyJob implements ShouldQueue
         $mediaService->processLowResCopy($this->mediaId);
     }
 }
-

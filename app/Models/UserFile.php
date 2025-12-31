@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 class UserFile extends Model
 {
     use SoftDeletes;
+
     protected $table = 'user_files';
 
     /**
@@ -86,4 +87,3 @@ class UserFile extends Model
         return $this->hasMany(\App\Domains\Memora\Models\MemoraMedia::class, 'user_file_uuid', 'uuid');
     }
 }
-

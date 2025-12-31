@@ -2,9 +2,9 @@
 
 namespace App\Domains\Memora\Controllers\V1;
 
+use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraProofing;
 use App\Domains\Memora\Models\MemoraSelection;
-use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Requests\V1\AddMediaFeedbackRequest;
 use App\Domains\Memora\Resources\V1\MediaFeedbackResource;
 use App\Domains\Memora\Resources\V1\MediaResource;
@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Public Media Controller
- * 
+ *
  * Handles public/guest access to media.
  * These endpoints are protected by guest token middleware (not user authentication).
  * Users must generate a guest token before accessing these routes.
@@ -45,12 +45,13 @@ class PublicMediaController extends Controller
 
         // Allow access if selection status is 'active' or 'completed' (view-only for completed)
         $selection = MemoraSelection::query()->where('uuid', $id)->firstOrFail();
-        if (!in_array($selection->status->value, ['active', 'completed'])) {
+        if (! in_array($selection->status->value, ['active', 'completed'])) {
             return ApiResponse::error('Selection is not accessible', 'SELECTION_NOT_ACCESSIBLE', 403);
         }
 
         $sortBy = $request->query('sort_by');
         $media = $this->mediaService->getSetMedia($setUuid, $sortBy);
+
         return ApiResponse::success(MediaResource::collection($media));
     }
 
@@ -75,7 +76,7 @@ class PublicMediaController extends Controller
         try {
             // Get current selected status
             $media = \App\Domains\Memora\Models\MemoraMedia::findOrFail($mediaId);
-            $isSelected = !$media->is_selected;
+            $isSelected = ! $media->is_selected;
 
             // Toggle selected status
             $updatedMedia = $this->mediaService->markSelected($mediaId, $isSelected);
@@ -91,6 +92,7 @@ class PublicMediaController extends Controller
                 'media_id' => $mediaId,
                 'exception' => $e->getMessage(),
             ]);
+
             return ApiResponse::error('Failed to toggle selected status', 'TOGGLE_FAILED', 500);
         }
     }
@@ -109,12 +111,13 @@ class PublicMediaController extends Controller
 
         // Allow access if proofing status is 'active' or 'completed' (view-only for completed)
         $proofing = MemoraProofing::query()->where('uuid', $id)->firstOrFail();
-        if (!in_array($proofing->status->value, ['active', 'completed'])) {
+        if (! in_array($proofing->status->value, ['active', 'completed'])) {
             return ApiResponse::error('Proofing is not accessible', 'PROOFING_NOT_ACCESSIBLE', 403);
         }
 
         $sortBy = $request->query('sort_by');
         $media = $this->mediaService->getSetMedia($setUuid, $sortBy);
+
         return ApiResponse::success(MediaResource::collection($media));
     }
 
@@ -139,7 +142,7 @@ class PublicMediaController extends Controller
         try {
             // Get current selected status
             $media = \App\Domains\Memora\Models\MemoraMedia::findOrFail($mediaId);
-            $isSelected = !$media->is_selected;
+            $isSelected = ! $media->is_selected;
 
             // Toggle selected status
             $updatedMedia = $this->mediaService->markSelected($mediaId, $isSelected);
@@ -155,6 +158,7 @@ class PublicMediaController extends Controller
                 'media_id' => $mediaId,
                 'exception' => $e->getMessage(),
             ]);
+
             return ApiResponse::error('Failed to toggle selected status', 'TOGGLE_FAILED', 500);
         }
     }
@@ -173,19 +177,20 @@ class PublicMediaController extends Controller
 
         // Verify proofing is active or completed (allow comments on completed proofing)
         $proofing = MemoraProofing::query()->where('uuid', $id)->firstOrFail();
-        if (!in_array($proofing->status->value, ['active', 'completed'])) {
+        if (! in_array($proofing->status->value, ['active', 'completed'])) {
             return ApiResponse::error('Proofing is not accessible', 'PROOFING_NOT_ACCESSIBLE', 403);
         }
 
         // Verify media belongs to this proofing
         $media = MemoraMedia::findOrFail($mediaId);
         $mediaSet = $media->mediaSet;
-        if (!$mediaSet || $mediaSet->proof_uuid !== $id) {
+        if (! $mediaSet || $mediaSet->proof_uuid !== $id) {
             return ApiResponse::error('Media does not belong to this proofing', 'MEDIA_NOT_IN_PROOFING', 403);
         }
 
         try {
             $feedback = $this->mediaService->addFeedback($mediaId, $request->validated());
+
             return ApiResponse::success(new MediaFeedbackResource($feedback), 201);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ApiResponse::error('Media not found', 'MEDIA_NOT_FOUND', 404);
@@ -196,6 +201,7 @@ class PublicMediaController extends Controller
                 'media_id' => $mediaId,
                 'exception' => $e->getMessage(),
             ]);
+
             return ApiResponse::error('Failed to add feedback', 'FEEDBACK_FAILED', 500);
         }
     }
@@ -220,7 +226,7 @@ class PublicMediaController extends Controller
         $feedback = \App\Domains\Memora\Models\MemoraMediaFeedback::findOrFail($feedbackId);
         $media = $feedback->media;
         $mediaSet = $media->mediaSet;
-        if (!$mediaSet || $mediaSet->proof_uuid !== $id) {
+        if (! $mediaSet || $mediaSet->proof_uuid !== $id) {
             return ApiResponse::error('Feedback does not belong to this proofing', 'FEEDBACK_NOT_IN_PROOFING', 403);
         }
 
@@ -231,12 +237,14 @@ class PublicMediaController extends Controller
 
         try {
             $feedback = $this->mediaService->updateFeedback($feedbackId, $request->only('content'));
+
             return ApiResponse::success(new MediaFeedbackResource($feedback));
         } catch (\Exception $e) {
             Log::error('Failed to update feedback', [
                 'feedback_id' => $feedbackId,
                 'exception' => $e->getMessage(),
             ]);
+
             return ApiResponse::error($e->getMessage(), 'UPDATE_FAILED', 400);
         }
     }
@@ -257,7 +265,7 @@ class PublicMediaController extends Controller
         $feedback = \App\Domains\Memora\Models\MemoraMediaFeedback::findOrFail($feedbackId);
         $media = $feedback->media;
         $mediaSet = $media->mediaSet;
-        if (!$mediaSet || $mediaSet->proof_uuid !== $id) {
+        if (! $mediaSet || $mediaSet->proof_uuid !== $id) {
             return ApiResponse::error('Feedback does not belong to this proofing', 'FEEDBACK_NOT_IN_PROOFING', 403);
         }
 
@@ -271,12 +279,14 @@ class PublicMediaController extends Controller
             if ($deleted) {
                 return ApiResponse::success(['message' => 'Feedback deleted successfully']);
             }
+
             return ApiResponse::error('Failed to delete feedback', 'DELETE_FAILED', 500);
         } catch (\Exception $e) {
             Log::error('Failed to delete feedback', [
                 'feedback_id' => $feedbackId,
                 'exception' => $e->getMessage(),
             ]);
+
             return ApiResponse::error($e->getMessage(), 'DELETE_FAILED', 400);
         }
     }
@@ -303,7 +313,7 @@ class PublicMediaController extends Controller
         // Verify media belongs to this proofing
         $media = MemoraMedia::findOrFail($mediaId);
         $mediaSet = $media->mediaSet;
-        if (!$mediaSet || $mediaSet->proof_uuid !== $id) {
+        if (! $mediaSet || $mediaSet->proof_uuid !== $id) {
             return ApiResponse::error('Media does not belong to this proofing', 'MEDIA_NOT_IN_PROOFING', 403);
         }
 
@@ -331,6 +341,7 @@ class PublicMediaController extends Controller
                 'media_id' => $mediaId,
                 'exception' => $e->getMessage(),
             ]);
+
             return ApiResponse::error('Failed to approve media', 'APPROVE_FAILED', 500);
         }
     }
@@ -343,21 +354,21 @@ class PublicMediaController extends Controller
         $guestToken = $request->attributes->get('guest_token');
 
         // Verify guest token exists
-        if (!$guestToken) {
+        if (! $guestToken) {
             return ApiResponse::error('Guest token is required', 'GUEST_TOKEN_MISSING', 401);
         }
 
         try {
             $media = \App\Domains\Memora\Models\MemoraMedia::findOrFail($mediaId);
-            
+
             // Verify media belongs to proofing associated with guest token
             $mediaSet = $media->mediaSet;
-            if (!$mediaSet) {
+            if (! $mediaSet) {
                 return ApiResponse::error('Media does not belong to any set', 'INVALID_MEDIA', 404);
             }
 
             $proofing = $mediaSet->proofing;
-            if (!$proofing) {
+            if (! $proofing) {
                 return ApiResponse::error('Media set does not belong to any proofing', 'INVALID_MEDIA', 404);
             }
 
@@ -367,11 +378,12 @@ class PublicMediaController extends Controller
             }
 
             // Allow access if proofing status is 'active' or 'completed'
-            if (!in_array($proofing->status->value, ['active', 'completed'])) {
+            if (! in_array($proofing->status->value, ['active', 'completed'])) {
                 return ApiResponse::error('Proofing is not accessible', 'PROOFING_NOT_ACCESSIBLE', 403);
             }
 
             $revisions = $this->mediaService->getRevisions($mediaId);
+
             return ApiResponse::success($revisions);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ApiResponse::error('Media not found', 'MEDIA_NOT_FOUND', 404);
@@ -380,8 +392,8 @@ class PublicMediaController extends Controller
                 'media_id' => $mediaId,
                 'exception' => $e->getMessage(),
             ]);
+
             return ApiResponse::error('Failed to get revisions', 'FETCH_FAILED', 500);
         }
     }
 }
-

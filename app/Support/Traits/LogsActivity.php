@@ -5,7 +5,6 @@ namespace App\Support\Traits;
 use App\Models\ActivityLog;
 use App\Services\ActivityLog\ActivityLogService;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Http\Request;
 
 trait LogsActivity
 {
@@ -19,12 +18,6 @@ trait LogsActivity
 
     /**
      * Log an activity with shorthand method.
-     *
-     * @param string $action
-     * @param Model|null $subject
-     * @param string|null $description
-     * @param array|null $properties
-     * @return ActivityLog
      */
     protected function logActivity(
         string $action,
@@ -82,4 +75,3 @@ trait LogsActivity
         return $this->activityLog()->logCustom($action, $description, $properties, null, request());
     }
 }
-

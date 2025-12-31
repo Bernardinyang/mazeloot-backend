@@ -21,4 +21,3 @@ class StoreProofingRequest extends FormRequest
         ];
     }
 }
-

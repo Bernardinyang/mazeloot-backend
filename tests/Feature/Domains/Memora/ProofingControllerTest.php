@@ -4,8 +4,8 @@ namespace Tests\Feature\Domains\Memora;
 
 use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraMediaSet;
-use App\Domains\Memora\Models\MemoraProofing;
 use App\Domains\Memora\Models\MemoraProject;
+use App\Domains\Memora\Models\MemoraProofing;
 use App\Models\User;
 use App\Models\UserFile;
 use Laravel\Sanctum\Sanctum;
@@ -144,4 +144,3 @@ class ProofingControllerTest extends TestCase
         $response->assertStatus(401);
     }
 }
-

@@ -10,28 +10,28 @@ use Illuminate\Support\Str;
 class MemoraCoverStyle extends Model
 {
     use HasFactory;
-    
+
     /**
      * The primary key for the model.
      *
      * @var string
      */
     protected $primaryKey = 'uuid';
-    
+
     /**
      * The "type" of the primary key ID.
      *
      * @var string
      */
     protected $keyType = 'string';
-    
+
     /**
      * Indicates if the IDs are auto-incrementing.
      *
      * @var bool
      */
     public $incrementing = false;
-    
+
     protected $fillable = [
         'name',
         'slug',
@@ -103,11 +103,11 @@ class MemoraCoverStyle extends Model
     public function getConfigAttribute($value): array
     {
         // If value is null or empty, return default structure
-        if (empty($value) || !is_array($value)) {
+        if (empty($value) || ! is_array($value)) {
             // Only use $this->slug and $this->name if they exist (to avoid errors during creation)
             $slug = $this->attributes['slug'] ?? $this->slug ?? null;
             $name = $this->attributes['name'] ?? $this->name ?? 'Default';
-            
+
             return [
                 'id' => $slug,
                 'label' => $name,
@@ -159,4 +159,3 @@ class MemoraCoverStyle extends Model
         return \Database\Factories\MemoraCoverStyleFactory::new();
     }
 }
-

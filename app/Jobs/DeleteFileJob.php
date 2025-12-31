@@ -45,4 +45,3 @@ class DeleteFileJob implements ShouldQueue
         $uploadService->deleteFiles($this->filePath, $this->additionalPaths);
     }
 }
-

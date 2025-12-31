@@ -14,7 +14,7 @@ class CloudinaryProvider implements UploadProviderInterface
     public function __construct()
     {
         $this->config = config('upload.providers.cloudinary', []);
-        
+
         if (empty($this->config['cloud_name']) || empty($this->config['api_key']) || empty($this->config['api_secret'])) {
             throw UploadException::providerError('Cloudinary configuration is incomplete');
         }
@@ -25,7 +25,7 @@ class CloudinaryProvider implements UploadProviderInterface
         // Cloudinary SDK would be used here
         // For now, this is a placeholder that shows the interface
         // In production, install cloudinary/cloudinary_php package
-        
+
         throw UploadException::providerError('Cloudinary provider not yet implemented. Install cloudinary/cloudinary_php package.');
     }
 
@@ -44,6 +44,7 @@ class CloudinaryProvider implements UploadProviderInterface
     public function getPublicUrl(string $path): string
     {
         $cloudName = $this->config['cloud_name'];
+
         return "https://res.cloudinary.com/{$cloudName}/{$path}";
     }
 }

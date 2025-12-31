@@ -15,7 +15,7 @@ class MediaFeedbackResource extends JsonResource
             return; // Prevent infinite recursion
         }
 
-        if (!$feedback->relationLoaded('replies')) {
+        if (! $feedback->relationLoaded('replies')) {
             $feedback->load('replies');
         }
 
@@ -32,23 +32,23 @@ class MediaFeedbackResource extends JsonResource
             $decoded = json_decode($createdBy, true);
             $createdBy = $decoded !== null ? $decoded : $createdBy;
         }
-        
+
         // Ensure mentions is properly decoded (handle both array and JSON string)
         $mentions = $this->mentions;
         if (is_string($mentions)) {
             $decoded = json_decode($mentions, true);
             $mentions = $decoded !== null ? $decoded : [];
         }
-        if (!is_array($mentions)) {
+        if (! is_array($mentions)) {
             $mentions = [];
         }
-        
+
         return [
             'id' => $this->uuid,
             'mediaId' => $this->media_uuid,
             'parentId' => $this->parent_uuid,
             'timestamp' => $this->timestamp ? (float) $this->timestamp : null,
-            'mentions' => !empty($mentions) ? $mentions : null,
+            'mentions' => ! empty($mentions) ? $mentions : null,
             'media' => $this->whenLoaded('media', function () {
                 return new MediaResource($this->media);
             }, null),
@@ -60,15 +60,15 @@ class MediaFeedbackResource extends JsonResource
             'replies' => $this->whenLoaded('replies', function () {
                 // Recursively load nested replies for each reply
                 foreach ($this->replies as $reply) {
-                    if (!$reply->relationLoaded('replies')) {
+                    if (! $reply->relationLoaded('replies')) {
                         $reply->load('replies');
                     }
                     // Recursively load nested replies
                     $this->loadNestedRepliesRecursive($reply);
                 }
+
                 return MediaFeedbackResource::collection($this->replies);
             }, []),
         ];
     }
 }
-

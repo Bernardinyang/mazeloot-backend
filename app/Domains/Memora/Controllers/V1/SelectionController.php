@@ -7,7 +7,6 @@ use App\Domains\Memora\Requests\V1\SetCoverPhotoRequest;
 use App\Domains\Memora\Requests\V1\StoreSelectionRequest;
 use App\Domains\Memora\Requests\V1\UpdateSelectionRequest;
 use App\Domains\Memora\Resources\V1\MediaResource;
-use App\Domains\Memora\Resources\V1\SelectionResource;
 use App\Domains\Memora\Services\SelectionService;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -44,7 +43,7 @@ class SelectionController extends Controller
             page: $page,
             perPage: $perPage
         );
-        
+
         return ApiResponse::success($result);
     }
 
@@ -54,6 +53,7 @@ class SelectionController extends Controller
     public function show(string $id): JsonResponse
     {
         $selection = $this->selectionService->find($id);
+
         return ApiResponse::success($selection);
     }
 
@@ -63,6 +63,7 @@ class SelectionController extends Controller
     public function store(StoreSelectionRequest $request): JsonResponse
     {
         $selection = $this->selectionService->create($request->validated());
+
         return ApiResponse::success($selection, 201);
     }
 
@@ -72,6 +73,7 @@ class SelectionController extends Controller
     public function update(UpdateSelectionRequest $request, string $id): JsonResponse
     {
         $selection = $this->selectionService->update($id, $request->validated());
+
         return ApiResponse::success($selection);
     }
 
@@ -81,6 +83,7 @@ class SelectionController extends Controller
     public function destroy(string $id): JsonResponse
     {
         $this->selectionService->delete($id);
+
         return ApiResponse::success(null, 204);
     }
 
@@ -90,6 +93,7 @@ class SelectionController extends Controller
     public function publish(string $id): JsonResponse
     {
         $selection = $this->selectionService->publish($id);
+
         return ApiResponse::success($selection);
     }
 
@@ -99,6 +103,7 @@ class SelectionController extends Controller
     public function recover(RecoverMediaRequest $request, string $id): JsonResponse
     {
         $result = $this->selectionService->recover($id, $request->validated()['mediaIds']);
+
         return ApiResponse::success($result);
     }
 
@@ -109,6 +114,7 @@ class SelectionController extends Controller
     {
         $setUuid = $request->query('setId');
         $media = $this->selectionService->getSelectedMedia($id, $setUuid);
+
         return ApiResponse::success(MediaResource::collection($media));
     }
 
@@ -119,6 +125,7 @@ class SelectionController extends Controller
     {
         $setId = $request->query('setId');
         $result = $this->selectionService->getSelectedFilenames($id, $setId);
+
         return ApiResponse::success($result);
     }
 
@@ -129,6 +136,7 @@ class SelectionController extends Controller
     {
         try {
             $selection = $this->selectionService->resetSelectionLimit($id);
+
             return ApiResponse::success($selection);
         } catch (\RuntimeException $e) {
             return ApiResponse::error($e->getMessage(), 'INVALID_OPERATION', 400);
@@ -144,6 +152,7 @@ class SelectionController extends Controller
             $validated = $request->validated();
             $focalPoint = $validated['focal_point'] ?? null;
             $selection = $this->selectionService->setCoverPhotoFromMedia($id, $validated['media_uuid'], $focalPoint);
+
             return ApiResponse::success($selection);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ApiResponse::error('Selection or media not found', 'NOT_FOUND', 404);
@@ -155,6 +164,7 @@ class SelectionController extends Controller
                 'media_uuid' => $request->input('media_uuid'),
                 'exception' => $e->getMessage(),
             ]);
+
             return ApiResponse::error('Failed to set cover photo', 'SET_COVER_FAILED', 500);
         }
     }
@@ -165,7 +175,7 @@ class SelectionController extends Controller
     public function toggleStar(string $id): JsonResponse
     {
         $result = $this->selectionService->toggleStar($id);
+
         return ApiResponse::success($result);
     }
 }
-

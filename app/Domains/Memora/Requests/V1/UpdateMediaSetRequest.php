@@ -24,7 +24,7 @@ class UpdateMediaSetRequest extends FormRequest
                 'string',
                 'max:255',
                 function ($attribute, $value, $fail) use ($selectionId, $setId) {
-                    if (!$selectionId || !$value) {
+                    if (! $selectionId || ! $value) {
                         return;
                     }
 
@@ -46,4 +46,3 @@ class UpdateMediaSetRequest extends FormRequest
         ];
     }
 }
-

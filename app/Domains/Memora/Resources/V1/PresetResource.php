@@ -86,4 +86,3 @@ class PresetResource extends JsonResource
         ];
     }
 }
-

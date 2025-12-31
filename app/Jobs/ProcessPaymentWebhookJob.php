@@ -48,20 +48,19 @@ class ProcessPaymentWebhookJob implements ShouldQueue
             // WebhookHandler::handle expects (array $payload, string $provider)
             // Signature verification should be done before queuing
             $webhookHandler->handle($this->payload, $this->provider);
-            
-            Log::info("Payment webhook processed successfully", [
+
+            Log::info('Payment webhook processed successfully', [
                 'provider' => $this->provider,
                 'payload_keys' => array_keys($this->payload),
             ]);
         } catch (\Exception $e) {
-            Log::error("Failed to process payment webhook", [
+            Log::error('Failed to process payment webhook', [
                 'provider' => $this->provider,
                 'error' => $e->getMessage(),
                 'payload_keys' => array_keys($this->payload),
             ]);
-            
+
             throw $e; // Re-throw to trigger retry mechanism
         }
     }
 }
-

@@ -9,35 +9,35 @@ use Illuminate\Support\Str;
 class MemoraCoverLayout extends Model
 {
     use HasFactory;
-    
+
     /**
      * The table associated with the model.
      *
      * @var string
      */
     protected $table = 'memora_cover_layouts';
-    
+
     /**
      * The primary key for the model.
      *
      * @var string
      */
     protected $primaryKey = 'uuid';
-    
+
     /**
      * The "type" of the primary key ID.
      *
      * @var string
      */
     protected $keyType = 'string';
-    
+
     /**
      * Indicates if the IDs are auto-incrementing.
      *
      * @var bool
      */
     public $incrementing = false;
-    
+
     protected $fillable = [
         'name',
         'slug',
@@ -103,16 +103,16 @@ class MemoraCoverLayout extends Model
         // If $value is a string, decode it (accessor receives raw value before cast)
         if (is_string($value)) {
             $decoded = json_decode($value, true);
-            if (is_array($decoded) && !empty($decoded)) {
+            if (is_array($decoded) && ! empty($decoded)) {
                 return $decoded;
             }
         }
-        
+
         // If $value is already an array (shouldn't happen with cast, but handle it)
-        if (is_array($value) && !empty($value)) {
+        if (is_array($value) && ! empty($value)) {
             return $value;
         }
-        
+
         // Return defaults only if no value exists
         return [
             'layout' => 'stack',
@@ -156,20 +156,20 @@ class MemoraCoverLayout extends Model
         $validGradients = ['top', 'bottom', 'left', 'right', 'none'];
 
         // Validate layout type
-        if (!isset($config['layout']) || !in_array($config['layout'], $validLayouts)) {
+        if (! isset($config['layout']) || ! in_array($config['layout'], $validLayouts)) {
             return false;
         }
 
         // Validate media
         if (isset($config['media'])) {
             $media = $config['media'];
-            if (isset($media['fit']) && !in_array($media['fit'], $validFits)) {
+            if (isset($media['fit']) && ! in_array($media['fit'], $validFits)) {
                 return false;
             }
-            if (isset($media['bleed']) && !in_array($media['bleed'], $validBleeds)) {
+            if (isset($media['bleed']) && ! in_array($media['bleed'], $validBleeds)) {
                 return false;
             }
-            if (isset($media['max_width']) && !is_null($media['max_width']) && (!is_numeric($media['max_width']) || $media['max_width'] < 0)) {
+            if (isset($media['max_width']) && ! is_null($media['max_width']) && (! is_numeric($media['max_width']) || $media['max_width'] < 0)) {
                 return false;
             }
         }
@@ -177,10 +177,10 @@ class MemoraCoverLayout extends Model
         // Validate content
         if (isset($config['content'])) {
             $content = $config['content'];
-            if (isset($content['placement']) && !in_array($content['placement'], $validPlacements)) {
+            if (isset($content['placement']) && ! in_array($content['placement'], $validPlacements)) {
                 return false;
             }
-            if (isset($content['alignment']) && !in_array($content['alignment'], $validAlignments)) {
+            if (isset($content['alignment']) && ! in_array($content['alignment'], $validAlignments)) {
                 return false;
             }
         }
@@ -188,13 +188,13 @@ class MemoraCoverLayout extends Model
         // Validate overlay
         if (isset($config['overlay'])) {
             $overlay = $config['overlay'];
-            if (isset($overlay['enabled']) && !is_bool($overlay['enabled'])) {
+            if (isset($overlay['enabled']) && ! is_bool($overlay['enabled'])) {
                 return false;
             }
-            if (isset($overlay['gradient']) && !in_array($overlay['gradient'], $validGradients)) {
+            if (isset($overlay['gradient']) && ! in_array($overlay['gradient'], $validGradients)) {
                 return false;
             }
-            if (isset($overlay['opacity']) && (!is_numeric($overlay['opacity']) || $overlay['opacity'] < 0 || $overlay['opacity'] > 1)) {
+            if (isset($overlay['opacity']) && (! is_numeric($overlay['opacity']) || $overlay['opacity'] < 0 || $overlay['opacity'] > 1)) {
                 return false;
             }
         }
@@ -202,10 +202,10 @@ class MemoraCoverLayout extends Model
         // Validate spacing
         if (isset($config['spacing'])) {
             $spacing = $config['spacing'];
-            if (isset($spacing['padding_x']) && (!is_int($spacing['padding_x']) || $spacing['padding_x'] < 0 || $spacing['padding_x'] > 200)) {
+            if (isset($spacing['padding_x']) && (! is_int($spacing['padding_x']) || $spacing['padding_x'] < 0 || $spacing['padding_x'] > 200)) {
                 return false;
             }
-            if (isset($spacing['padding_y']) && (!is_int($spacing['padding_y']) || $spacing['padding_y'] < 0 || $spacing['padding_y'] > 200)) {
+            if (isset($spacing['padding_y']) && (! is_int($spacing['padding_y']) || $spacing['padding_y'] < 0 || $spacing['padding_y'] > 200)) {
                 return false;
             }
         }
@@ -213,4 +213,3 @@ class MemoraCoverLayout extends Model
         return true;
     }
 }
-

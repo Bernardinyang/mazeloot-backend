@@ -10,11 +10,7 @@ class PaginationService
     /**
      * Paginate a collection or query
      *
-     * @param mixed $items MemoraCollection or Query Builder
-     * @param int $perPage
-     * @param int|null $page
-     * @param string $pageName
-     * @return LengthAwarePaginator
+     * @param  mixed  $items  MemoraCollection or Query Builder
      */
     public function paginate($items, int $perPage = 50, ?int $page = null, string $pageName = 'page'): LengthAwarePaginator
     {
@@ -43,9 +39,6 @@ class PaginationService
 
     /**
      * Format paginated response matching frontend contract
-     *
-     * @param LengthAwarePaginator $paginator
-     * @return array
      */
     public function formatResponse(LengthAwarePaginator $paginator): array
     {

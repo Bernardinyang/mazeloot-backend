@@ -43,10 +43,10 @@ class ProofingApprovalApprovedNotification extends Notification implements Shoul
         $media = $this->approvalRequest->media;
 
         return (new MailMessage)
-            ->subject('Approval Request Approved - ' . $proofing->name)
+            ->subject('Approval Request Approved - '.$proofing->name)
             ->line('Your approval request has been approved by the client.')
-            ->line('**Proofing:** ' . $proofing->name)
-            ->line('**Media:** ' . ($media->file->filename ?? 'Media item'))
+            ->line('**Proofing:** '.$proofing->name)
+            ->line('**Media:** '.($media->file->filename ?? 'Media item'))
             ->line('You can now proceed with additional revisions as needed.')
             ->action('View Approval Request', $url)
             ->line('Thank you for using our application!');

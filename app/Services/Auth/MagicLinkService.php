@@ -42,8 +42,8 @@ class MagicLinkService
 
         // Send notification with magic link
         $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173'));
-        $magicLink = $frontendUrl . '/auth/magic-link/verify?token=' . $token->token . '&email=' . urlencode($user->email);
-        
+        $magicLink = $frontendUrl.'/auth/magic-link/verify?token='.$token->token.'&email='.urlencode($user->email);
+
         $user->notify(new MagicLinkNotification($magicLink));
 
         return $token;
@@ -59,7 +59,7 @@ class MagicLinkService
             ->with('user')
             ->first();
 
-        if (!$magicLinkToken) {
+        if (! $magicLinkToken) {
             return null;
         }
 
@@ -75,4 +75,3 @@ class MagicLinkService
         return $magicLinkToken;
     }
 }
-

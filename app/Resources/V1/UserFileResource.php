@@ -10,7 +10,7 @@ class UserFileResource extends JsonResource
     {
         $fileType = $this->type?->value ?? $this->type;
         $variants = $this->metadata['variants'] ?? null;
-        
+
         return [
             'id' => $this->uuid,
             'url' => $this->url,
@@ -24,7 +24,7 @@ class UserFileResource extends JsonResource
             'metadata' => $this->metadata,
             'thumbnailUrl' => $fileType === 'image' && $variants && isset($variants['thumb'])
                 ? $variants['thumb']
-                : ($fileType === 'video' 
+                : ($fileType === 'video'
                     ? ($this->metadata['thumbnail'] ?? ($variants && isset($variants['thumb']) ? $variants['thumb'] : null))
                     : null),
             'variants' => $variants,
@@ -33,4 +33,3 @@ class UserFileResource extends JsonResource
         ];
     }
 }
-

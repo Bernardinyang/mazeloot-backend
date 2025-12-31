@@ -6,7 +6,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     public function up(): void
     {
         // Check if table exists - if so, add missing columns; if not, create it
@@ -14,7 +15,7 @@ return new class extends Migration {
             // Table exists, add missing columns
             Schema::table('memora_media_feedback', static function (Blueprint $table) {
                 // Add parent_uuid column if it doesn't exist
-                if (!Schema::hasColumn('memora_media_feedback', 'parent_uuid')) {
+                if (! Schema::hasColumn('memora_media_feedback', 'parent_uuid')) {
                     $table->uuid('parent_uuid')->nullable()->after('media_uuid');
                     $table->foreign('parent_uuid')
                         ->references('uuid')
@@ -22,14 +23,14 @@ return new class extends Migration {
                         ->onDelete('cascade');
                     $table->index('parent_uuid');
                 }
-                
+
                 // Add timestamp column if it doesn't exist
-                if (!Schema::hasColumn('memora_media_feedback', 'timestamp')) {
+                if (! Schema::hasColumn('memora_media_feedback', 'timestamp')) {
                     $table->decimal('timestamp', 10, 2)->nullable()->after('parent_uuid');
                 }
-                
+
                 // Add mentions column if it doesn't exist
-                if (!Schema::hasColumn('memora_media_feedback', 'mentions')) {
+                if (! Schema::hasColumn('memora_media_feedback', 'mentions')) {
                     $table->json('mentions')->nullable()->after('timestamp');
                 }
             });

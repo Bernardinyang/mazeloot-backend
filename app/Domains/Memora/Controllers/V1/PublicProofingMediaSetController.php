@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
 
 /**
  * Public Proofing Media Set Controller
- * 
+ *
  * Handles public/guest access to proofing media sets.
  * These endpoints are protected by guest token middleware (not user authentication).
  * Users must generate a guest token before accessing these routes.
@@ -40,11 +40,12 @@ class PublicProofingMediaSetController extends Controller
 
         // Allow access if proofing status is 'active' or 'completed' (view-only for completed)
         $proofing = MemoraProofing::query()->where('uuid', $id)->firstOrFail();
-        if (!in_array($proofing->status->value, ['active', 'completed'])) {
+        if (! in_array($proofing->status->value, ['active', 'completed'])) {
             return ApiResponse::error('Proofing is not accessible', 'PROOFING_NOT_ACCESSIBLE', 403);
         }
 
         $result = $this->mediaSetService->getByProofing($id);
+
         return ApiResponse::success(MediaSetResource::collection($result['data']));
     }
 
@@ -62,12 +63,12 @@ class PublicProofingMediaSetController extends Controller
 
         // Allow access if proofing status is 'active' or 'completed' (view-only for completed)
         $proofing = MemoraProofing::query()->where('uuid', $id)->firstOrFail();
-        if (!in_array($proofing->status->value, ['active', 'completed'])) {
+        if (! in_array($proofing->status->value, ['active', 'completed'])) {
             return ApiResponse::error('Proofing is not accessible', 'PROOFING_NOT_ACCESSIBLE', 403);
         }
 
         $set = $this->mediaSetService->findByProofing($id, $setUuid);
+
         return ApiResponse::success(new MediaSetResource($set));
     }
 }
-

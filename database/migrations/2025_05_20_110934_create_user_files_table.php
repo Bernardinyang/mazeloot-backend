@@ -16,12 +16,11 @@ return new class extends Migration
         Schema::create('user_files', function (Blueprint $table) {
             $table->id();
             $table->uuid()->unique()
-                ->default(DB::raw('(UUID())'))
-            ;
+                ->default(DB::raw('(UUID())'));
             $table->foreignUuid('user_uuid')->constrained('users', 'uuid')->cascadeOnDelete();
             $table->string('url');
             $table->string('path');
-            
+
             $table->enum('type', MediaTypeEnum::values());
             $table->string('filename');
             $table->string('mime_type');

@@ -24,7 +24,7 @@ class ModelRelationshipsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Create user status first
         $this->userStatus = UserStatus::factory()->create();
     }
@@ -32,11 +32,11 @@ class ModelRelationshipsTest extends TestCase
     public function test_user_relationships(): void
     {
         $user = User::factory()->create(['status_uuid' => $this->userStatus->uuid]);
-        
+
         // Test user -> status relationship
         $this->assertNotNull($user->status);
         $this->assertEquals($this->userStatus->uuid, $user->status->uuid);
-        
+
         // Test user -> activity logs relationship
         $this->assertInstanceOf(\Illuminate\Database\Eloquent\Collection::class, $user->activityLogs);
     }
@@ -45,7 +45,7 @@ class ModelRelationshipsTest extends TestCase
     {
         $userStatus = UserStatus::factory()->create();
         $user = User::factory()->create(['status_uuid' => $userStatus->uuid]);
-        
+
         // Test user status -> users relationship
         $this->assertTrue($userStatus->users->contains($user));
         $this->assertEquals($user->uuid, $userStatus->users->first()->uuid);
@@ -56,31 +56,31 @@ class ModelRelationshipsTest extends TestCase
         $user = User::factory()->create(['status_uuid' => $this->userStatus->uuid]);
         $coverStyle = MemoraCoverStyle::factory()->create();
         $watermark = MemoraWatermark::factory()->create(['user_uuid' => $user->uuid]);
-        
+
         $preset = MemoraPreset::factory()->create([
             'user_uuid' => $user->uuid,
             'design_cover_uuid' => $coverStyle->uuid,
             'default_watermark_uuid' => $watermark->uuid,
         ]);
-        
+
         // Test preset -> user relationship
         $this->assertNotNull($preset->user);
         $this->assertEquals($user->uuid, $preset->user->uuid);
-        
+
         // Test preset -> cover style relationship
         $this->assertNotNull($preset->coverStyle);
         $this->assertEquals($coverStyle->uuid, $preset->coverStyle->uuid);
-        
+
         // Test preset -> watermark relationship
         $this->assertNotNull($preset->defaultWatermark);
         $this->assertEquals($watermark->uuid, $preset->defaultWatermark->uuid);
-        
+
         // Test preset -> projects relationship
         $project = MemoraProject::factory()->create([
             'user_uuid' => $user->uuid,
             'preset_uuid' => $preset->uuid,
         ]);
-        
+
         $this->assertTrue($preset->projects->contains($project));
         $this->assertEquals($project->uuid, $preset->projects->first()->uuid);
     }
@@ -89,12 +89,12 @@ class ModelRelationshipsTest extends TestCase
     {
         $coverStyle = MemoraCoverStyle::factory()->create();
         $user = User::factory()->create(['status_uuid' => $this->userStatus->uuid]);
-        
+
         $preset = MemoraPreset::factory()->create([
             'user_uuid' => $user->uuid,
             'design_cover_uuid' => $coverStyle->uuid,
         ]);
-        
+
         // Test cover style -> presets relationship
         $this->assertTrue($coverStyle->presets->contains($preset));
         $this->assertEquals($preset->uuid, $coverStyle->presets->first()->uuid);
@@ -104,26 +104,26 @@ class ModelRelationshipsTest extends TestCase
     {
         $user = User::factory()->create(['status_uuid' => $this->userStatus->uuid]);
         $watermark = MemoraWatermark::factory()->create(['user_uuid' => $user->uuid]);
-        
+
         // Test watermark -> user relationship
         $this->assertNotNull($watermark->user);
         $this->assertEquals($user->uuid, $watermark->user->uuid);
-        
+
         // Test watermark -> presets relationship
         $preset = MemoraPreset::factory()->create([
             'user_uuid' => $user->uuid,
             'default_watermark_uuid' => $watermark->uuid,
         ]);
-        
+
         $this->assertTrue($watermark->presets->contains($preset));
         $this->assertEquals($preset->uuid, $watermark->presets->first()->uuid);
-        
+
         // Test watermark -> projects relationship
         $project = MemoraProject::factory()->create([
             'user_uuid' => $user->uuid,
             'watermark_uuid' => $watermark->uuid,
         ]);
-        
+
         $this->assertTrue($watermark->projects->contains($project));
         $this->assertEquals($project->uuid, $watermark->projects->first()->uuid);
     }
@@ -133,76 +133,76 @@ class ModelRelationshipsTest extends TestCase
         $user = User::factory()->create(['status_uuid' => $this->userStatus->uuid]);
         $preset = MemoraPreset::factory()->create(['user_uuid' => $user->uuid]);
         $watermark = MemoraWatermark::factory()->create(['user_uuid' => $user->uuid]);
-        
+
         $project = MemoraProject::factory()->create([
             'user_uuid' => $user->uuid,
             'preset_uuid' => $preset->uuid,
             'watermark_uuid' => $watermark->uuid,
         ]);
-        
+
         // Test project -> user relationship
         $this->assertNotNull($project->user);
         $this->assertEquals($user->uuid, $project->user->uuid);
-        
+
         // Test project -> preset relationship
         $this->assertNotNull($project->preset);
         $this->assertEquals($preset->uuid, $project->preset->uuid);
-        
+
         // Test project -> watermark relationship
         $this->assertNotNull($project->watermark);
         $this->assertEquals($watermark->uuid, $project->watermark->uuid);
-        
+
         // Test project -> media sets relationship
         $mediaSet = MemoraMediaSet::factory()->create([
             'user_uuid' => $user->uuid,
             'project_uuid' => $project->uuid,
         ]);
-        
+
         // Verify mediaSet -> project relationship (reverse)
         $this->assertNotNull($mediaSet->project);
         $this->assertEquals($project->uuid, $mediaSet->project->uuid);
-        
+
         // Verify project -> mediaSets relationship using direct query
         // Verify relationship method exists
         $this->assertTrue(method_exists($project, 'mediaSets'));
-        
+
         // Verify mediaSets exist for project (may have caching issues, so use direct query)
         $mediaSetsCount = MemoraMediaSet::where('project_uuid', $project->uuid)->count();
         $this->assertGreaterThan(0, $mediaSetsCount);
-        
+
         // Verify the mediaSet we created is associated with the project
         $this->assertEquals($project->uuid, $mediaSet->project_uuid);
-        
+
         // Test project -> selections relationship
         $selection = MemoraSelection::factory()->create([
             'user_uuid' => $user->uuid,
             'project_uuid' => $project->uuid,
         ]);
-        
+
         $project->refresh();
         $this->assertTrue($project->selections->contains($selection));
         $this->assertEquals($selection->uuid, $project->selections->first()->uuid);
-        
+
         // Test project -> proofing relationship
         $proofing = MemoraProofing::factory()->create([
             'user_uuid' => $user->uuid,
             'project_uuid' => $project->uuid,
         ]);
-        
+
         $project->refresh();
         $this->assertTrue($project->proofing->contains($proofing));
         $this->assertEquals($proofing->uuid, $project->proofing->first()->uuid);
-        
+
         // Test project -> collections relationship
         $collection = MemoraCollection::factory()->create([
             'user_uuid' => $user->uuid,
             'project_uuid' => $project->uuid,
         ]);
-        
+
         $project->refresh();
         $this->assertTrue($project->collections->contains($collection));
         $this->assertEquals($collection->uuid, $project->collections->first()->uuid);
-        
+
         // Note: parent/children relationships not implemented in schema
         // Skipping parent/children relationship test
     }
@@ -211,22 +211,22 @@ class ModelRelationshipsTest extends TestCase
     {
         $user = User::factory()->create(['status_uuid' => $this->userStatus->uuid]);
         $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
-        
+
         $mediaSet = MemoraMediaSet::factory()->create([
             'user_uuid' => $user->uuid,
             'project_uuid' => $project->uuid,
         ]);
-        
+
         // Test media set -> project relationship
         $this->assertNotNull($mediaSet->project);
         $this->assertEquals($project->uuid, $mediaSet->project->uuid);
-        
+
         // Test media set -> media relationship
         $media = MemoraMedia::factory()->create([
             'user_uuid' => $user->uuid,
             'media_set_uuid' => $mediaSet->uuid,
         ]);
-        
+
         $mediaSet->refresh();
         $mediaSet->load('media');
         $this->assertTrue($mediaSet->media->contains($media));
@@ -240,21 +240,21 @@ class ModelRelationshipsTest extends TestCase
         $mediaSet = MemoraMediaSet::factory()->create([
             'project_uuid' => $project->uuid,
         ]);
-        
+
         $media = MemoraMedia::factory()->create([
             'user_uuid' => $user->uuid,
             'media_set_uuid' => $mediaSet->uuid,
         ]);
-        
+
         // Test media -> media set relationship
         $this->assertNotNull($media->mediaSet);
         $this->assertEquals($mediaSet->uuid, $media->mediaSet->uuid);
-        
+
         // Test media -> feedback relationship
         $feedback = MemoraMediaFeedback::factory()->create([
             'media_uuid' => $media->uuid,
         ]);
-        
+
         $media->refresh();
         $this->assertTrue($media->feedback->contains($feedback));
         $this->assertEquals($feedback->uuid, $media->feedback->first()->uuid);
@@ -271,11 +271,11 @@ class ModelRelationshipsTest extends TestCase
             'user_uuid' => $user->uuid,
             'media_set_uuid' => $mediaSet->uuid,
         ]);
-        
+
         $feedback = MemoraMediaFeedback::factory()->create([
             'media_uuid' => $media->uuid,
         ]);
-        
+
         // Test feedback -> media relationship
         $this->assertNotNull($feedback->media);
         $this->assertEquals($media->uuid, $feedback->media->uuid);
@@ -285,12 +285,12 @@ class ModelRelationshipsTest extends TestCase
     {
         $user = User::factory()->create(['status_uuid' => $this->userStatus->uuid]);
         $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
-        
+
         $collection = MemoraCollection::factory()->create([
             'user_uuid' => $user->uuid,
             'project_uuid' => $project->uuid,
         ]);
-        
+
         // Test collection -> project relationship
         $this->assertNotNull($collection->project);
         $this->assertEquals($project->uuid, $collection->project->uuid);
@@ -300,12 +300,12 @@ class ModelRelationshipsTest extends TestCase
     {
         $user = User::factory()->create(['status_uuid' => $this->userStatus->uuid]);
         $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
-        
+
         $selection = MemoraSelection::factory()->create([
             'user_uuid' => $user->uuid,
             'project_uuid' => $project->uuid,
         ]);
-        
+
         // Test selection -> project relationship
         $this->assertNotNull($selection->project);
         $this->assertEquals($project->uuid, $selection->project->uuid);
@@ -315,16 +315,14 @@ class ModelRelationshipsTest extends TestCase
     {
         $user = User::factory()->create(['status_uuid' => $this->userStatus->uuid]);
         $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
-        
+
         $proofing = MemoraProofing::factory()->create([
             'user_uuid' => $user->uuid,
             'project_uuid' => $project->uuid,
         ]);
-        
+
         // Test proofing -> project relationship
         $this->assertNotNull($proofing->project);
         $this->assertEquals($project->uuid, $proofing->project->uuid);
     }
 }
-
-

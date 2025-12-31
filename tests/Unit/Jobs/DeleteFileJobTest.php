@@ -2,10 +2,10 @@
 
 namespace Tests\Unit\Jobs;
 
-use Tests\TestCase;
 use App\Jobs\DeleteFileJob;
 use App\Services\Upload\UploadService;
 use Mockery;
+use Tests\TestCase;
 
 class DeleteFileJobTest extends TestCase
 {
@@ -49,4 +49,3 @@ class DeleteFileJobTest extends TestCase
         $this->assertTrue(true); // Job executed without errors
     }
 }
-

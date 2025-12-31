@@ -57,4 +57,3 @@ class LogActivityJobTest extends TestCase
         parent::tearDown();
     }
 }
-

@@ -15,10 +15,6 @@ class WebhookHandler
 
     /**
      * Handle incoming webhook from payment provider
-     *
-     * @param array $payload
-     * @param string $provider
-     * @return void
      */
     public function handle(array $payload, string $provider): void
     {
@@ -26,7 +22,7 @@ class WebhookHandler
         $normalized = $this->normalizer->normalize($payload, $provider);
 
         // Dispatch internal event
-        Event::dispatch('payment.webhook.' . $normalized['event_type'], $normalized);
+        Event::dispatch('payment.webhook.'.$normalized['event_type'], $normalized);
 
         // Also dispatch generic webhook event
         Event::dispatch('payment.webhook.received', [

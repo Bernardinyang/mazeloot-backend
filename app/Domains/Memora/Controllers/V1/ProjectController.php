@@ -46,6 +46,7 @@ class ProjectController extends Controller
     public function show(string $id): JsonResponse
     {
         $project = $this->projectService->find($id);
+
         return ApiResponse::success(new ProjectResource($project));
     }
 
@@ -56,11 +57,12 @@ class ProjectController extends Controller
     public function store(StoreProjectRequest $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return ApiResponse::error('User not authenticated', 'UNAUTHORIZED', 401);
         }
-        
+
         $project = $this->projectService->create($request->validated(), $user->uuid);
+
         return ApiResponse::success(new ProjectResource($project), 201);
     }
 
@@ -71,6 +73,7 @@ class ProjectController extends Controller
     public function update(UpdateProjectRequest $request, string $id): JsonResponse
     {
         $project = $this->projectService->update($id, $request->validated());
+
         return ApiResponse::success(new ProjectResource($project));
     }
 
@@ -81,6 +84,7 @@ class ProjectController extends Controller
     public function destroy(string $id): JsonResponse
     {
         $this->projectService->delete($id);
+
         return ApiResponse::success(null, 204);
     }
 
@@ -91,6 +95,7 @@ class ProjectController extends Controller
     public function phases(string $id): JsonResponse
     {
         $phases = $this->projectService->getPhases($id);
+
         return ApiResponse::success($phases);
     }
 
@@ -101,7 +106,7 @@ class ProjectController extends Controller
     public function toggleStar(string $id): JsonResponse
     {
         $result = $this->projectService->toggleStar($id);
+
         return ApiResponse::success($result);
     }
 }
-

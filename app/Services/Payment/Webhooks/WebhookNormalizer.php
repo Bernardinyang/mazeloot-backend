@@ -2,15 +2,13 @@
 
 namespace App\Services\Payment\Webhooks;
 
-use App\Services\Payment\Contracts\PaymentProviderInterface;
-
 class WebhookNormalizer
 {
     /**
      * Normalize webhook payload from any provider to internal format
      *
-     * @param array $payload Raw webhook payload
-     * @param string $provider Provider name
+     * @param  array  $payload  Raw webhook payload
+     * @param  string  $provider  Provider name
      * @return array Normalized webhook data
      */
     public function normalize(array $payload, string $provider): array

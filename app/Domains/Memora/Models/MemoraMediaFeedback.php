@@ -16,14 +16,14 @@ class MemoraMediaFeedback extends Model
      * @var string
      */
     protected $primaryKey = 'uuid';
-    
+
     /**
      * The "type" of the primary key ID.
      *
      * @var string
      */
     protected $keyType = 'string';
-    
+
     /**
      * Indicates if the IDs are auto-incrementing.
      *
@@ -88,7 +88,7 @@ class MemoraMediaFeedback extends Model
      */
     public function loadNestedReplies(): void
     {
-        if (!$this->relationLoaded('replies')) {
+        if (! $this->relationLoaded('replies')) {
             $this->load('replies');
         }
 

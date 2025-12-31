@@ -2,13 +2,12 @@
 
 namespace App\Domains\Memora\Services;
 
-use App\Domains\Memora\Models\MemoraProofingApprovalRequest;
 use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraProofing;
-use App\Domains\Memora\Services\MediaService;
+use App\Domains\Memora\Models\MemoraProofingApprovalRequest;
 use App\Notifications\ProofingApprovalApprovedNotification;
-use App\Notifications\ProofingApprovalRequestedNotification;
 use App\Notifications\ProofingApprovalRejectedNotification;
+use App\Notifications\ProofingApprovalRequestedNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -17,8 +16,7 @@ class ProofingApprovalRequestService
 {
     public function __construct(
         private MediaService $mediaService
-    ) {
-    }
+    ) {}
 
     public function create(string $proofingId, string $mediaId, ?string $message, string $userId): MemoraProofingApprovalRequest
     {
@@ -32,7 +30,7 @@ class ProofingApprovalRequestService
 
         // Verify media belongs to proofing
         $mediaSet = $media->mediaSet;
-        if (!$mediaSet || $mediaSet->proof_uuid !== $proofing->uuid) {
+        if (! $mediaSet || $mediaSet->proof_uuid !== $proofing->uuid) {
             throw new \Exception('Media does not belong to this proofing');
         }
 
@@ -48,9 +46,9 @@ class ProofingApprovalRequestService
 
         // Verify revision limit is actually exceeded before allowing approval request
         $originalMediaUuid = $media->original_media_uuid ?? $media->uuid;
-        $maxRevision = MemoraMedia::where(function($query) use ($originalMediaUuid) {
+        $maxRevision = MemoraMedia::where(function ($query) use ($originalMediaUuid) {
             $query->where('original_media_uuid', $originalMediaUuid)
-                  ->orWhere('uuid', $originalMediaUuid);
+                ->orWhere('uuid', $originalMediaUuid);
         })->max('revision_number') ?? 0;
 
         $maxRevisions = $proofing->max_revisions ?? 5;
@@ -78,13 +76,13 @@ class ProofingApprovalRequestService
         // Send email notification to primary email or allowed emails
         $primaryEmail = $proofing->primary_email;
         $allowedEmails = $proofing->allowed_emails ?? [];
-        
+
         $emailsToNotify = [];
         if ($primaryEmail) {
             $emailsToNotify[] = $primaryEmail;
         }
         foreach ($allowedEmails as $email) {
-            if ($email && !in_array($email, $emailsToNotify)) {
+            if ($email && ! in_array($email, $emailsToNotify)) {
                 $emailsToNotify[] = $email;
             }
         }
@@ -115,8 +113,8 @@ class ProofingApprovalRequestService
     public function approve(string $token, string $email): MemoraProofingApprovalRequest
     {
         $approvalRequest = $this->findByToken($token);
-        
-        if (!$approvalRequest) {
+
+        if (! $approvalRequest) {
             throw new \Exception('Approval request not found');
         }
 
@@ -128,7 +126,7 @@ class ProofingApprovalRequestService
         $proofing = $approvalRequest->proofing;
         $normalizedEmail = strtolower(trim($email));
         $normalizedPrimary = $proofing->primary_email ? strtolower(trim($proofing->primary_email)) : null;
-        $normalizedAllowed = array_map(fn($e) => strtolower(trim($e)), $proofing->allowed_emails ?? []);
+        $normalizedAllowed = array_map(fn ($e) => strtolower(trim($e)), $proofing->allowed_emails ?? []);
 
         // Prevent creative (proofing owner) from approving/rejecting
         $creativeUser = $approvalRequest->user;
@@ -136,7 +134,7 @@ class ProofingApprovalRequestService
             throw new \Exception('Creatives cannot approve or reject their own approval requests');
         }
 
-        if ($normalizedPrimary !== $normalizedEmail && !in_array($normalizedEmail, $normalizedAllowed)) {
+        if ($normalizedPrimary !== $normalizedEmail && ! in_array($normalizedEmail, $normalizedAllowed)) {
             throw new \Exception('Email does not match authorized email for this proofing');
         }
 
@@ -189,8 +187,8 @@ class ProofingApprovalRequestService
     public function reject(string $token, string $email, ?string $reason = null): MemoraProofingApprovalRequest
     {
         $approvalRequest = $this->findByToken($token);
-        
-        if (!$approvalRequest) {
+
+        if (! $approvalRequest) {
             throw new \Exception('Approval request not found');
         }
 
@@ -202,7 +200,7 @@ class ProofingApprovalRequestService
         $proofing = $approvalRequest->proofing;
         $normalizedEmail = strtolower(trim($email));
         $normalizedPrimary = $proofing->primary_email ? strtolower(trim($proofing->primary_email)) : null;
-        $normalizedAllowed = array_map(fn($e) => strtolower(trim($e)), $proofing->allowed_emails ?? []);
+        $normalizedAllowed = array_map(fn ($e) => strtolower(trim($e)), $proofing->allowed_emails ?? []);
 
         // Prevent creative (proofing owner) from approving/rejecting
         $creativeUser = $approvalRequest->user;
@@ -210,7 +208,7 @@ class ProofingApprovalRequestService
             throw new \Exception('Creatives cannot approve or reject their own approval requests');
         }
 
-        if ($normalizedPrimary !== $normalizedEmail && !in_array($normalizedEmail, $normalizedAllowed)) {
+        if ($normalizedPrimary !== $normalizedEmail && ! in_array($normalizedEmail, $normalizedAllowed)) {
             throw new \Exception('Email does not match authorized email for this proofing');
         }
 
@@ -260,13 +258,13 @@ class ProofingApprovalRequestService
     {
         $media = MemoraMedia::findOrFail($mediaId);
         $mediaSet = $media->mediaSet;
-        
-        if (!$mediaSet) {
+
+        if (! $mediaSet) {
             throw new \Exception('Media does not belong to a proofing');
         }
 
         $proofing = MemoraProofing::findOrFail($mediaSet->proof_uuid);
-        
+
         if ($proofing->user_uuid !== $userId) {
             throw new \Exception('Unauthorized: You do not own this proofing');
         }
@@ -279,6 +277,6 @@ class ProofingApprovalRequestService
 
     public function getPublicUrl(string $token): string
     {
-        return config('app.frontend_url') . '/p/approval-request/' . $token;
+        return config('app.frontend_url').'/p/approval-request/'.$token;
     }
 }

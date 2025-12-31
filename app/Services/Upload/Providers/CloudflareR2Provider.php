@@ -40,9 +40,9 @@ class CloudflareR2Provider implements UploadProviderInterface
             }
         }
 
-        if (!empty($missing)) {
+        if (! empty($missing)) {
             throw UploadException::providerError(
-                'R2 configuration is incomplete. Missing environment variables: ' . implode(', ', $missing)
+                'R2 configuration is incomplete. Missing environment variables: '.implode(', ', $missing)
             );
         }
     }
@@ -60,11 +60,11 @@ class CloudflareR2Provider implements UploadProviderInterface
             );
         } catch (\Exception $e) {
             throw UploadException::providerError(
-                'Failed to upload file to R2: ' . $e->getMessage()
+                'Failed to upload file to R2: '.$e->getMessage()
             );
         }
 
-        if (!$storedPath) {
+        if (! $storedPath) {
             throw UploadException::providerError('Failed to store file to R2');
         }
 
@@ -72,7 +72,7 @@ class CloudflareR2Provider implements UploadProviderInterface
             $url = Storage::disk($this->disk)->url($storedPath);
         } catch (\Exception $e) {
             throw UploadException::providerError(
-                'Failed to get URL from R2: ' . $e->getMessage()
+                'Failed to get URL from R2: '.$e->getMessage()
             );
         }
 
@@ -118,7 +118,7 @@ class CloudflareR2Provider implements UploadProviderInterface
     protected function generatePath(UploadedFile $file, ?string $basePath = null): string
     {
         $base = $basePath ?? 'uploads';
-        $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
+        $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
         $datePath = date('Y/m/d');
 
         return "{$base}/{$datePath}/{$filename}";

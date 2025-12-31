@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use App\Models\MagicLinkToken;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
@@ -18,21 +17,21 @@ class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
-    
+
     /**
      * The primary key for the model.
      *
      * @var string
      */
     protected $primaryKey = 'uuid';
-    
+
     /**
      * The "type" of the primary key ID.
      *
      * @var string
      */
     protected $keyType = 'string';
-    
+
     /**
      * Indicates if the IDs are auto-incrementing.
      *
@@ -94,7 +93,7 @@ class User extends Authenticatable
             if (empty($model->uuid)) {
                 $model->uuid = (string) Str::uuid();
             }
-            
+
             // Set default role to 'user' if not provided
             if (empty($model->role)) {
                 $model->role = UserRoleEnum::USER;
@@ -198,9 +197,6 @@ class User extends Authenticatable
 
     /**
      * Check if the user has a specific role.
-     *
-     * @param UserRoleEnum $role
-     * @return bool
      */
     public function hasRole(UserRoleEnum $role): bool
     {
@@ -209,8 +205,6 @@ class User extends Authenticatable
 
     /**
      * Check if the user is an admin or super admin.
-     *
-     * @return bool
      */
     public function isAdmin(): bool
     {
@@ -219,8 +213,6 @@ class User extends Authenticatable
 
     /**
      * Check if the user is a super admin.
-     *
-     * @return bool
      */
     public function isSuperAdmin(): bool
     {
@@ -229,8 +221,6 @@ class User extends Authenticatable
 
     /**
      * Check if the user can manage admins (only super admins can).
-     *
-     * @return bool
      */
     public function canManageAdmins(): bool
     {
@@ -245,12 +235,12 @@ class User extends Authenticatable
     public function canLogin(): array
     {
         // Load status relationship if not already loaded
-        if (!$this->relationLoaded('status')) {
+        if (! $this->relationLoaded('status')) {
             $this->load('status');
         }
 
         // If user has no status, allow login (status is nullable)
-        if (!$this->status) {
+        if (! $this->status) {
             return ['can_login' => true, 'message' => null];
         }
 

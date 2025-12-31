@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Storage;
 class UploadController extends Controller
 {
     protected UploadService $uploadService;
+
     protected VideoThumbnailGenerator $thumbnailGenerator;
 
     public function __construct(UploadService $uploadService, VideoThumbnailGenerator $thumbnailGenerator)
@@ -28,6 +29,7 @@ class UploadController extends Controller
      * Upload a single or multiple files
      *
      * POST /api/v1/uploads
+     *
      * @throws UploadException
      */
     public function upload(UploadRequest $request): JsonResponse
@@ -63,7 +65,7 @@ class UploadController extends Controller
         if ($request->hasFile('files')) {
             $files = $request->file('files');
             // Ensure files is an array
-            if (!is_array($files)) {
+            if (! is_array($files)) {
                 $files = [$files];
             }
             $results = $this->uploadService->uploadMultiple($files, $options);
@@ -71,13 +73,13 @@ class UploadController extends Controller
             $data = [];
             foreach ($results as $index => $result) {
                 $file = $files[$index];
-                
+
                 // Generate thumbnail for videos
                 $thumbnailUrl = null;
                 if (str_starts_with($file->getMimeType(), 'video/')) {
                     $thumbnailUrl = $this->generateVideoThumbnail($file, $result);
                 }
-                
+
                 $userFile = $this->storeUserFile($userUuid, $file, $result, $thumbnailUrl);
 
                 $fileData = $result->toArray();
@@ -98,8 +100,8 @@ class UploadController extends Controller
     /**
      * Generate thumbnail for video file
      *
-     * @param \Illuminate\Http\UploadedFile $file
-     * @param \App\Services\Upload\DTOs\UploadResult $uploadResult
+     * @param  \Illuminate\Http\UploadedFile  $file
+     * @param  \App\Services\Upload\DTOs\UploadResult  $uploadResult
      * @return string|null Thumbnail URL or null if failed
      */
     protected function generateVideoThumbnail($file, $uploadResult): ?string
@@ -107,8 +109,8 @@ class UploadController extends Controller
         try {
             // Generate thumbnail
             $thumbnailPath = $this->thumbnailGenerator->generateThumbnail($file);
-            
-            if (!$thumbnailPath) {
+
+            if (! $thumbnailPath) {
                 return null;
             }
 
@@ -135,7 +137,8 @@ class UploadController extends Controller
 
             return $thumbnailUrl;
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("Failed to generate video thumbnail: " . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Failed to generate video thumbnail: '.$e->getMessage());
+
             return null;
         }
     }
@@ -150,7 +153,7 @@ class UploadController extends Controller
         $type = 'image';
         if (str_starts_with($mimeType, 'video/')) {
             $type = 'video';
-        } elseif (!str_starts_with($mimeType, 'image/')) {
+        } elseif (! str_starts_with($mimeType, 'image/')) {
             $type = 'document';
         }
 
@@ -178,4 +181,3 @@ class UploadController extends Controller
         ]);
     }
 }
-

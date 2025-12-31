@@ -3,10 +3,10 @@
 namespace App\Http\Middleware;
 
 use App\Models\ApiKey;
+use App\Support\Responses\ApiResponse;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
-use App\Support\Responses\ApiResponse;
 
 class ApiKeyAuth
 {
@@ -19,7 +19,7 @@ class ApiKeyAuth
     {
         $apiKey = $request->header('X-API-Key') ?? $request->query('api_key');
 
-        if (!$apiKey) {
+        if (! $apiKey) {
             return ApiResponse::error(
                 'API key is required',
                 'API_KEY_MISSING',
@@ -29,7 +29,7 @@ class ApiKeyAuth
 
         $key = ApiKey::where('key', $apiKey)->first();
 
-        if (!$key || $key->isExpired()) {
+        if (! $key || $key->isExpired()) {
             return ApiResponse::error(
                 'Invalid or expired API key',
                 'API_KEY_INVALID',

@@ -29,6 +29,7 @@ class MediaSetController extends Controller
         $perPage = max(1, min(100, (int) $request->query('per_page', 10))); // Limit between 1 and 100
 
         $result = $this->mediaSetService->getBySelection($selectionId, $page, $perPage);
+
         return ApiResponse::success($result);
     }
 
@@ -38,6 +39,7 @@ class MediaSetController extends Controller
     public function show(string $selectionId, string $id): JsonResponse
     {
         $set = $this->mediaSetService->find($selectionId, $id);
+
         return ApiResponse::success(new MediaSetResource($set));
     }
 
@@ -47,6 +49,7 @@ class MediaSetController extends Controller
     public function store(StoreMediaSetRequest $request, string $selectionId): JsonResponse
     {
         $set = $this->mediaSetService->create($selectionId, $request->validated());
+
         return ApiResponse::success(new MediaSetResource($set), 201);
     }
 
@@ -56,6 +59,7 @@ class MediaSetController extends Controller
     public function update(UpdateMediaSetRequest $request, string $selectionId, string $id): JsonResponse
     {
         $set = $this->mediaSetService->update($selectionId, $id, $request->validated());
+
         return ApiResponse::success(new MediaSetResource($set));
     }
 
@@ -65,6 +69,7 @@ class MediaSetController extends Controller
     public function destroy(string $selectionId, string $id): JsonResponse
     {
         $this->mediaSetService->delete($selectionId, $id);
+
         return ApiResponse::success(null, 204);
     }
 
@@ -79,6 +84,7 @@ class MediaSetController extends Controller
         ]);
 
         $this->mediaSetService->reorder($selectionId, $request->input('setIds'));
+
         return ApiResponse::success(['message' => 'Sets reordered successfully']);
     }
 
@@ -93,6 +99,7 @@ class MediaSetController extends Controller
         $perPage = max(1, min(100, (int) $request->query('per_page', 10)));
 
         $result = $this->mediaSetService->getByProofing($proofingId, $page, $perPage);
+
         return ApiResponse::success($result);
     }
 
@@ -102,6 +109,7 @@ class MediaSetController extends Controller
     public function showForProofing(string $proofingId, string $id): JsonResponse
     {
         $set = $this->mediaSetService->findByProofing($proofingId, $id);
+
         return ApiResponse::success(new MediaSetResource($set));
     }
 
@@ -111,6 +119,7 @@ class MediaSetController extends Controller
     public function storeForProofing(StoreMediaSetRequest $request, string $proofingId): JsonResponse
     {
         $set = $this->mediaSetService->createForProofing($proofingId, $request->validated());
+
         return ApiResponse::success(new MediaSetResource($set), 201);
     }
 
@@ -120,6 +129,7 @@ class MediaSetController extends Controller
     public function updateForProofing(UpdateMediaSetRequest $request, string $proofingId, string $id): JsonResponse
     {
         $set = $this->mediaSetService->updateForProofing($proofingId, $id, $request->validated());
+
         return ApiResponse::success(new MediaSetResource($set));
     }
 
@@ -129,6 +139,7 @@ class MediaSetController extends Controller
     public function destroyForProofing(string $proofingId, string $id): JsonResponse
     {
         $this->mediaSetService->deleteForProofing($proofingId, $id);
+
         return ApiResponse::success(null, 204);
     }
 
@@ -143,7 +154,7 @@ class MediaSetController extends Controller
         ]);
 
         $this->mediaSetService->reorderForProofing($proofingId, $request->input('setIds'));
+
         return ApiResponse::success(['message' => 'Sets reordered successfully']);
     }
 }
-

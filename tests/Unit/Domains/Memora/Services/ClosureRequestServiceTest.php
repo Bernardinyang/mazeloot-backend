@@ -21,7 +21,7 @@ class ClosureRequestServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new ClosureRequestService();
+        $this->service = new ClosureRequestService;
     }
 
     public function test_create_closure_request(): void
@@ -140,4 +140,3 @@ class ClosureRequestServiceTest extends TestCase
         $this->assertEquals('Not good enough', $rejected->rejection_reason);
     }
 }
-

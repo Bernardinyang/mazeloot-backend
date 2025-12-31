@@ -7,7 +7,6 @@ use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraProofing;
 use App\Notifications\ProofingClosureApprovedNotification;
 use App\Notifications\ProofingClosureRequestedNotification;
-use App\Notifications\ProofingClosureRejectedNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -26,7 +25,7 @@ class ClosureRequestService
 
         // Verify media belongs to proofing
         $mediaSet = $media->mediaSet;
-        if (!$mediaSet || $mediaSet->proof_uuid !== $proofing->uuid) {
+        if (! $mediaSet || $mediaSet->proof_uuid !== $proofing->uuid) {
             throw new \Exception('Media does not belong to this proofing');
         }
 
@@ -85,8 +84,8 @@ class ClosureRequestService
     public function approve(string $token, string $email): MemoraClosureRequest
     {
         $closureRequest = $this->findByToken($token);
-        
-        if (!$closureRequest) {
+
+        if (! $closureRequest) {
             throw new \Exception('Closure request not found');
         }
 
@@ -98,7 +97,7 @@ class ClosureRequestService
         $proofing = $closureRequest->proofing;
         $normalizedEmail = strtolower(trim($email));
         $normalizedPrimary = $proofing->primary_email ? strtolower(trim($proofing->primary_email)) : null;
-        $normalizedAllowed = array_map(fn($e) => strtolower(trim($e)), $proofing->allowed_emails ?? []);
+        $normalizedAllowed = array_map(fn ($e) => strtolower(trim($e)), $proofing->allowed_emails ?? []);
 
         // Prevent creative (proofing owner) from approving/rejecting
         $creativeUser = $closureRequest->user;
@@ -106,7 +105,7 @@ class ClosureRequestService
             throw new \Exception('Creatives cannot approve or reject their own closure requests');
         }
 
-        if ($normalizedPrimary !== $normalizedEmail && !in_array($normalizedEmail, $normalizedAllowed)) {
+        if ($normalizedPrimary !== $normalizedEmail && ! in_array($normalizedEmail, $normalizedAllowed)) {
             throw new \Exception('Email does not match authorized email for this proofing');
         }
 
@@ -152,8 +151,8 @@ class ClosureRequestService
     public function reject(string $token, string $email, ?string $reason = null): MemoraClosureRequest
     {
         $closureRequest = $this->findByToken($token);
-        
-        if (!$closureRequest) {
+
+        if (! $closureRequest) {
             throw new \Exception('Closure request not found');
         }
 
@@ -165,7 +164,7 @@ class ClosureRequestService
         $proofing = $closureRequest->proofing;
         $normalizedEmail = strtolower(trim($email));
         $normalizedPrimary = $proofing->primary_email ? strtolower(trim($proofing->primary_email)) : null;
-        $normalizedAllowed = array_map(fn($e) => strtolower(trim($e)), $proofing->allowed_emails ?? []);
+        $normalizedAllowed = array_map(fn ($e) => strtolower(trim($e)), $proofing->allowed_emails ?? []);
 
         // Prevent creative (proofing owner) from approving/rejecting
         $creativeUser = $closureRequest->user;
@@ -173,7 +172,7 @@ class ClosureRequestService
             throw new \Exception('Creatives cannot approve or reject their own closure requests');
         }
 
-        if ($normalizedPrimary !== $normalizedEmail && !in_array($normalizedEmail, $normalizedAllowed)) {
+        if ($normalizedPrimary !== $normalizedEmail && ! in_array($normalizedEmail, $normalizedAllowed)) {
             throw new \Exception('Email does not match authorized email for this proofing');
         }
 
@@ -228,21 +227,22 @@ class ClosureRequestService
     public function getPublicUrl(string $token): string
     {
         $baseUrl = config('app.frontend_url', config('app.url'));
-        return rtrim($baseUrl, '/') . '/closure-request/' . $token;
+
+        return rtrim($baseUrl, '/').'/closure-request/'.$token;
     }
 
     public function getByMedia(string $mediaId, string $userId): array
     {
         $media = MemoraMedia::findOrFail($mediaId);
-        
+
         // Verify user owns the media (through proofing)
         $mediaSet = $media->mediaSet;
-        if (!$mediaSet) {
+        if (! $mediaSet) {
             throw new \Exception('Media does not belong to any set');
         }
 
         $proofing = $mediaSet->proofing;
-        if (!$proofing || $proofing->user_uuid !== $userId) {
+        if (! $proofing || $proofing->user_uuid !== $userId) {
             throw new \Exception('Unauthorized: You do not own this media');
         }
 
@@ -267,4 +267,3 @@ class ClosureRequestService
         })->toArray();
     }
 }
-

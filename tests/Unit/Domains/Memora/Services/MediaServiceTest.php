@@ -14,6 +14,7 @@ class MediaServiceTest extends TestCase
     use RefreshDatabase;
 
     protected MediaService $service;
+
     protected $mockUploadService;
 
     protected function setUp(): void
@@ -122,4 +123,3 @@ class MediaServiceTest extends TestCase
         parent::tearDown();
     }
 }
-

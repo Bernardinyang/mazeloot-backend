@@ -2,21 +2,21 @@
 
 namespace App\Services\Image;
 
-use Illuminate\Http\UploadedFile;
-use Spatie\Image\Image;
 use Spatie\Image\Enums\Fit;
+use Spatie\Image\Image;
 
 class ImageVariantGenerator
 {
     protected const JPEG_QUALITY_MIN = 75;
+
     protected const JPEG_QUALITY_MAX = 82;
 
     /**
      * Generate all image variants
      *
-     * @param string $originalPath Temporary path to original image
-     * @param string $outputDir Directory to save variants
-     * @param string|null $originalExtension Original file extension (if known)
+     * @param  string  $originalPath  Temporary path to original image
+     * @param  string  $outputDir  Directory to save variants
+     * @param  string|null  $originalExtension  Original file extension (if known)
      * @return array<string, string> Map of variant name => file path
      */
     public function generateVariants(string $originalPath, string $outputDir, ?string $originalExtension = null): array
@@ -39,7 +39,7 @@ class ImageVariantGenerator
         }
 
         // Original (copy as-is, no modifications)
-        $originalVariant = $outputDir . '/original.' . strtolower($extension);
+        $originalVariant = $outputDir.'/original.'.strtolower($extension);
         copy($originalPath, $originalVariant);
         $variants['original'] = $originalVariant;
 
@@ -70,15 +70,11 @@ class ImageVariantGenerator
     /**
      * Save a single variant with transformation
      *
-     * @param string $originalPath
-     * @param string $outputDir
-     * @param string $variantName
-     * @param callable $transform
      * @return string Output file path
      */
     protected function saveVariant(string $originalPath, string $outputDir, string $variantName, callable $transform): string
     {
-        $outputPath = $outputDir . '/' . $variantName . '.jpg';
+        $outputPath = $outputDir.'/'.$variantName.'.jpg';
 
         $image = Image::load($originalPath);
 
@@ -108,9 +104,6 @@ class ImageVariantGenerator
 
     /**
      * Check if image needs transparency preservation
-     *
-     * @param string $imagePath
-     * @return bool
      */
     protected function needsTransparency(string $imagePath): bool
     {
@@ -138,7 +131,6 @@ class ImageVariantGenerator
     /**
      * Get image dimensions
      *
-     * @param string $imagePath
      * @return array{width: int, height: int}
      */
     public function getDimensions(string $imagePath): array
@@ -155,4 +147,3 @@ class ImageVariantGenerator
         ];
     }
 }
-

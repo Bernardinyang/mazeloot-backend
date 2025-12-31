@@ -4,15 +4,18 @@ namespace App\Services\Image;
 
 use App\Services\Upload\Contracts\UploadProviderInterface;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Log;
 
 class ImageUploadService
 {
     protected ImageVariantGenerator $variantGenerator;
+
     protected UploadProviderInterface $uploadProvider;
+
     protected string $disk;
+
     protected string $baseUrl;
 
     public function __construct(ImageVariantGenerator $variantGenerator, UploadProviderInterface $uploadProvider)
@@ -58,8 +61,6 @@ class ImageUploadService
     /**
      * Upload single image with variants
      *
-     * @param UploadedFile $file
-     * @param array $options
      * @return array{uuid: string, variants: array<string, string>, meta: array{width: int, height: int, size: int}}
      */
     public function uploadImage(UploadedFile $file, array $options = []): array
@@ -68,7 +69,7 @@ class ImageUploadService
         $tempPath = $file->getRealPath();
         $dimensions = $this->variantGenerator->getDimensions($tempPath);
         $provider = config('upload.default_provider', 'local');
-        
+
         // Get original file extension from the uploaded file
         $originalExtension = $file->getClientOriginalExtension() ?: pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION);
         if (empty($originalExtension)) {
@@ -84,8 +85,8 @@ class ImageUploadService
         }
 
         // Create temporary directory for variants
-        $tempDir = sys_get_temp_dir() . '/' . $uuid;
-        if (!is_dir($tempDir)) {
+        $tempDir = sys_get_temp_dir().'/'.$uuid;
+        if (! is_dir($tempDir)) {
             mkdir($tempDir, 0755, true);
         }
 
@@ -95,16 +96,16 @@ class ImageUploadService
 
             // Upload all variants to storage
             $uploadedVariants = [];
-            $basePath = 'uploads/images/' . $uuid;
+            $basePath = 'uploads/images/'.$uuid;
 
             // Cloudinary doesn't use Storage facade - use provider's upload method
             if ($provider === 'cloudinary') {
                 foreach ($variantPaths as $variantName => $localPath) {
                     $extension = pathinfo($localPath, PATHINFO_EXTENSION);
-                    $variantPath = $basePath . '/' . $variantName . '.' . $extension;
+                    $variantPath = $basePath.'/'.$variantName.'.'.$extension;
 
                     // Create UploadedFile instance from variant file
-                    $variantFile = $this->createUploadedFileFromPath($localPath, $variantName . '.' . $extension);
+                    $variantFile = $this->createUploadedFileFromPath($localPath, $variantName.'.'.$extension);
 
                     // Use provider's upload method
                     $uploadResult = $this->uploadProvider->upload($variantFile, [
@@ -118,24 +119,24 @@ class ImageUploadService
                 foreach ($variantPaths as $variantName => $localPath) {
                     // Get extension from the local file path
                     $extension = pathinfo($localPath, PATHINFO_EXTENSION);
-                    
+
                     // For original variant, ensure we use the original extension
-                    if ($variantName === 'original' && !empty($originalExtension)) {
+                    if ($variantName === 'original' && ! empty($originalExtension)) {
                         $extension = $originalExtension;
                     }
-                    
+
                     // Fallback if extension is still empty
                     if (empty($extension)) {
                         $extension = 'jpg'; // Default to jpg
                     }
-                    
-                    $storagePath = $basePath . '/' . $variantName . '.' . strtolower($extension);
+
+                    $storagePath = $basePath.'/'.$variantName.'.'.strtolower($extension);
 
                     // Upload to storage using Storage facade
                     $contents = file_get_contents($localPath);
                     $uploaded = Storage::disk($this->disk)->put($storagePath, $contents, 'public');
 
-                    if (!$uploaded) {
+                    if (! $uploaded) {
                         Log::error("Failed to upload variant {$variantName} to {$this->disk} at path: {$storagePath}");
                         throw new \RuntimeException("Failed to upload variant {$variantName} to storage");
                     }
@@ -165,8 +166,7 @@ class ImageUploadService
     /**
      * Upload multiple images
      *
-     * @param array<UploadedFile> $files
-     * @param array $options
+     * @param  array<UploadedFile>  $files
      * @return array<array{uuid: string, variants: array<string, string>, meta: array{width: int, height: int, size: int}}>
      */
     public function uploadMultipleImages(array $files, array $options = []): array
@@ -182,9 +182,6 @@ class ImageUploadService
 
     /**
      * Get public URL for a storage path
-     *
-     * @param string $path
-     * @return string
      */
     protected function getPublicUrl(string $path): string
     {
@@ -195,13 +192,14 @@ class ImageUploadService
             try {
                 $url = $this->uploadProvider->getPublicUrl($path);
                 // Ensure absolute URL for local storage
-                if ($provider === 'local' && !filter_var($url, FILTER_VALIDATE_URL)) {
-                    $url = $this->baseUrl . '/' . ltrim($url, '/');
+                if ($provider === 'local' && ! filter_var($url, FILTER_VALIDATE_URL)) {
+                    $url = $this->baseUrl.'/'.ltrim($url, '/');
                 }
+
                 return $url;
             } catch (\Exception $e) {
                 // Fallback to Storage URL if provider method fails
-                Log::warning("Failed to get public URL from provider: " . $e->getMessage());
+                Log::warning('Failed to get public URL from provider: '.$e->getMessage());
             }
         }
 
@@ -210,25 +208,22 @@ class ImageUploadService
             $url = Storage::disk($this->disk)->url($path);
 
             // Ensure absolute URL for local storage
-            if ($provider === 'local' && !filter_var($url, FILTER_VALIDATE_URL)) {
-                $url = $this->baseUrl . '/' . ltrim($url, '/');
+            if ($provider === 'local' && ! filter_var($url, FILTER_VALIDATE_URL)) {
+                $url = $this->baseUrl.'/'.ltrim($url, '/');
             }
 
             return $url;
         } catch (\Exception $e) {
             // Last resort: construct URL manually
-            Log::warning("Failed to get URL from Storage disk: " . $e->getMessage());
-            return $this->baseUrl . '/' . $path;
+            Log::warning('Failed to get URL from Storage disk: '.$e->getMessage());
+
+            return $this->baseUrl.'/'.$path;
         }
     }
 
     /**
      * Create UploadedFile instance from a file path
      * Used for providers that require UploadedFile (e.g., Cloudinary)
-     *
-     * @param string $filePath
-     * @param string $originalName
-     * @return UploadedFile
      */
     protected function createUploadedFileFromPath(string $filePath, string $originalName): UploadedFile
     {
@@ -245,19 +240,16 @@ class ImageUploadService
 
     /**
      * Cleanup temporary directory
-     *
-     * @param string $dir
-     * @return void
      */
     protected function cleanupTempDir(string $dir): void
     {
-        if (!is_dir($dir)) {
+        if (! is_dir($dir)) {
             return;
         }
 
         $files = array_diff(scandir($dir), ['.', '..']);
         foreach ($files as $file) {
-            $filePath = $dir . '/' . $file;
+            $filePath = $dir.'/'.$file;
             if (is_file($filePath)) {
                 @unlink($filePath);
             }
@@ -266,4 +258,3 @@ class ImageUploadService
         @rmdir($dir);
     }
 }
-

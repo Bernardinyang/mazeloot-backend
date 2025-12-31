@@ -2,17 +2,18 @@
 
 namespace App\Services\Payment;
 
+use App\Services\Currency\CurrencyService;
 use App\Services\Payment\Contracts\PaymentProviderInterface;
 use App\Services\Payment\Contracts\SubscriptionProviderInterface;
 use App\Services\Payment\DTOs\PaymentResult;
 use App\Services\Payment\DTOs\SubscriptionResult;
-use App\Services\Currency\CurrencyService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class PaymentService
 {
     protected PaymentProviderInterface $provider;
+
     protected CurrencyService $currencyService;
 
     public function __construct(PaymentProviderInterface $provider, CurrencyService $currencyService)
@@ -24,9 +25,7 @@ class PaymentService
     /**
      * Process a payment with automatic provider selection
      *
-     * @param array $paymentData
-     * @param string|null $provider Force a specific provider
-     * @return PaymentResult
+     * @param  string|null  $provider  Force a specific provider
      */
     public function charge(array $paymentData, ?string $provider = null): PaymentResult
     {
@@ -49,7 +48,7 @@ class PaymentService
 
         // Convert amount to smallest currency unit
         $amount = $paymentData['amount'];
-        if (!isset($paymentData['amount_in_smallest_unit']) || !$paymentData['amount_in_smallest_unit']) {
+        if (! isset($paymentData['amount_in_smallest_unit']) || ! $paymentData['amount_in_smallest_unit']) {
             $amount = $this->currencyService->toSmallestUnit($amount, $paymentData['currency']);
         }
 
@@ -67,9 +66,7 @@ class PaymentService
     /**
      * Refund a payment
      *
-     * @param string $transactionId
-     * @param int|null $amount Amount in smallest currency unit
-     * @return PaymentResult
+     * @param  int|null  $amount  Amount in smallest currency unit
      */
     public function refund(string $transactionId, ?int $amount = null): PaymentResult
     {
@@ -78,9 +75,6 @@ class PaymentService
 
     /**
      * Get payment status
-     *
-     * @param string $transactionId
-     * @return PaymentResult
      */
     public function getPaymentStatus(string $transactionId): PaymentResult
     {
@@ -89,13 +83,10 @@ class PaymentService
 
     /**
      * Create a subscription
-     *
-     * @param array $subscriptionData
-     * @return SubscriptionResult
      */
     public function createSubscription(array $subscriptionData): SubscriptionResult
     {
-        if (!$this->provider instanceof SubscriptionProviderInterface) {
+        if (! $this->provider instanceof SubscriptionProviderInterface) {
             throw new \RuntimeException('Current payment provider does not support subscriptions');
         }
 
@@ -104,13 +95,10 @@ class PaymentService
 
     /**
      * Cancel a subscription
-     *
-     * @param string $subscriptionId
-     * @return SubscriptionResult
      */
     public function cancelSubscription(string $subscriptionId): SubscriptionResult
     {
-        if (!$this->provider instanceof SubscriptionProviderInterface) {
+        if (! $this->provider instanceof SubscriptionProviderInterface) {
             throw new \RuntimeException('Current payment provider does not support subscriptions');
         }
 
@@ -120,8 +108,6 @@ class PaymentService
     /**
      * Select provider based on currency and country
      *
-     * @param string $currency
-     * @param string|null $country
      * @return string Provider name
      */
     public static function selectProvider(string $currency, ?string $country = null): string

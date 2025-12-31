@@ -38,4 +38,3 @@ class SetCoverPhotoRequest extends FormRequest
         ];
     }
 }
-

@@ -42,4 +42,3 @@ class MoveCopyMediaRequest extends FormRequest
         ];
     }
 }
-

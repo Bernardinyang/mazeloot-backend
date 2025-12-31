@@ -32,4 +32,3 @@ class MediaSetFactory extends Factory
         ];
     }
 }
-

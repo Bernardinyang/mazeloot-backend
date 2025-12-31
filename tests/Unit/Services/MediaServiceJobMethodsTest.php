@@ -14,6 +14,7 @@ class MediaServiceJobMethodsTest extends TestCase
     use RefreshDatabase;
 
     protected MediaService $mediaService;
+
     protected $mockUploadService;
 
     protected function setUp(): void
@@ -64,6 +65,4 @@ class MediaServiceJobMethodsTest extends TestCase
         $this->expectNotToPerformAssertions();
         $this->mediaService->processImage('non-existent-id', []);
     }
-
 }
-

@@ -44,13 +44,13 @@ class ProofingClosureRejectedNotification extends Notification implements Should
         $media = $this->closureRequest->media;
 
         $mail = (new MailMessage)
-            ->subject('Closure Request Rejected - ' . $proofing->name)
+            ->subject('Closure Request Rejected - '.$proofing->name)
             ->line('Your closure request has been rejected by the client.')
-            ->line('**Proofing:** ' . $proofing->name)
-            ->line('**Media:** ' . ($media->file->filename ?? 'Media item'));
+            ->line('**Proofing:** '.$proofing->name)
+            ->line('**Media:** '.($media->file->filename ?? 'Media item'));
 
         if ($this->reason) {
-            $mail->line('**Rejection Reason:** ' . $this->reason);
+            $mail->line('**Rejection Reason:** '.$this->reason);
         }
 
         $mail->line('Please review the feedback, make necessary changes, and submit a new closure request when ready.')

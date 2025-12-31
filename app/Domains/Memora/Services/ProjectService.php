@@ -6,7 +6,6 @@ use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraProject;
 use App\Services\Pagination\PaginationService;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class ProjectService
 {
@@ -20,9 +19,6 @@ class ProjectService
     /**
      * List projects with filters and pagination
      *
-     * @param array $filters
-     * @param int|null $page
-     * @param int|null $perPage
      * @return array Paginated response with data and pagination metadata
      */
     public function list(array $filters = [], ?int $page = null, ?int $perPage = null)
@@ -35,7 +31,7 @@ class ProjectService
         }
 
         // Search
-        if (isset($filters['search']) && !empty($filters['search'])) {
+        if (isset($filters['search']) && ! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
@@ -44,7 +40,7 @@ class ProjectService
         }
 
         // Apply sorting
-        if (isset($filters['sortBy']) && !empty($filters['sortBy'])) {
+        if (isset($filters['sortBy']) && ! empty($filters['sortBy'])) {
             $this->applySorting($query, $filters['sortBy']);
         } else {
             // Default ordering
@@ -72,14 +68,11 @@ class ProjectService
 
     /**
      * Get a single project
-     *
-     * @param string $id
-     * @return MemoraProject
      */
     public function find(string $id): MemoraProject
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
@@ -93,24 +86,24 @@ class ProjectService
                     }])->orderBy('order');
                 }])
                 // Add subqueries for media counts (excluding soft-deleted media)
-                ->addSelect([
-                    'media_count' => \App\Domains\Memora\Models\MemoraMedia::query()
-                        ->selectRaw('COALESCE(COUNT(*), 0)')
-                        ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
-                        ->whereColumn('memora_media_sets.selection_uuid', 'memora_selections.uuid')
-                        ->whereNull('memora_media.deleted_at')
-                        ->limit(1),
-                    'selected_count' => \App\Domains\Memora\Models\MemoraMedia::query()
-                        ->selectRaw('COALESCE(COUNT(*), 0)')
-                        ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
-                        ->whereColumn('memora_media_sets.selection_uuid', 'memora_selections.uuid')
-                        ->where('memora_media.is_selected', true)
-                        ->whereNull('memora_media.deleted_at')
-                        ->limit(1),
-                ]);
+                    ->addSelect([
+                        'media_count' => \App\Domains\Memora\Models\MemoraMedia::query()
+                            ->selectRaw('COALESCE(COUNT(*), 0)')
+                            ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
+                            ->whereColumn('memora_media_sets.selection_uuid', 'memora_selections.uuid')
+                            ->whereNull('memora_media.deleted_at')
+                            ->limit(1),
+                        'selected_count' => \App\Domains\Memora\Models\MemoraMedia::query()
+                            ->selectRaw('COALESCE(COUNT(*), 0)')
+                            ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
+                            ->whereColumn('memora_media_sets.selection_uuid', 'memora_selections.uuid')
+                            ->where('memora_media.is_selected', true)
+                            ->whereNull('memora_media.deleted_at')
+                            ->limit(1),
+                    ]);
             },
             'proofing',
-            'collections'
+            'collections',
         ])->findOrFail($id);
 
         // Verify user owns the project
@@ -120,8 +113,8 @@ class ProjectService
 
         // Map the subquery results to the expected attribute names for selections
         foreach ($project->selections as $selection) {
-            $selection->setAttribute('media_count', (int)($selection->media_count ?? 0));
-            $selection->setAttribute('selected_count', (int)($selection->selected_count ?? 0));
+            $selection->setAttribute('media_count', (int) ($selection->media_count ?? 0));
+            $selection->setAttribute('selected_count', (int) ($selection->selected_count ?? 0));
         }
 
         return $project;
@@ -129,10 +122,6 @@ class ProjectService
 
     /**
      * Create a new project
-     *
-     * @param array $data
-     * @param string $userUuid
-     * @return MemoraProject
      */
     public function create(array $data, string $userUuid): MemoraProject
     {
@@ -205,15 +194,11 @@ class ProjectService
 
     /**
      * Update a project
-     *
-     * @param string $id
-     * @param array $data
-     * @return MemoraProject
      */
     public function update(string $id, array $data): MemoraProject
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
@@ -225,13 +210,27 @@ class ProjectService
         }
 
         $updateData = [];
-        if (isset($data['name'])) $updateData['name'] = $data['name'];
-        if (isset($data['description'])) $updateData['description'] = $data['description'];
-        if (isset($data['status'])) $updateData['status'] = $data['status'];
-        if (isset($data['settings'])) $updateData['settings'] = $data['settings'];
-        if (isset($data['color'])) $updateData['color'] = $data['color'];
-        if (isset($data['presetId'])) $updateData['preset_uuid'] = $data['presetId'];
-        if (isset($data['watermarkId'])) $updateData['watermark_uuid'] = $data['watermarkId'];
+        if (isset($data['name'])) {
+            $updateData['name'] = $data['name'];
+        }
+        if (isset($data['description'])) {
+            $updateData['description'] = $data['description'];
+        }
+        if (isset($data['status'])) {
+            $updateData['status'] = $data['status'];
+        }
+        if (isset($data['settings'])) {
+            $updateData['settings'] = $data['settings'];
+        }
+        if (isset($data['color'])) {
+            $updateData['color'] = $data['color'];
+        }
+        if (isset($data['presetId'])) {
+            $updateData['preset_uuid'] = $data['presetId'];
+        }
+        if (isset($data['watermarkId'])) {
+            $updateData['watermark_uuid'] = $data['watermarkId'];
+        }
         if (isset($data['eventDate'])) {
             // Store event date in settings or as a separate field if migration exists
             // For now, we'll store it in settings
@@ -263,14 +262,11 @@ class ProjectService
      * - Collections
      * - Media sets (and their media, starred media)
      * - Media (and their starred media, feedback)
-     *
-     * @param string $id
-     * @return bool
      */
     public function delete(string $id): bool
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
@@ -280,7 +276,7 @@ class ProjectService
         if ($project->user_uuid !== $user->uuid) {
             throw new \Exception('Unauthorized: You do not own this project');
         }
-        
+
         // Use forceDelete to actually delete from database
         // This will trigger database cascade deletes for all foreign keys
         // which will automatically delete:
@@ -297,9 +293,6 @@ class ProjectService
 
     /**
      * Get project phases
-     *
-     * @param string $id
-     * @return array
      */
     public function getPhases(string $id): array
     {
@@ -344,7 +337,7 @@ class ProjectService
     /**
      * Toggle star status for a project
      *
-     * @param string $id Project UUID
+     * @param  string  $id  Project UUID
      * @return array{starred: bool} Returns whether the project is now starred
      */
     public function toggleStar(string $id): array
@@ -352,7 +345,7 @@ class ProjectService
         $project = MemoraProject::findOrFail($id);
         $user = Auth::user();
 
-        if (!$user) {
+        if (! $user) {
             throw new \RuntimeException('User not authenticated');
         }
 
@@ -369,9 +362,9 @@ class ProjectService
 
     /**
      * Apply sorting to projects query based on sortBy parameter
-     * 
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $sortBy Format: 'field-direction' (e.g., 'created-desc', 'name-asc')
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @param  string  $sortBy  Format: 'field-direction' (e.g., 'created-desc', 'name-asc')
      */
     protected function applySorting($query, string $sortBy): void
     {
@@ -380,7 +373,7 @@ class ProjectService
         $direction = strtoupper($parts[1] ?? 'desc');
 
         // Validate direction
-        if (!in_array($direction, ['ASC', 'DESC'])) {
+        if (! in_array($direction, ['ASC', 'DESC'])) {
             $direction = 'DESC';
         }
 

@@ -6,7 +6,6 @@ use App\Models\EmailVerificationCode;
 use App\Models\User;
 use App\Notifications\EmailVerificationNotification;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
 
 class EmailVerificationService
 {
@@ -61,7 +60,7 @@ class EmailVerificationService
             ->whereNull('verified_at')
             ->first();
 
-        if (!$verificationCode) {
+        if (! $verificationCode) {
             return false;
         }
 
@@ -89,4 +88,3 @@ class EmailVerificationService
             ->exists();
     }
 }
-

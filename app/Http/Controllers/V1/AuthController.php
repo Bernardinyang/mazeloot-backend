@@ -26,11 +26,9 @@ class AuthController extends Controller
 {
     public function __construct(
         protected EmailVerificationService $verificationService,
-        protected PasswordResetService     $passwordResetService,
-        protected MagicLinkService         $magicLinkService
-    )
-    {
-    }
+        protected PasswordResetService $passwordResetService,
+        protected MagicLinkService $magicLinkService
+    ) {}
 
     /**
      * Login user.
@@ -39,14 +37,14 @@ class AuthController extends Controller
     {
         $user = User::where('email', $request->email)->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (! $user || ! Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);
         }
 
         // Check if email is verified
-        if (!$user->email_verified_at) {
+        if (! $user->email_verified_at) {
             return ApiResponse::error(
                 'Please verify your email address before logging in.',
                 'EMAIL_NOT_VERIFIED',
@@ -56,7 +54,7 @@ class AuthController extends Controller
 
         // Check user status
         $canLogin = $user->canLogin();
-        if (!$canLogin['can_login']) {
+        if (! $canLogin['can_login']) {
             return ApiResponse::error(
                 $canLogin['message'],
                 'ACCOUNT_STATUS_BLOCKED',
@@ -68,7 +66,7 @@ class AuthController extends Controller
         $token = $user->createToken('auth-token')->plainTextToken;
 
         // Load status relationship if not already loaded
-        if (!$user->relationLoaded('status')) {
+        if (! $user->relationLoaded('status')) {
             $user->load('status');
         }
 
@@ -127,7 +125,7 @@ class AuthController extends Controller
     {
         $user = User::where('email', $request->email)->first();
 
-        if (!$user) {
+        if (! $user) {
             return ApiResponse::errorNotFound('User not found.');
         }
 
@@ -137,7 +135,7 @@ class AuthController extends Controller
 
         $verified = $this->verificationService->verifyCode($user, $request->code);
 
-        if (!$verified) {
+        if (! $verified) {
             return ApiResponse::error('Invalid or expired verification code.', 'INVALID_CODE', 400);
         }
 
@@ -167,7 +165,7 @@ class AuthController extends Controller
     {
         $user = User::where('email', $request->email)->first();
 
-        if (!$user) {
+        if (! $user) {
             return ApiResponse::errorNotFound('User not found.');
         }
 
@@ -189,7 +187,7 @@ class AuthController extends Controller
     {
         $user = User::where('email', $request->email)->first();
 
-        if (!$user) {
+        if (! $user) {
             // Don't reveal if user exists for security
             return ApiResponse::successOk([
                 'message' => 'If the email exists, a password reset code has been sent.',
@@ -210,7 +208,7 @@ class AuthController extends Controller
     {
         $user = User::where('email', $request->email)->first();
 
-        if (!$user) {
+        if (! $user) {
             return ApiResponse::errorNotFound('User not found.');
         }
 
@@ -220,7 +218,7 @@ class AuthController extends Controller
             $request->password
         );
 
-        if (!$reset) {
+        if (! $reset) {
             return ApiResponse::error('Invalid or expired reset code.', 'INVALID_CODE', 400);
         }
 
@@ -236,17 +234,18 @@ class AuthController extends Controller
     public function redirectToProvider(string $provider): JsonResponse
     {
         // Validate provider
-        if (!in_array($provider, ['google'])) {
+        if (! in_array($provider, ['google'])) {
             return ApiResponse::error('Invalid OAuth provider.', 'INVALID_PROVIDER', 400);
         }
 
         try {
             $redirectUrl = Socialite::driver($provider)->stateless()->redirect()->getTargetUrl();
+
             return ApiResponse::successOk([
                 'redirect_url' => $redirectUrl,
             ]);
         } catch (\Exception $e) {
-            return ApiResponse::error('OAuth redirect failed: ' . $e->getMessage(), 'OAUTH_ERROR', 400);
+            return ApiResponse::error('OAuth redirect failed: '.$e->getMessage(), 'OAUTH_ERROR', 400);
         }
     }
 
@@ -257,9 +256,10 @@ class AuthController extends Controller
     public function handleProviderCallback(string $provider): \Illuminate\Http\RedirectResponse
     {
         // Validate provider
-        if (!in_array($provider, ['google'])) {
+        if (! in_array($provider, ['google'])) {
             $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173'));
-            return redirect($frontendUrl . '/auth/oauth/callback?error=invalid_provider&message=Invalid OAuth provider');
+
+            return redirect($frontendUrl.'/auth/oauth/callback?error=invalid_provider&message=Invalid OAuth provider');
         }
 
         try {
@@ -270,7 +270,7 @@ class AuthController extends Controller
                 ->where('provider_id', $socialUser->getId())
                 ->first();
 
-            if (!$user) {
+            if (! $user) {
                 // Check if user exists by email (linking OAuth to existing account)
                 $user = User::where('email', $socialUser->getEmail())->first();
 
@@ -283,7 +283,7 @@ class AuthController extends Controller
                 } else {
                     // Create new user from OAuth
                     $nameParts = $this->splitName($socialUser->getName());
-                    
+
                     $user = DB::transaction(function () use ($socialUser, $provider, $nameParts) {
                         return User::create([
                             'first_name' => $nameParts['first_name'],
@@ -306,10 +306,10 @@ class AuthController extends Controller
 
             // Check user status before allowing login
             $canLogin = $user->canLogin();
-            if (!$canLogin['can_login']) {
+            if (! $canLogin['can_login']) {
                 // Redirect to frontend callback page with error
                 $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173'));
-                $callbackUrl = $frontendUrl . '/auth/oauth/callback?' . http_build_query([
+                $callbackUrl = $frontendUrl.'/auth/oauth/callback?'.http_build_query([
                     'error' => 'account_blocked',
                     'message' => $canLogin['message'],
                 ]);
@@ -321,13 +321,13 @@ class AuthController extends Controller
             $token = $user->createToken('auth-token')->plainTextToken;
 
             // Load status relationship if not already loaded
-            if (!$user->relationLoaded('status')) {
+            if (! $user->relationLoaded('status')) {
                 $user->load('status');
             }
 
             // Redirect to frontend callback page with token in URL hash
             $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173'));
-            $callbackUrl = $frontendUrl . '/auth/oauth/callback#' . http_build_query([
+            $callbackUrl = $frontendUrl.'/auth/oauth/callback#'.http_build_query([
                 'token' => $token,
                 'success' => 'true',
             ]);
@@ -336,7 +336,7 @@ class AuthController extends Controller
         } catch (\Exception $e) {
             // Redirect to frontend callback page with error
             $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173'));
-            $callbackUrl = $frontendUrl . '/auth/oauth/callback?' . http_build_query([
+            $callbackUrl = $frontendUrl.'/auth/oauth/callback?'.http_build_query([
                 'error' => 'oauth_error',
                 'message' => $e->getMessage(),
             ]);
@@ -352,7 +352,7 @@ class AuthController extends Controller
     {
         $user = User::where('email', $request->email)->first();
 
-        if (!$user) {
+        if (! $user) {
             // Don't reveal if user exists for security
             return ApiResponse::successOk([
                 'message' => 'If the email exists, a magic link has been sent.',
@@ -373,19 +373,19 @@ class AuthController extends Controller
     {
         $user = User::where('email', $request->email)->first();
 
-        if (!$user) {
+        if (! $user) {
             return ApiResponse::errorNotFound('User not found.');
         }
 
         $magicLinkToken = $this->magicLinkService->verifyToken($request->token, $request->email);
 
-        if (!$magicLinkToken) {
+        if (! $magicLinkToken) {
             return ApiResponse::error('Invalid or expired magic link.', 'INVALID_MAGIC_LINK', 400);
         }
 
         // Check user status before allowing login
         $canLogin = $user->canLogin();
-        if (!$canLogin['can_login']) {
+        if (! $canLogin['can_login']) {
             return ApiResponse::error(
                 $canLogin['message'],
                 'ACCOUNT_STATUS_BLOCKED',
@@ -400,7 +400,7 @@ class AuthController extends Controller
         $token = $user->createToken('auth-token')->plainTextToken;
 
         // Load status relationship if not already loaded
-        if (!$user->relationLoaded('status')) {
+        if (! $user->relationLoaded('status')) {
             $user->load('status');
         }
 
@@ -431,12 +431,12 @@ class AuthController extends Controller
     {
         $user = auth()->user();
 
-        if (!$user) {
+        if (! $user) {
             return ApiResponse::errorUnauthorized('User not authenticated.');
         }
 
         // Load status relationship if not already loaded
-        if (!$user->relationLoaded('status')) {
+        if (! $user->relationLoaded('status')) {
             $user->load('status');
         }
 
@@ -463,12 +463,12 @@ class AuthController extends Controller
      */
     private function splitName(?string $fullName): array
     {
-        if (!$fullName) {
+        if (! $fullName) {
             return ['first_name' => 'User', 'last_name' => ''];
         }
 
         $parts = explode(' ', trim($fullName), 2);
-        
+
         return [
             'first_name' => $parts[0] ?: 'User',
             'last_name' => $parts[1] ?? '',

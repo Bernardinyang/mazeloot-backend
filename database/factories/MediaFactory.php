@@ -40,25 +40,24 @@ class MediaFactory extends Factory
     {
         return parent::configure()->afterMaking(function (MemoraMedia $media) {
             $mediaSetUuid = $media->getAttributeValue('media_set_uuid');
-            
-            if (!$mediaSetUuid || !is_string($mediaSetUuid) || strlen($mediaSetUuid) !== 36) {
+
+            if (! $mediaSetUuid || ! is_string($mediaSetUuid) || strlen($mediaSetUuid) !== 36) {
                 $userId = $media->getAttributeValue('user_uuid');
-                
+
                 if ($userId instanceof Factory) {
                     $user = \App\Models\User::factory()->create();
                     $userId = $user->uuid;
-                } elseif (empty($userId) || !is_string($userId)) {
+                } elseif (empty($userId) || ! is_string($userId)) {
                     $user = \App\Models\User::factory()->create();
                     $userId = $user->uuid;
                 }
-                
+
                 $set = MemoraMediaSet::factory()->create([
                     'user_uuid' => $userId,
                 ]);
-                
+
                 $media->fill(['media_set_uuid' => $set->uuid]);
             }
         });
     }
 }
-

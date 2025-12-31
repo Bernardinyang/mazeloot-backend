@@ -2,10 +2,10 @@
 
 namespace Tests\Unit\Services\Upload;
 
-use Tests\TestCase;
 use App\Services\Upload\Providers\LocalProvider;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Tests\TestCase;
 
 class LocalProviderTest extends TestCase
 {
@@ -18,7 +18,7 @@ class LocalProviderTest extends TestCase
         Storage::fake('local');
         config(['upload.providers.local.disk' => 'local']);
 
-        $this->provider = new LocalProvider();
+        $this->provider = new LocalProvider;
     }
 
     public function test_upload_file_successfully(): void

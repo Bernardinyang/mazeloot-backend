@@ -2,20 +2,22 @@
 
 namespace Tests\Unit\Services\Upload;
 
-use Tests\TestCase;
-use App\Services\Upload\UploadService;
+use App\Services\Quotas\QuotaService;
 use App\Services\Upload\Contracts\UploadProviderInterface;
 use App\Services\Upload\DTOs\UploadResult;
 use App\Services\Upload\Exceptions\UploadException;
-use App\Services\Quotas\QuotaService;
+use App\Services\Upload\UploadService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
+use Tests\TestCase;
 
 class UploadServiceTest extends TestCase
 {
     protected UploadService $uploadService;
+
     protected $mockProvider;
+
     protected $mockQuotaService;
 
     protected function setUp(): void
@@ -37,7 +39,7 @@ class UploadServiceTest extends TestCase
     {
         $file = UploadedFile::fake()->image('test.jpg', 100, 100);
         $fileSize = $file->getSize();
-        
+
         $uploadResult = new UploadResult(
             url: 'https://example.com/file.jpg',
             provider: 'local',
@@ -56,7 +58,7 @@ class UploadServiceTest extends TestCase
         $this->mockProvider
             ->shouldReceive('upload')
             ->once()
-            ->with(Mockery::on(fn($f) => $f instanceof UploadedFile), ['purpose' => 'test', 'domain' => 'memora', 'userId' => 1])
+            ->with(Mockery::on(fn ($f) => $f instanceof UploadedFile), ['purpose' => 'test', 'domain' => 'memora', 'userId' => 1])
             ->andReturn($uploadResult);
 
         $result = $this->uploadService->upload($file, [

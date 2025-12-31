@@ -25,4 +25,3 @@ class CollectionResource extends JsonResource
         ];
     }
 }
-

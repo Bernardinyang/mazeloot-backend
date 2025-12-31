@@ -20,7 +20,7 @@ class GuestTokenAuth
     {
         $token = $request->bearerToken() ?? $request->header('X-Guest-Token') ?? $request->query('guest_token');
 
-        if (!$token) {
+        if (! $token) {
             return ApiResponse::error(
                 'Guest token is required',
                 'GUEST_TOKEN_MISSING',
@@ -32,11 +32,11 @@ class GuestTokenAuth
         $guestToken = GuestSelectionToken::where('token', $token)->first();
 
         // If not found, try proofing token
-        if (!$guestToken) {
+        if (! $guestToken) {
             $guestToken = GuestProofingToken::where('token', $token)->first();
         }
 
-        if (!$guestToken) {
+        if (! $guestToken) {
             return ApiResponse::error(
                 'Invalid guest token',
                 'GUEST_TOKEN_INVALID',
@@ -58,4 +58,3 @@ class GuestTokenAuth
         return $next($request);
     }
 }
-

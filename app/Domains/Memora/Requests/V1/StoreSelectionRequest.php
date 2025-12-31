@@ -26,4 +26,3 @@ class StoreSelectionRequest extends FormRequest
         ];
     }
 }
-

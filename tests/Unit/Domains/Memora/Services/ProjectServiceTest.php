@@ -15,6 +15,7 @@ class ProjectServiceTest extends TestCase
     use RefreshDatabase;
 
     protected ProjectService $service;
+
     protected $mockPaginationService;
 
     protected function setUp(): void
@@ -141,4 +142,3 @@ class ProjectServiceTest extends TestCase
         parent::tearDown();
     }
 }
-

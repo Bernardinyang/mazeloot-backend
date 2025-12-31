@@ -2,10 +2,10 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\Responses\ApiResponse;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
-use App\Support\Responses\ApiResponse;
 
 class EnforceApiKeyAccess
 {
@@ -20,7 +20,7 @@ class EnforceApiKeyAccess
         // Check if request is authenticated via API key
         $apiKey = $request->header('X-API-Key') ?? $request->query('api_key');
 
-        if ($apiKey && !$request->user()) {
+        if ($apiKey && ! $request->user()) {
             return ApiResponse::error(
                 'API key authentication failed',
                 'API_KEY_AUTH_FAILED',

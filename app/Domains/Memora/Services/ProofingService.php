@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Log;
 class ProofingService
 {
     protected UploadService $uploadService;
+
     protected PaginationService $paginationService;
 
     public function __construct(UploadService $uploadService, PaginationService $paginationService)
@@ -31,7 +32,7 @@ class ProofingService
     public function create(array $data): MemoraProofing
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
@@ -60,6 +61,7 @@ class ProofingService
     public function createForProject(string $projectId, array $data): MemoraProofing
     {
         $data['project_uuid'] = $projectId;
+
         return $this->create($data);
     }
 
@@ -76,7 +78,7 @@ class ProofingService
             ->findOrFail($mediaId);
 
         // Check if media is ready for revision
-        if (!$originalMedia->is_ready_for_revision) {
+        if (! $originalMedia->is_ready_for_revision) {
             throw new \Exception('Media is not ready for revision. A closure request must be approved first.');
         }
 
@@ -93,9 +95,9 @@ class ProofingService
         $calculatedRevisionNumber = $revisionNumber;
         if ($revisionNumber <= 0) {
             // Calculate next revision number
-            $maxRevision = MemoraMedia::where(function($query) use ($originalMediaUuid) {
+            $maxRevision = MemoraMedia::where(function ($query) use ($originalMediaUuid) {
                 $query->where('original_media_uuid', $originalMediaUuid)
-                      ->orWhere('uuid', $originalMediaUuid);
+                    ->orWhere('uuid', $originalMediaUuid);
             })->max('revision_number') ?? 0;
             $calculatedRevisionNumber = $maxRevision + 1;
         }
@@ -112,13 +114,13 @@ class ProofingService
 
         // Get approved closure request todos to map completed todos
         $revisionTodos = [];
-        if (!empty($completedTodos)) {
+        if (! empty($completedTodos)) {
             $approvedClosureRequest = \App\Domains\Memora\Models\MemoraClosureRequest::where('media_uuid', $mediaId)
                 ->where('status', 'approved')
                 ->orderBy('approved_at', 'desc')
                 ->first();
-            
-            if ($approvedClosureRequest && !empty($approvedClosureRequest->todos)) {
+
+            if ($approvedClosureRequest && ! empty($approvedClosureRequest->todos)) {
                 foreach ($approvedClosureRequest->todos as $index => $todo) {
                     $revisionTodos[] = [
                         'text' => $todo['text'] ?? $todo,
@@ -146,15 +148,15 @@ class ProofingService
             ]);
 
             // Mark all older revisions (including original) as revised
-            MemoraMedia::where(function($query) use ($originalMediaUuid) {
+            MemoraMedia::where(function ($query) use ($originalMediaUuid) {
                 $query->where('original_media_uuid', $originalMediaUuid)
-                      ->orWhere('uuid', $originalMediaUuid);
+                    ->orWhere('uuid', $originalMediaUuid);
             })
-            ->where('uuid', '!=', $revisionMedia->uuid)
-            ->update([
-                'is_revised' => true,
-                'is_ready_for_revision' => false,
-            ]);
+                ->where('uuid', '!=', $revisionMedia->uuid)
+                ->update([
+                    'is_revised' => true,
+                    'is_ready_for_revision' => false,
+                ]);
 
             $revisionMedia->load('file');
 
@@ -164,12 +166,13 @@ class ProofingService
 
     /**
      * Get a proofing phase (standalone or project-based)
-     * @param string|null $projectId If provided, validates proofing belongs to that project. If null, finds any proofing by ID.
+     *
+     * @param  string|null  $projectId  If provided, validates proofing belongs to that project. If null, finds any proofing by ID.
      */
     public function find(?string $projectId, string $id): MemoraProofing
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
@@ -188,7 +191,7 @@ class ProofingService
         $proofing->load(['mediaSets' => function ($query) {
             $query->withCount('media')->orderBy('order');
         }]);
-        
+
         // Load starredByUsers for the current user only
         $proofing->load(['starredByUsers' => function ($query) use ($user) {
             $query->where('user_uuid', $user->uuid);
@@ -240,17 +243,17 @@ class ProofingService
     public function update(?string $projectId, string $id, array $data): MemoraProofing
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
         $query = MemoraProofing::where('user_uuid', $user->uuid)->where('uuid', $id);
-        
+
         if ($projectId) {
             $query->where('project_uuid', $projectId);
         }
         // If no projectId provided, find proofing regardless of project association
-        
+
         $proofing = $query->firstOrFail();
 
         Log::info('Proofing update received data', [
@@ -263,7 +266,9 @@ class ProofingService
         ]);
 
         $updateData = [];
-        if (isset($data['name'])) $updateData['name'] = $data['name'];
+        if (isset($data['name'])) {
+            $updateData['name'] = $data['name'];
+        }
         if (array_key_exists('description', $data)) {
             $desc = $data['description'];
             if ($desc === null || $desc === '') {
@@ -272,24 +277,34 @@ class ProofingService
                 $updateData['description'] = trim((string) $desc);
             }
         }
-        if (isset($data['maxRevisions'])) $updateData['max_revisions'] = $data['maxRevisions'];
-        if (isset($data['status'])) $updateData['status'] = $data['status'];
-        if (isset($data['color'])) $updateData['color'] = $data['color'];
-        if (isset($data['cover_photo_url'])) $updateData['cover_photo_url'] = $data['cover_photo_url'];
-        if (isset($data['cover_focal_point'])) $updateData['cover_focal_point'] = $data['cover_focal_point'];
-        
+        if (isset($data['maxRevisions'])) {
+            $updateData['max_revisions'] = $data['maxRevisions'];
+        }
+        if (isset($data['status'])) {
+            $updateData['status'] = $data['status'];
+        }
+        if (isset($data['color'])) {
+            $updateData['color'] = $data['color'];
+        }
+        if (isset($data['cover_photo_url'])) {
+            $updateData['cover_photo_url'] = $data['cover_photo_url'];
+        }
+        if (isset($data['cover_focal_point'])) {
+            $updateData['cover_focal_point'] = $data['cover_focal_point'];
+        }
+
         // Handle allowedEmails (camelCase) or allowed_emails (snake_case)
         if (array_key_exists('allowedEmails', $data) || array_key_exists('allowed_emails', $data)) {
             $emails = $data['allowedEmails'] ?? $data['allowed_emails'] ?? [];
             // Ensure it's an array
             $emails = is_array($emails) ? $emails : [];
-            
+
             Log::info('Processing allowed_emails', [
                 'proofing_id' => $id,
                 'raw_input' => $emails,
                 'is_array' => is_array($emails),
             ]);
-            
+
             // Filter and validate emails
             $validEmails = [];
             foreach ($emails as $email) {
@@ -302,13 +317,13 @@ class ProofingService
                     $validEmails[] = $lowercased;
                 }
             }
-            
+
             // Remove duplicates and re-index
             $validEmails = array_values(array_unique($validEmails));
-            
+
             // Always set as array, even if empty (don't set to null)
             $updateData['allowed_emails'] = $validEmails;
-            
+
             Log::info('Updating proofing allowed_emails', [
                 'proofing_id' => $id,
                 'input_emails' => $emails,
@@ -320,46 +335,46 @@ class ProofingService
         // Handle primaryEmail (camelCase) or primary_email (snake_case)
         if (array_key_exists('primaryEmail', $data) || array_key_exists('primary_email', $data)) {
             $primaryEmail = $data['primaryEmail'] ?? $data['primary_email'] ?? null;
-            
+
             // Treat empty string as null
             if ($primaryEmail === '' || $primaryEmail === null) {
                 $primaryEmail = null;
             }
-            
+
             if ($primaryEmail !== null) {
                 // Normalize primary email
                 $primaryEmail = strtolower(trim($primaryEmail));
-                
+
                 // Validate email format
-                if (!filter_var($primaryEmail, FILTER_VALIDATE_EMAIL)) {
+                if (! filter_var($primaryEmail, FILTER_VALIDATE_EMAIL)) {
                     throw new \Illuminate\Validation\ValidationException(
                         validator([], []),
                         ['primary_email' => ['The primary email must be a valid email address.']]
                     );
                 }
-                
+
                 // Ensure primary email is in allowed_emails (normalize both for comparison)
                 $allowedEmails = $updateData['allowed_emails'] ?? $proofing->allowed_emails ?? [];
                 // Normalize allowed emails to lowercase for comparison
-                $normalizedAllowedEmails = array_map(function($email) {
+                $normalizedAllowedEmails = array_map(function ($email) {
                     return strtolower(trim($email ?? ''));
                 }, $allowedEmails);
-                
-                if (!in_array($primaryEmail, $normalizedAllowedEmails)) {
+
+                if (! in_array($primaryEmail, $normalizedAllowedEmails)) {
                     // If primary email is not in allowed emails, add it
                     $allowedEmails[] = $primaryEmail;
                     $allowedEmails = array_values(array_unique($allowedEmails));
                     $updateData['allowed_emails'] = $allowedEmails;
-                    
+
                     Log::info('Primary email added to allowed_emails', [
                         'proofing_id' => $id,
                         'primary_email' => $primaryEmail,
                         'updated_allowed_emails' => $allowedEmails,
                     ]);
                 }
-                
+
                 $updateData['primary_email'] = $primaryEmail;
-                
+
                 Log::info('Setting primary_email', [
                     'proofing_id' => $id,
                     'primary_email' => $primaryEmail,
@@ -379,11 +394,11 @@ class ProofingService
                 $currentPrimaryEmail = $proofing->primary_email;
                 if ($currentPrimaryEmail) {
                     $normalizedCurrentPrimary = strtolower(trim($currentPrimaryEmail));
-                    $normalizedAllowedEmails = array_map(function($email) {
+                    $normalizedAllowedEmails = array_map(function ($email) {
                         return strtolower(trim($email ?? ''));
                     }, $updateData['allowed_emails']);
-                    
-                    if (!in_array($normalizedCurrentPrimary, $normalizedAllowedEmails)) {
+
+                    if (! in_array($normalizedCurrentPrimary, $normalizedAllowedEmails)) {
                         // Current primary email is not in new allowed emails, remove it
                         $updateData['primary_email'] = null;
                         Log::info('Removing primary_email (not in allowed_emails)', [
@@ -398,7 +413,7 @@ class ProofingService
 
         // Handle password update
         if (array_key_exists('password', $data)) {
-            if (!empty($data['password'])) {
+            if (! empty($data['password'])) {
                 $updateData['password'] = $data['password'];
             } else {
                 $updateData['password'] = null;
@@ -416,7 +431,7 @@ class ProofingService
         $proofing->update($updateData);
 
         $updated = $proofing->fresh();
-        
+
         Log::info('Proofing updated', [
             'proofing_id' => $id,
             'allowed_emails_after_save' => $updated->allowed_emails,
@@ -449,12 +464,12 @@ class ProofingService
     public function moveToCollection(string $projectId, string $id, array $mediaIds, string $collectionUuid): array
     {
         $proofing = $this->find($projectId, $id);
-        
+
         // Verify collection exists
         $collection = \App\Domains\Memora\Models\MemoraCollection::where('project_uuid', $projectId)
             ->where('uuid', $collectionUuid)
             ->firstOrFail();
-        
+
         // Get the first project-level media set (not tied to selection or proofing)
         // Collections use project-level sets
         $collectionSet = \App\Domains\Memora\Models\MemoraMediaSet::where('project_uuid', $projectId)
@@ -462,8 +477,8 @@ class ProofingService
             ->whereNull('proof_uuid')
             ->orderBy('order')
             ->first();
-        
-        if (!$collectionSet) {
+
+        if (! $collectionSet) {
             // Create a default set for the collection
             $collectionSet = \App\Domains\Memora\Models\MemoraMediaSet::create([
                 'user_uuid' => \Illuminate\Support\Facades\Auth::user()->uuid,
@@ -472,7 +487,7 @@ class ProofingService
                 'order' => 0,
             ]);
         }
-        
+
         // Move media by updating their media_set_uuid
         $moved = MemoraMedia::whereHas('mediaSet', function ($query) use ($id) {
             $query->where('proof_uuid', $id);
@@ -491,13 +506,13 @@ class ProofingService
     /**
      * Get all proofing with optional search, sort, filter, and pagination parameters
      *
-     * @param string|null $projectUuid Filter by project UUID
-     * @param string|null $search Search query (searches in name)
-     * @param string|null $sortBy Sort field and direction (e.g., 'created-desc', 'name-asc', 'status-asc')
-     * @param string|null $status Filter by status (e.g., 'draft', 'completed', 'active')
-     * @param bool|null $starred Filter by starred status
-     * @param int $page Page number (default: 1)
-     * @param int $perPage Items per page (default: 10)
+     * @param  string|null  $projectUuid  Filter by project UUID
+     * @param  string|null  $search  Search query (searches in name)
+     * @param  string|null  $sortBy  Sort field and direction (e.g., 'created-desc', 'name-asc', 'status-asc')
+     * @param  string|null  $status  Filter by status (e.g., 'draft', 'completed', 'active')
+     * @param  bool|null  $starred  Filter by starred status
+     * @param  int  $page  Page number (default: 1)
+     * @param  int  $perPage  Items per page (default: 10)
      * @return array Paginated response with data and pagination metadata
      */
     public function getAll(
@@ -505,13 +520,12 @@ class ProofingService
         ?string $search = null,
         ?string $sortBy = null,
         ?string $status = null,
-        ?bool   $starred = null,
+        ?bool $starred = null,
         int $page = 1,
         int $perPage = 10
-    ): array
-    {
+    ): array {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
@@ -544,7 +558,7 @@ class ProofingService
 
         // Search by name
         if ($search && trim($search)) {
-            $query->where('name', 'LIKE', '%' . trim($search) . '%');
+            $query->where('name', 'LIKE', '%'.trim($search).'%');
         }
 
         // Filter by status
@@ -573,8 +587,8 @@ class ProofingService
 
         // Map the subquery results to the expected attribute names
         foreach ($paginator->items() as $proofing) {
-            $proofing->setAttribute('media_count', (int)($proofing->media_count ?? 0));
-            $proofing->setAttribute('completed_count', (int)($proofing->completed_count ?? 0));
+            $proofing->setAttribute('media_count', (int) ($proofing->media_count ?? 0));
+            $proofing->setAttribute('completed_count', (int) ($proofing->completed_count ?? 0));
             $proofing->setAttribute('pending_count', $proofing->media_count - $proofing->completed_count);
             // Set set count from loaded relationship
             if ($proofing->relationLoaded('mediaSets')) {
@@ -600,8 +614,7 @@ class ProofingService
     /**
      * Apply sorting to the query based on sortBy parameter
      *
-     * @param Builder $query
-     * @param string $sortBy Format: 'field-direction' (e.g., 'created-desc', 'name-asc')
+     * @param  string  $sortBy  Format: 'field-direction' (e.g., 'created-desc', 'name-asc')
      */
     protected function applySorting(Builder $query, string $sortBy): void
     {
@@ -610,7 +623,7 @@ class ProofingService
         $direction = strtoupper($parts[1] ?? 'desc');
 
         // Validate direction
-        if (!in_array($direction, ['ASC', 'DESC'])) {
+        if (! in_array($direction, ['ASC', 'DESC'])) {
             $direction = 'DESC';
         }
 
@@ -663,36 +676,36 @@ class ProofingService
     public function delete(?string $projectId, string $id): bool
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
         $query = MemoraProofing::where('user_uuid', $user->uuid)->where('uuid', $id);
-        
+
         if ($projectId) {
             $query->where('project_uuid', $projectId);
         }
         // If no projectId provided, find proofing regardless of project association
-        
+
         $proofing = $query->firstOrFail();
-        
+
         // Load media sets relationship if not already loaded
-        if (!$proofing->relationLoaded('mediaSets')) {
+        if (! $proofing->relationLoaded('mediaSets')) {
             $proofing->load(['mediaSets.media.feedback.replies', 'mediaSets.media.file']);
         }
-        
+
         // Get all media sets for this proofing
         $mediaSets = $proofing->mediaSets;
-        
+
         // Soft delete all media in all sets, then delete all sets, then delete proofing in a transaction
         return DB::transaction(function () use ($mediaSets, $proofing) {
             // Soft delete all media in all sets, then delete all sets
             foreach ($mediaSets as $set) {
                 // Ensure media is loaded for this set
-                if (!$set->relationLoaded('media')) {
+                if (! $set->relationLoaded('media')) {
                     $set->load('media');
                 }
-                
+
                 // Soft delete all media in this set
                 foreach ($set->media as $media) {
                     $media->delete();
@@ -700,7 +713,7 @@ class ProofingService
                 // Soft delete the set
                 $set->delete();
             }
-            
+
             // Soft delete the proofing itself
             return $proofing->delete();
         });
@@ -720,17 +733,17 @@ class ProofingService
     public function publish(?string $projectId, string $id): MemoraProofing
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
         $query = MemoraProofing::where('user_uuid', $user->uuid)->where('uuid', $id);
-        
+
         if ($projectId) {
             $query->where('project_uuid', $projectId);
         }
         // If no projectId provided, find proofing regardless of project association
-        
+
         $proofing = $query->firstOrFail();
 
         $newStatus = match ($proofing->status->value) {
@@ -743,7 +756,7 @@ class ProofingService
         // Validate that at least one email is in allowed_emails before publishing to active
         if ($newStatus === 'active') {
             $allowedEmails = $proofing->allowed_emails ?? [];
-            if (empty($allowedEmails) || !is_array($allowedEmails) || count(array_filter($allowedEmails)) === 0) {
+            if (empty($allowedEmails) || ! is_array($allowedEmails) || count(array_filter($allowedEmails)) === 0) {
                 throw new \Illuminate\Validation\ValidationException(
                     validator([], []),
                     ['allowed_emails' => ['At least one email address must be added to "Allowed Emails" before publishing the proofing.']]
@@ -770,17 +783,17 @@ class ProofingService
     public function toggleStar(?string $projectId, string $id): array
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
         $query = MemoraProofing::where('user_uuid', $user->uuid)->where('uuid', $id);
-        
+
         if ($projectId) {
             $query->where('project_uuid', $projectId);
         }
         // If no projectId provided, find proofing regardless of project association
-        
+
         $proofing = $query->firstOrFail();
 
         // Toggle the star relationship
@@ -808,18 +821,18 @@ class ProofingService
     public function setCoverPhotoFromMedia(?string $projectId, string $proofingId, string $mediaUuid, ?array $focalPoint = null): MemoraProofing
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
         $query = MemoraProofing::where('user_uuid', $user->uuid)->where('uuid', $proofingId);
-        
+
         // Only filter by project_uuid if projectId is explicitly provided
         if ($projectId !== null && $projectId !== '') {
             $query->where('project_uuid', $projectId);
         }
         // If no projectId provided, find proofing regardless of project association
-        
+
         $proofing = $query->firstOrFail();
 
         // Find the media and verify it belongs to this proofing
@@ -828,8 +841,8 @@ class ProofingService
             ->where('uuid', $mediaUuid)
             ->with(['file', 'mediaSet'])
             ->first();
-        
-        if (!$media) {
+
+        if (! $media) {
             Log::error('Media not found', [
                 'media_uuid' => $mediaUuid,
                 'proofing_id' => $proofingId,
@@ -837,9 +850,9 @@ class ProofingService
             ]);
             throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Media not found');
         }
-        
+
         // Verify the mediaSet exists and belongs to this proofing
-        if (!$media->media_set_uuid) {
+        if (! $media->media_set_uuid) {
             Log::error('Media has no media_set_uuid', [
                 'media_uuid' => $mediaUuid,
                 'media_set_uuid' => $media->media_set_uuid,
@@ -849,27 +862,27 @@ class ProofingService
 
         // Verify media belongs to this proofing
         $mediaSet = $media->mediaSet;
-        if (!$mediaSet || $mediaSet->proof_uuid !== $proofingId) {
+        if (! $mediaSet || $mediaSet->proof_uuid !== $proofingId) {
             throw new \Exception('Media does not belong to this proofing');
         }
-        
+
         // Load the mediaSet relationship if not loaded, including soft-deleted
-        if (!$media->relationLoaded('mediaSet') || !$media->mediaSet) {
+        if (! $media->relationLoaded('mediaSet') || ! $media->mediaSet) {
             $mediaSet = MemoraMediaSet::withTrashed()
                 ->where('uuid', $media->media_set_uuid)
                 ->first();
-            
-            if (!$mediaSet) {
+
+            if (! $mediaSet) {
                 Log::error('MediaSet not found', [
                     'media_uuid' => $mediaUuid,
                     'media_set_uuid' => $media->media_set_uuid,
                 ]);
                 throw new \RuntimeException('Media set not found');
             }
-            
+
             $media->setRelation('mediaSet', $mediaSet);
         }
-        
+
         // Verify the mediaSet belongs to this proofing
         if ($media->mediaSet->proof_uuid !== $proofingId) {
             Log::error('Media set does not belong to proofing', [
@@ -883,9 +896,9 @@ class ProofingService
 
         // Get cover URL from the media's file
         $coverUrl = null;
-        
+
         // Try to load file relationship if not loaded and media has a user_file_uuid
-        if (!$media->relationLoaded('file') && $media->user_file_uuid) {
+        if (! $media->relationLoaded('file') && $media->user_file_uuid) {
             try {
                 $media->load('file');
             } catch (\Exception $e) {
@@ -896,22 +909,22 @@ class ProofingService
                 ]);
             }
         }
-        
+
         if ($media->file) {
             $file = $media->file;
             $fileType = $file->type?->value ?? $file->type;
-            
+
             if ($fileType === 'video') {
                 $coverUrl = $file->url ?? null;
             } else {
                 // Check metadata for variants (metadata is cast as array, but handle null case)
                 $metadata = $file->metadata;
-                
+
                 // Handle case where metadata might be stored as JSON string (shouldn't happen with cast, but be safe)
                 if (is_string($metadata)) {
                     $metadata = json_decode($metadata, true);
                 }
-                
+
                 // Safely access variants
                 if ($metadata && is_array($metadata) && isset($metadata['variants']) && is_array($metadata['variants'])) {
                     if (isset($metadata['variants']['thumb'])) {
@@ -920,15 +933,15 @@ class ProofingService
                         $coverUrl = $metadata['variants']['large'];
                     }
                 }
-                
+
                 // Fallback to file URL if no variant found
-                if (!$coverUrl) {
+                if (! $coverUrl) {
                     $coverUrl = $file->url ?? null;
                 }
             }
         }
-        
-        if (!$coverUrl) {
+
+        if (! $coverUrl) {
             $fileUrl = $media->file ? ($media->file->url ?? 'none') : 'no file relationship';
             Log::error('Failed to get cover URL for media', [
                 'media_uuid' => $mediaUuid,
@@ -987,17 +1000,17 @@ class ProofingService
     public function recover(?string $projectId, string $id, array $mediaIds): array
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
         $query = MemoraProofing::where('user_uuid', $user->uuid)->where('uuid', $id);
-        
+
         if ($projectId) {
             $query->where('project_uuid', $projectId);
         }
         // If no projectId provided, find proofing regardless of project association
-        
+
         $proofing = $query->firstOrFail();
 
         $recovered = MemoraMedia::query()->whereHas('mediaSet', function ($query) use ($id) {

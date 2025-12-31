@@ -41,7 +41,7 @@ class ProofingController extends Controller
             page: $page,
             perPage: $perPage
         );
-        
+
         return ApiResponse::success($result);
     }
 
@@ -51,6 +51,7 @@ class ProofingController extends Controller
     public function showStandalone(string $id): JsonResponse
     {
         $proofing = $this->proofingService->find(null, $id);
+
         return ApiResponse::success(new ProofingResource($proofing));
     }
 
@@ -60,6 +61,7 @@ class ProofingController extends Controller
     public function show(string $projectId, string $id): JsonResponse
     {
         $proofing = $this->proofingService->find($projectId, $id);
+
         return ApiResponse::success(new ProofingResource($proofing));
     }
 
@@ -71,6 +73,7 @@ class ProofingController extends Controller
         $data = $request->validated();
         $data['project_uuid'] = null; // Ensure standalone
         $proofing = $this->proofingService->create($data);
+
         return ApiResponse::success(new ProofingResource($proofing), 201);
     }
 
@@ -82,6 +85,7 @@ class ProofingController extends Controller
         $data = $request->validated();
         $data['project_uuid'] = $projectId;
         $proofing = $this->proofingService->create($data);
+
         return ApiResponse::success(new ProofingResource($proofing), 201);
     }
 
@@ -91,6 +95,7 @@ class ProofingController extends Controller
     public function updateStandalone(UpdateProofingRequest $request, string $id): JsonResponse
     {
         $proofing = $this->proofingService->updateStandalone($id, $request->validated());
+
         return ApiResponse::success(new ProofingResource($proofing));
     }
 
@@ -100,6 +105,7 @@ class ProofingController extends Controller
     public function update(UpdateProofingRequest $request, string $projectId, string $id): JsonResponse
     {
         $proofing = $this->proofingService->update($projectId, $id, $request->validated());
+
         return ApiResponse::success(new ProofingResource($proofing));
     }
 
@@ -109,6 +115,7 @@ class ProofingController extends Controller
     public function destroyStandalone(string $id): JsonResponse
     {
         $this->proofingService->deleteStandalone($id);
+
         return ApiResponse::success(null, 204);
     }
 
@@ -118,6 +125,7 @@ class ProofingController extends Controller
     public function destroy(string $projectId, string $id): JsonResponse
     {
         $this->proofingService->delete($projectId, $id);
+
         return ApiResponse::success(null, 204);
     }
 
@@ -127,6 +135,7 @@ class ProofingController extends Controller
     public function publishStandalone(string $id): JsonResponse
     {
         $proofing = $this->proofingService->publishStandalone($id);
+
         return ApiResponse::success(new ProofingResource($proofing));
     }
 
@@ -136,6 +145,7 @@ class ProofingController extends Controller
     public function publish(string $projectId, string $id): JsonResponse
     {
         $proofing = $this->proofingService->publish($projectId, $id);
+
         return ApiResponse::success(new ProofingResource($proofing));
     }
 
@@ -145,6 +155,7 @@ class ProofingController extends Controller
     public function toggleStarStandalone(string $id): JsonResponse
     {
         $result = $this->proofingService->toggleStarStandalone($id);
+
         return ApiResponse::success($result);
     }
 
@@ -154,6 +165,7 @@ class ProofingController extends Controller
     public function toggleStar(string $projectId, string $id): JsonResponse
     {
         $result = $this->proofingService->toggleStar($projectId, $id);
+
         return ApiResponse::success($result);
     }
 
@@ -170,6 +182,7 @@ class ProofingController extends Controller
         try {
             $focalPoint = $validated['focal_point'] ?? null;
             $proofing = $this->proofingService->setCoverPhotoFromMediaStandalone($id, $validated['media_uuid'], $focalPoint);
+
             return ApiResponse::success(new ProofingResource($proofing));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ApiResponse::error('Proofing or media not found', 'NOT_FOUND', 404);
@@ -185,6 +198,7 @@ class ProofingController extends Controller
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return ApiResponse::error('Failed to set cover photo', 'SET_COVER_FAILED', 500);
         }
     }
@@ -202,6 +216,7 @@ class ProofingController extends Controller
         try {
             $focalPoint = $validated['focal_point'] ?? null;
             $proofing = $this->proofingService->setCoverPhotoFromMedia($projectId, $id, $validated['media_uuid'], $focalPoint);
+
             return ApiResponse::success(new ProofingResource($proofing));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ApiResponse::error('Proofing or media not found', 'NOT_FOUND', 404);
@@ -218,6 +233,7 @@ class ProofingController extends Controller
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return ApiResponse::error('Failed to set cover photo', 'SET_COVER_FAILED', 500);
         }
     }
@@ -233,6 +249,7 @@ class ProofingController extends Controller
         ]);
 
         $result = $this->proofingService->recoverStandalone($id, $request->input('mediaIds'));
+
         return ApiResponse::success($result);
     }
 
@@ -247,6 +264,7 @@ class ProofingController extends Controller
         ]);
 
         $result = $this->proofingService->recover($projectId, $id, $request->input('mediaIds'));
+
         return ApiResponse::success($result);
     }
 
@@ -301,6 +319,7 @@ class ProofingController extends Controller
     public function complete(string $projectId, string $id): JsonResponse
     {
         $proofing = $this->proofingService->complete($projectId, $id);
+
         return ApiResponse::success([
             'id' => $proofing->id,
             'status' => $proofing->status,
@@ -326,4 +345,3 @@ class ProofingController extends Controller
         return ApiResponse::success($result);
     }
 }
-

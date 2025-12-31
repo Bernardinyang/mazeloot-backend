@@ -32,7 +32,7 @@ class LocalProvider implements UploadProviderInterface
             basename($path)
         );
 
-        if (!$storedPath) {
+        if (! $storedPath) {
             throw UploadException::providerError('Failed to store file');
         }
 
@@ -71,7 +71,7 @@ class LocalProvider implements UploadProviderInterface
     protected function generatePath(UploadedFile $file, ?string $basePath = null): string
     {
         $base = $basePath ?? 'uploads';
-        $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
+        $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
         $datePath = date('Y/m/d');
 
         return "{$base}/{$datePath}/{$filename}";
@@ -89,7 +89,8 @@ class LocalProvider implements UploadProviderInterface
         // Convert relative path to absolute URL
         $baseUrl = rtrim(config('app.url', 'http://localhost'), '/');
         $relativePath = ltrim($url, '/');
-        return $baseUrl . '/' . $relativePath;
+
+        return $baseUrl.'/'.$relativePath;
     }
 
     public function delete(string $path): bool
@@ -101,12 +102,14 @@ class LocalProvider implements UploadProviderInterface
     {
         // Local storage doesn't need signed URLs, return public URL
         $relativeUrl = Storage::disk($this->disk)->url($path);
+
         return $this->ensureAbsoluteUrl($relativeUrl);
     }
 
     public function getPublicUrl(string $path): string
     {
         $relativeUrl = Storage::disk($this->disk)->url($path);
+
         return $this->ensureAbsoluteUrl($relativeUrl);
     }
 }

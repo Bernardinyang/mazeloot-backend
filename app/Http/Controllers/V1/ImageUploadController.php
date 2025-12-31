@@ -28,8 +28,8 @@ class ImageUploadController extends Controller
     public function upload(ImageUploadRequest $request): JsonResponse
     {
         // Support both 'file' (single) and 'files' (array) for compatibility
-        $files = $request->hasFile('files') 
-            ? $request->file('files') 
+        $files = $request->hasFile('files')
+            ? $request->file('files')
             : ($request->hasFile('file') ? [$request->file('file')] : []);
 
         if (empty($files)) {
@@ -37,7 +37,7 @@ class ImageUploadController extends Controller
         }
 
         // Ensure files is an array
-        if (!is_array($files)) {
+        if (! is_array($files)) {
             $files = [$files];
         }
 
@@ -53,14 +53,14 @@ class ImageUploadController extends Controller
         $results = [];
         foreach ($uploadResults as $index => $uploadResult) {
             $file = $files[$index];
-            
+
             // Store file information in user_files table
             $userFile = $this->storeUserFile($userUuid, $file, $uploadResult);
 
             // Format response to match UploadController format, but include variants
             $results[] = [
                 'url' => $uploadResult['variants']['original'] ?? $uploadResult['variants']['large'] ?? '',
-                'path' => 'uploads/images/' . $uploadResult['uuid'],
+                'path' => 'uploads/images/'.$uploadResult['uuid'],
                 'originalFilename' => $file->getClientOriginalName(),
                 'mimeType' => $file->getMimeType(),
                 'size' => $uploadResult['meta']['size'],
@@ -82,14 +82,14 @@ class ImageUploadController extends Controller
     protected function storeUserFile(string $userUuid, $file, array $uploadResult): UserFile
     {
         // Use original variant URL as the primary URL
-        $primaryUrl = $uploadResult['variants']['original'] 
-            ?? $uploadResult['variants']['large'] 
+        $primaryUrl = $uploadResult['variants']['original']
+            ?? $uploadResult['variants']['large']
             ?? '';
 
         return UserFile::query()->create([
             'user_uuid' => $userUuid,
             'url' => $primaryUrl,
-            'path' => 'uploads/images/' . $uploadResult['uuid'],
+            'path' => 'uploads/images/'.$uploadResult['uuid'],
             'type' => 'image',
             'filename' => $file->getClientOriginalName(),
             'mime_type' => $file->getMimeType(),
@@ -104,4 +104,3 @@ class ImageUploadController extends Controller
         ]);
     }
 }
-

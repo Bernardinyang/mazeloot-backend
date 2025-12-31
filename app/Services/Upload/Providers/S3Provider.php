@@ -28,7 +28,7 @@ class S3Provider implements UploadProviderInterface
             'public'
         );
 
-        if (!$storedPath) {
+        if (! $storedPath) {
             throw UploadException::providerError('Failed to store file to S3');
         }
 
@@ -77,7 +77,7 @@ class S3Provider implements UploadProviderInterface
     protected function generatePath(UploadedFile $file, ?string $basePath = null): string
     {
         $base = $basePath ?? 'uploads';
-        $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
+        $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
         $datePath = date('Y/m/d');
 
         return "{$base}/{$datePath}/{$filename}";

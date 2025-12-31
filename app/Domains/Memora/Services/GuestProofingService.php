@@ -16,13 +16,13 @@ class GuestProofingService
         $proofing = MemoraProofing::findOrFail($proofingId);
 
         // Allow token generation for active or completed proofing (view-only for completed)
-        if (!in_array($proofing->status->value, ['active', 'completed'])) {
+        if (! in_array($proofing->status->value, ['active', 'completed'])) {
             throw new \RuntimeException('Proofing is not accessible. Only active or completed proofing can be accessed publicly.');
         }
 
         // Check if email is in the allowed emails list (if list exists)
         $allowedEmails = $proofing->allowed_emails ?? [];
-        if (!empty($allowedEmails) && !in_array(strtolower($email), array_map('strtolower', $allowedEmails))) {
+        if (! empty($allowedEmails) && ! in_array(strtolower($email), array_map('strtolower', $allowedEmails))) {
             throw new \RuntimeException('This email is not authorized to access this proofing.');
         }
 
@@ -57,4 +57,3 @@ class GuestProofingService
         }
     }
 }
-

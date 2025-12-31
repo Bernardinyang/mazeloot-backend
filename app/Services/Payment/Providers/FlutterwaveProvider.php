@@ -35,7 +35,7 @@ class FlutterwaveProvider implements PaymentProviderInterface, SubscriptionProvi
     {
         // Flutterwave webhook signature verification
         $secretHash = $this->config['secret_hash'] ?? null;
-        if (!$secretHash) {
+        if (! $secretHash) {
             return false;
         }
 

@@ -2,10 +2,10 @@
 
 namespace Tests\Unit\Domains\Memora\Jobs;
 
-use Tests\TestCase;
 use App\Domains\Memora\Jobs\ProcessImageJob;
 use App\Domains\Memora\Services\MediaService;
 use Mockery;
+use Tests\TestCase;
 
 class ProcessImageJobTest extends TestCase
 {
@@ -53,4 +53,3 @@ class ProcessImageJobTest extends TestCase
         $this->assertTrue(true); // Job executed without errors
     }
 }
-

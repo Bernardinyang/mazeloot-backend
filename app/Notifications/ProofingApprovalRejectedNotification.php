@@ -43,13 +43,13 @@ class ProofingApprovalRejectedNotification extends Notification implements Shoul
         $media = $this->approvalRequest->media;
 
         $mail = (new MailMessage)
-            ->subject('Approval Request Rejected - ' . $proofing->name)
+            ->subject('Approval Request Rejected - '.$proofing->name)
             ->line('Your approval request has been rejected by the client.')
-            ->line('**Proofing:** ' . $proofing->name)
-            ->line('**Media:** ' . ($media->file->filename ?? 'Media item'));
+            ->line('**Proofing:** '.$proofing->name)
+            ->line('**Media:** '.($media->file->filename ?? 'Media item'));
 
         if ($this->approvalRequest->rejection_reason) {
-            $mail->line('**Rejection Reason:** ' . $this->approvalRequest->rejection_reason);
+            $mail->line('**Rejection Reason:** '.$this->approvalRequest->rejection_reason);
         }
 
         $mail->line('Please review the feedback and contact the client if you need further clarification.')

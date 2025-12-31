@@ -14,21 +14,21 @@ use Illuminate\Support\Str;
 class MemoraProject extends Model
 {
     use HasFactory, SoftDeletes;
-    
+
     /**
      * The primary key for the model.
      *
      * @var string
      */
     protected $primaryKey = 'uuid';
-    
+
     /**
      * The "type" of the primary key ID.
      *
      * @var string
      */
     protected $keyType = 'string';
-    
+
     /**
      * Indicates if the IDs are auto-incrementing.
      *

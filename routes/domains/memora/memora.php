@@ -1,6 +1,5 @@
 <?php
 
-use App\Domains\Memora\Controllers\V1\ProofingApprovalRequestController;
 use App\Domains\Memora\Controllers\V1\ClosureRequestController;
 use App\Domains\Memora\Controllers\V1\CollectionController;
 use App\Domains\Memora\Controllers\V1\CoverLayoutController;
@@ -8,6 +7,7 @@ use App\Domains\Memora\Controllers\V1\CoverStyleController;
 use App\Domains\Memora\Controllers\V1\MediaController;
 use App\Domains\Memora\Controllers\V1\MediaSetController;
 use App\Domains\Memora\Controllers\V1\ProjectController;
+use App\Domains\Memora\Controllers\V1\ProofingApprovalRequestController;
 use App\Domains\Memora\Controllers\V1\ProofingController;
 use Illuminate\Support\Facades\Route;
 

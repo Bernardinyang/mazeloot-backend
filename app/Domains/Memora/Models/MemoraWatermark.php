@@ -17,21 +17,21 @@ use Illuminate\Support\Str;
 class MemoraWatermark extends Model
 {
     use HasFactory;
-    
+
     /**
      * The primary key for the model.
      *
      * @var string
      */
     protected $primaryKey = 'uuid';
-    
+
     /**
      * The "type" of the primary key ID.
      *
      * @var string
      */
     protected $keyType = 'string';
-    
+
     /**
      * Indicates if the IDs are auto-incrementing.
      *

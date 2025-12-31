@@ -51,8 +51,8 @@ class ProjectResource extends JsonResource
             'eventDate' => $this->settings['eventDate'] ?? null,
             // Preview images from phase cover photos (up to 4)
             'previewImages' => $this->getPreviewImages(),
-            'isStarred' => Auth::check() && $this->relationLoaded('starredByUsers') 
-                ? $this->starredByUsers->isNotEmpty() 
+            'isStarred' => Auth::check() && $this->relationLoaded('starredByUsers')
+                ? $this->starredByUsers->isNotEmpty()
                 : false,
         ];
     }
@@ -60,8 +60,6 @@ class ProjectResource extends JsonResource
     /**
      * Get preview images from all phase cover photos
      * Returns up to 4 cover photo URLs
-     *
-     * @return array
      */
     private function getPreviewImages(): array
     {
@@ -82,4 +80,3 @@ class ProjectResource extends JsonResource
         return $previewImages;
     }
 }
-

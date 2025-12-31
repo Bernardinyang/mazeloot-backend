@@ -46,4 +46,3 @@ class ProcessImageJob implements ShouldQueue
         $mediaService->processImage($this->mediaId, $this->options);
     }
 }
-

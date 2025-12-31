@@ -20,8 +20,6 @@ enum UserRoleEnum: string
 
     /**
      * Get the label for a role.
-     *
-     * @return string
      */
     public function label(): string
     {
@@ -34,8 +32,6 @@ enum UserRoleEnum: string
 
     /**
      * Check if the role can manage admins.
-     *
-     * @return bool
      */
     public function canManageAdmins(): bool
     {
@@ -44,12 +40,9 @@ enum UserRoleEnum: string
 
     /**
      * Check if the role is an admin or super admin.
-     *
-     * @return bool
      */
     public function isAdmin(): bool
     {
         return in_array($this, [self::ADMIN, self::SUPER_ADMIN]);
     }
 }
-

@@ -18,9 +18,6 @@ class CollectionService
     /**
      * List collections for a project with pagination
      *
-     * @param string $projectId
-     * @param int|null $page
-     * @param int|null $perPage
      * @return array Paginated response with data and pagination metadata
      */
     public function list(string $projectId, ?int $page = null, ?int $perPage = null)
@@ -76,9 +73,15 @@ class CollectionService
         $collection = $this->find($projectId, $id);
 
         $updateData = [];
-        if (isset($data['name'])) $updateData['name'] = $data['name'];
-        if (isset($data['description'])) $updateData['description'] = $data['description'];
-        if (isset($data['status'])) $updateData['status'] = $data['status'];
+        if (isset($data['name'])) {
+            $updateData['name'] = $data['name'];
+        }
+        if (isset($data['description'])) {
+            $updateData['description'] = $data['description'];
+        }
+        if (isset($data['status'])) {
+            $updateData['status'] = $data['status'];
+        }
 
         $collection->update($updateData);
 
@@ -99,6 +102,7 @@ class CollectionService
     public function delete(string $projectId, string $id): bool
     {
         $collection = $this->find($projectId, $id);
+
         return $collection->delete();
     }
 }

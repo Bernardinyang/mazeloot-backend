@@ -25,4 +25,3 @@ class MoveMediaBetweenPhasesRequest extends FormRequest
         ];
     }
 }
-

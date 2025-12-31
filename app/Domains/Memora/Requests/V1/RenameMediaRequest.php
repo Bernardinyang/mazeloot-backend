@@ -3,7 +3,6 @@
 namespace App\Domains\Memora\Requests\V1;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class RenameMediaRequest extends FormRequest
 {
@@ -34,7 +33,7 @@ class RenameMediaRequest extends FormRequest
             $mediaId = $this->route('mediaId');
             $filename = $this->input('filename');
 
-            if (!$mediaId || !$filename) {
+            if (! $mediaId || ! $filename) {
                 return;
             }
 
@@ -43,7 +42,7 @@ class RenameMediaRequest extends FormRequest
                 ->with('file')
                 ->first();
 
-            if (!$media || !$media->file) {
+            if (! $media || ! $media->file) {
                 return;
             }
 
@@ -60,7 +59,7 @@ class RenameMediaRequest extends FormRequest
             }
 
             // If original file has no extension but new one does, that's also not allowed
-            if (!$originalExtension && $newExtension) {
+            if (! $originalExtension && $newExtension) {
                 $validator->errors()->add(
                     'filename',
                     'The filename cannot have an extension if the original file does not have one.'
@@ -81,4 +80,3 @@ class RenameMediaRequest extends FormRequest
         ];
     }
 }
-

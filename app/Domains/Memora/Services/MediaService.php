@@ -77,8 +77,9 @@ class MediaService
     {
         $media = MemoraMedia::find($mediaId);
 
-        if (!$media) {
+        if (! $media) {
             \Illuminate\Support\Facades\Log::warning("MemoraMedia not found for image processing: {$mediaId}");
+
             return;
         }
 
@@ -100,7 +101,7 @@ class MediaService
 
             \Illuminate\Support\Facades\Log::info("Image processing completed for media: {$mediaId}");
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("Failed to process image for media {$mediaId}: " . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error("Failed to process image for media {$mediaId}: ".$e->getMessage());
             throw $e;
         }
     }
@@ -124,8 +125,9 @@ class MediaService
     {
         $media = MemoraMedia::find($mediaId);
 
-        if (!$media) {
+        if (! $media) {
             \Illuminate\Support\Facades\Log::warning("MemoraMedia not found for low-res copy generation: {$mediaId}");
+
             return;
         }
 
@@ -138,7 +140,7 @@ class MediaService
             // 4. Update the media record with the low-res URL
 
             // Placeholder implementation
-            $lowResUrl = ($media->file->url ?? '') . '?lowres=true';
+            $lowResUrl = ($media->file->url ?? '').'?lowres=true';
 
             $media->update([
                 'low_res_copy_url' => $lowResUrl,
@@ -146,7 +148,7 @@ class MediaService
 
             \Illuminate\Support\Facades\Log::info("Low-res copy generated for media: {$mediaId}");
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("Failed to generate low-res copy for media {$mediaId}: " . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error("Failed to generate low-res copy for media {$mediaId}: ".$e->getMessage());
             throw $e;
         }
     }
@@ -166,7 +168,7 @@ class MediaService
     public function markSelected(string $id, bool $isSelected): MemoraMedia
     {
         $media = MemoraMedia::findOrFail($id);
-        
+
         // Load media set and selection relationships
         $media->load('mediaSet.selection');
         $set = $media->mediaSet;
@@ -177,7 +179,7 @@ class MediaService
             $selectionLimitService = app(\App\Domains\Memora\Services\SelectionLimitService::class);
             $setId = $set->uuid;
             $selectionId = $selection->uuid;
-            
+
             // Get current selected count for this set
             $currentCount = \App\Domains\Memora\Models\MemoraMedia::query()
                 ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
@@ -187,7 +189,7 @@ class MediaService
                 ->count();
 
             // Check if selection is allowed
-            if (!$selectionLimitService->checkSelectionLimit($selectionId, $setId, $currentCount)) {
+            if (! $selectionLimitService->checkSelectionLimit($selectionId, $setId, $currentCount)) {
                 throw new \RuntimeException('Selection limit reached. Cannot select more items.');
             }
         }
@@ -211,22 +213,22 @@ class MediaService
         $originalUuid = $media->original_media_uuid ?? $media->uuid;
 
         // Find all revisions (including the original) for this media
-        $revisions = MemoraMedia::where(function($query) use ($originalUuid) {
+        $revisions = MemoraMedia::where(function ($query) use ($originalUuid) {
             $query->where('original_media_uuid', $originalUuid)
-                  ->orWhere('uuid', $originalUuid);
+                ->orWhere('uuid', $originalUuid);
         })
-        ->with([
-            'feedback' => function ($query) {
-                $query->whereNull('parent_uuid')->orderBy('created_at', 'asc')
-                    ->with(['replies' => function ($q) {
-                        $this->loadRecursiveReplies($q, 0, 20);
-                    }]);
-            },
-            'file'
-        ])
-        ->orderBy('revision_number', 'asc')
-        ->orderBy('created_at', 'asc')
-        ->get();
+            ->with([
+                'feedback' => function ($query) {
+                    $query->whereNull('parent_uuid')->orderBy('created_at', 'asc')
+                        ->with(['replies' => function ($q) {
+                            $this->loadRecursiveReplies($q, 0, 20);
+                        }]);
+                },
+                'file',
+            ])
+            ->orderBy('revision_number', 'asc')
+            ->orderBy('created_at', 'asc')
+            ->get();
 
         return \App\Domains\Memora\Resources\V1\MediaResource::collection($revisions)->resolve();
     }
@@ -287,8 +289,8 @@ class MediaService
     {
         // Check if media exists and is not soft-deleted
         $media = MemoraMedia::where('uuid', $mediaId)->first();
-        
-        if (!$media) {
+
+        if (! $media) {
             throw new \Illuminate\Database\Eloquent\ModelNotFoundException(
                 "No query results for model [App\\Domains\\Memora\\Models\\MemoraMedia] {$mediaId}"
             );
@@ -343,7 +345,7 @@ class MediaService
             } elseif (is_array($data['createdBy'])) {
                 // If it's already an array, ensure name is formatted if it's an email
                 $createdByArray = $data['createdBy'];
-                if (isset($createdByArray['email']) && (!isset($createdByArray['name']) || $createdByArray['name'] === $createdByArray['email'])) {
+                if (isset($createdByArray['email']) && (! isset($createdByArray['name']) || $createdByArray['name'] === $createdByArray['email'])) {
                     $createdByArray['name'] = $this->formatNameFromEmail($createdByArray['email']);
                 }
                 $createdBy = json_encode($createdByArray);
@@ -368,12 +370,13 @@ class MediaService
             // Validate and sanitize email addresses
             $mentions = array_filter(array_map(function ($email) {
                 $email = trim($email);
+
                 return filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null;
             }, $data['mentions']));
-            
+
             // Remove duplicates and re-index array
             $mentions = array_values(array_unique($mentions));
-            
+
             // If no valid emails, set to null
             if (empty($mentions)) {
                 $mentions = null;
@@ -403,7 +406,7 @@ class MediaService
     {
         $feedback = MemoraMediaFeedback::findOrFail($feedbackId);
         $media = $feedback->media;
-        
+
         // Block updates if media is already approved/completed
         if ($media->is_completed) {
             throw new \Illuminate\Http\Exceptions\HttpResponseException(
@@ -437,16 +440,16 @@ class MediaService
                 ], 403)
             );
         }
-        
+
         // Check if comment is within 2 minutes
         $createdAt = $feedback->created_at;
         $now = now();
         $diffMinutes = $now->diffInMinutes($createdAt);
-        
+
         if ($diffMinutes > 2) {
             throw new \Exception('Comment can only be edited within 2 minutes of creation');
         }
-        
+
         $feedback->update([
             'content' => $data['content'],
         ]);
@@ -464,7 +467,7 @@ class MediaService
     {
         $feedback = MemoraMediaFeedback::findOrFail($feedbackId);
         $media = $feedback->media;
-        
+
         // Block deletes if media is already approved/completed
         if ($media->is_completed) {
             throw new \Illuminate\Http\Exceptions\HttpResponseException(
@@ -498,21 +501,21 @@ class MediaService
                 ], 403)
             );
         }
-        
+
         // Check if comment has replies
         if ($feedback->replies()->count() > 0) {
             throw new \Exception('Cannot delete comment with replies');
         }
-        
+
         // Check if comment is within 2 minutes
         $createdAt = $feedback->created_at;
         $now = now();
         $diffMinutes = $now->diffInMinutes($createdAt);
-        
+
         if ($diffMinutes > 2) {
             throw new \Exception('Comment can only be deleted within 2 minutes of creation');
         }
-        
+
         return $feedback->delete();
     }
 
@@ -522,7 +525,7 @@ class MediaService
      */
     protected function formatNameFromEmail(string $email): string
     {
-        if (!str_contains($email, '@')) {
+        if (! str_contains($email, '@')) {
             return $email;
         }
 
@@ -543,9 +546,9 @@ class MediaService
 
     /**
      * Get media for a specific set with optional sorting
-     * 
-     * @param string $setUuid The media set UUID
-     * @param string|null $sortBy Sort field and direction (e.g., 'uploaded-desc', 'name-asc', 'date-taken-desc')
+     *
+     * @param  string  $setUuid  The media set UUID
+     * @param  string|null  $sortBy  Sort field and direction (e.g., 'uploaded-desc', 'name-asc', 'date-taken-desc')
      * @return \Illuminate\Database\Eloquent\Collection
      */
     /**
@@ -557,9 +560,9 @@ class MediaService
         if ($depth >= $maxDepth) {
             return; // Prevent infinite recursion
         }
-        
+
         $query->orderBy('created_at', 'asc');
-        
+
         // Load nested replies recursively
         $query->with(['replies' => function ($q) use ($depth, $maxDepth) {
             $this->loadRecursiveReplies($q, $depth + 1, $maxDepth);
@@ -577,7 +580,7 @@ class MediaService
                             $this->loadRecursiveReplies($q, 0, 20);
                         }]);
                 },
-                'file'
+                'file',
             ]);
 
         // Only load starredByUsers if user is authenticated
@@ -627,7 +630,7 @@ class MediaService
 
         // Non-paginated response (backward compatibility)
         $media = $query->get();
-        
+
         // If we used a join for sorting, reload relationships to ensure they're available
         // This is necessary because joins can interfere with eager loading
         if ($sortBy && str_starts_with($sortBy, 'name-')) {
@@ -643,9 +646,9 @@ class MediaService
 
     /**
      * Apply sorting to media query based on sortBy parameter
-     * 
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $sortBy Format: 'field-direction' (e.g., 'uploaded-desc', 'name-asc')
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @param  string  $sortBy  Format: 'field-direction' (e.g., 'uploaded-desc', 'name-asc')
      */
     protected function applyMediaSorting($query, string $sortBy): void
     {
@@ -654,13 +657,14 @@ class MediaService
         $direction = strtoupper($parts[1] ?? 'asc');
 
         // Validate direction
-        if (!in_array($direction, ['ASC', 'DESC'])) {
+        if (! in_array($direction, ['ASC', 'DESC'])) {
             $direction = 'ASC';
         }
 
         // Handle special cases
         if ($sortBy === 'random') {
             $query->inRandomOrder();
+
             return;
         }
 
@@ -686,7 +690,7 @@ class MediaService
             // For date-taken sorting, use created_at (TODO: use actual date_taken field if available)
             $query->orderBy('memora_media.created_at', $direction);
         } else {
-            $query->orderBy('memora_media.' . $dbField, $direction);
+            $query->orderBy('memora_media.'.$dbField, $direction);
         }
     }
 
@@ -731,7 +735,7 @@ class MediaService
     public function delete(string $mediaId, ?string $userId = null): bool
     {
         $userId = $userId ?? Auth::id();
-        if (!$userId) {
+        if (! $userId) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
@@ -759,15 +763,15 @@ class MediaService
 
     /**
      * Move media items to a different set
-     * 
-     * @param array $mediaUuids Array of media UUIDs to move
-     * @param string $targetSetUuid Target set UUID
+     *
+     * @param  array  $mediaUuids  Array of media UUIDs to move
+     * @param  string  $targetSetUuid  Target set UUID
      * @return int Number of media items moved
      */
     public function moveMediaToSet(array $mediaUuids, string $targetSetUuid, ?string $userId = null): int
     {
         $userId = $userId ?? Auth::id();
-        if (!$userId) {
+        if (! $userId) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
@@ -831,15 +835,15 @@ class MediaService
     /**
      * Copy media items to a different set
      * Creates new media entries pointing to the same user_file_uuid
-     * 
-     * @param array $mediaUuids Array of media UUIDs to copy
-     * @param string $targetSetUuid Target set UUID
+     *
+     * @param  array  $mediaUuids  Array of media UUIDs to copy
+     * @param  string  $targetSetUuid  Target set UUID
      * @return array Array of newly created media items
      */
     public function copyMediaToSet(array $mediaUuids, string $targetSetUuid, ?string $userId = null): array
     {
         $userId = $userId ?? Auth::id();
-        if (!$userId) {
+        if (! $userId) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
@@ -891,7 +895,7 @@ class MediaService
         return DB::transaction(function () use ($mediaItems, $targetSetUuid, $maxOrder, $userId) {
             $copiedMedia = [];
             foreach ($mediaItems as $index => $media) {
-                if (!$media->user_file_uuid) {
+                if (! $media->user_file_uuid) {
                     // Skip if media doesn't have a user_file_uuid
                     continue;
                 }
@@ -931,7 +935,7 @@ class MediaService
         }
 
         // Ensure file relationship is loaded
-        if (!$media->file) {
+        if (! $media->file) {
             throw new \RuntimeException('File not found for this media');
         }
 
@@ -941,7 +945,7 @@ class MediaService
     /**
      * Toggle star status for a media item
      *
-     * @param string $mediaUuid Media UUID
+     * @param  string  $mediaUuid  Media UUID
      * @return array{starred: bool} Returns whether the media is now starred
      */
     public function toggleStar(string $mediaUuid): array
@@ -967,9 +971,9 @@ class MediaService
     /**
      * Get all starred media for the authenticated user
      *
-     * @param string|null $sortBy Sort field and direction (e.g., 'uploaded-desc', 'name-asc')
-     * @param int|null $page Page number for pagination
-     * @param int|null $perPage Items per page
+     * @param  string|null  $sortBy  Sort field and direction (e.g., 'uploaded-desc', 'name-asc')
+     * @param  int|null  $page  Page number for pagination
+     * @param  int|null  $perPage  Items per page
      * @return array{data: array, pagination: array}|array
      */
     public function getStarredMedia(?string $sortBy = null, ?int $page = null, ?int $perPage = null)
@@ -1017,21 +1021,22 @@ class MediaService
 
         // Non-paginated response
         $media = $query->get();
+
         return \App\Domains\Memora\Resources\V1\MediaResource::collection($media);
     }
 
     /**
      * Rename media by updating the UserFile's filename
      * Preserves the original file extension
-     * 
-     * @param string $mediaUuid Media UUID
-     * @param string $newFilename New filename (extension will be preserved from original)
+     *
+     * @param  string  $mediaUuid  Media UUID
+     * @param  string  $newFilename  New filename (extension will be preserved from original)
      * @return MemoraMedia Updated media with file relationship
      */
     public function renameMedia(string $mediaUuid, string $newFilename, ?string $userId = null): MemoraMedia
     {
         $userId = $userId ?? Auth::id();
-        if (!$userId) {
+        if (! $userId) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
@@ -1055,20 +1060,20 @@ class MediaService
         }
 
         // Ensure file relationship exists
-        if (!$media->file) {
+        if (! $media->file) {
             throw new \RuntimeException('File not found for this media');
         }
 
         // Preserve the original extension
         $originalFilename = $media->file->filename;
         $originalExtension = pathinfo($originalFilename, PATHINFO_EXTENSION);
-        
+
         // Remove extension from new filename if it exists
         $newFilenameWithoutExt = pathinfo($newFilename, PATHINFO_FILENAME);
-        
+
         // Reconstruct filename with original extension
-        $finalFilename = $originalExtension 
-            ? $newFilenameWithoutExt . '.' . $originalExtension
+        $finalFilename = $originalExtension
+            ? $newFilenameWithoutExt.'.'.$originalExtension
             : $newFilenameWithoutExt;
 
         // Update the UserFile's filename
@@ -1084,15 +1089,15 @@ class MediaService
 
     /**
      * Replace media file by updating the user_file_uuid to point to a new UserFile
-     * 
-     * @param string $mediaUuid Media UUID
-     * @param string $newUserFileUuid New UserFile UUID
+     *
+     * @param  string  $mediaUuid  Media UUID
+     * @param  string  $newUserFileUuid  New UserFile UUID
      * @return MemoraMedia Updated media with file relationship
      */
     public function replaceMedia(string $mediaUuid, string $newUserFileUuid, ?string $userId = null): MemoraMedia
     {
         $userId = $userId ?? Auth::id();
-        if (!$userId) {
+        if (! $userId) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
@@ -1129,5 +1134,4 @@ class MediaService
 
         return $media;
     }
-
 }

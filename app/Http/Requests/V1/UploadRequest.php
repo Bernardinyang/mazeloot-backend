@@ -29,7 +29,7 @@ class UploadRequest extends FormRequest
         $fileRule = File::default()->max($maxSize / 1024); // Convert to KB
 
         // Add MIME type validation using File::types() method
-        if (!empty($allowedTypes)) {
+        if (! empty($allowedTypes)) {
             $fileRule = $fileRule->types($allowedTypes);
         }
 
@@ -51,8 +51,8 @@ class UploadRequest extends FormRequest
     {
         $maxSizeMB = number_format((config('upload.max_size', 52428800) / 1024 / 1024), 0);
         $allowedTypes = config('upload.allowed_types', []);
-        $allowedTypesStr = !empty($allowedTypes) ? implode(', ', $allowedTypes) : 'image or video files';
-        
+        $allowedTypesStr = ! empty($allowedTypes) ? implode(', ', $allowedTypes) : 'image or video files';
+
         return [
             'file.required_without' => 'Please select a file to upload.',
             'file.max' => "The file must not exceed {$maxSizeMB}MB.",
@@ -93,4 +93,3 @@ class UploadRequest extends FormRequest
         return $options;
     }
 }
-

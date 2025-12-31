@@ -10,22 +10,23 @@ use Illuminate\Support\Str;
 class UserStatus extends Model
 {
     use HasFactory;
+
     protected $table = 'user_statuses';
-    
+
     /**
      * The primary key for the model.
      *
      * @var string
      */
     protected $primaryKey = 'uuid';
-    
+
     /**
      * The "type" of the primary key ID.
      *
      * @var string
      */
     protected $keyType = 'string';
-    
+
     /**
      * Indicates if the IDs are auto-incrementing.
      *

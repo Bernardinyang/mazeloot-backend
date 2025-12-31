@@ -19,4 +19,3 @@ class CompleteSelectionRequest extends FormRequest
         ];
     }
 }
-

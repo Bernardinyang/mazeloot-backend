@@ -16,19 +16,16 @@ class PricingService
     /**
      * Get price for a product in a specific currency
      *
-     * @param string $productId
-     * @param string $currency
-     * @param string|null $region
      * @return int|null Price in smallest currency unit, null if not available
      */
     public function getPrice(string $productId, string $currency, ?string $region = null): ?int
     {
         // TODO: Query pricing table from database
         // For now, return from config
-        
+
         $pricing = config('pricing.products', []);
-        
-        if (!isset($pricing[$productId])) {
+
+        if (! isset($pricing[$productId])) {
             return null;
         }
 
@@ -57,16 +54,11 @@ class PricingService
 
     /**
      * Get formatted price string
-     *
-     * @param string $productId
-     * @param string $currency
-     * @param string|null $region
-     * @return string|null
      */
     public function getFormattedPrice(string $productId, string $currency, ?string $region = null): ?string
     {
         $price = $this->getPrice($productId, $currency, $region);
-        
+
         if ($price === null) {
             return null;
         }

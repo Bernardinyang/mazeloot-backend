@@ -34,4 +34,3 @@ class GuestSelectionController extends Controller
         ], 201);
     }
 }
-

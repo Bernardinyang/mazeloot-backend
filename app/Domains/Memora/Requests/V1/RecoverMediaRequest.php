@@ -19,4 +19,3 @@ class RecoverMediaRequest extends FormRequest
         ];
     }
 }
-

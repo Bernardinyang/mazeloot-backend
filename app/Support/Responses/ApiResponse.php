@@ -8,11 +8,6 @@ class ApiResponse
 {
     /**
      * Return a successful JSON response matching the frontend contract
-     *
-     * @param mixed|null $data
-     * @param int $status
-     * @param string $statusText
-     * @return JsonResponse
      */
     public static function success(mixed $data = null, int $status = 200, string $statusText = 'OK'): JsonResponse
     {
@@ -35,18 +30,12 @@ class ApiResponse
     /**
      * Return an error JSON response matching the frontend contract
      * Returns only a single error message (no arrays)
-     *
-     * @param string $message
-     * @param string|null $code
-     * @param int $status
-     * @return JsonResponse
      */
     public static function error(
-        string  $message,
+        string $message,
         ?string $code = null,
-        int     $status = 400
-    ): JsonResponse
-    {
+        int $status = 400
+    ): JsonResponse {
         $response = [
             'message' => $message,
             'status' => $status,
@@ -63,9 +52,6 @@ class ApiResponse
 
     /**
      * Return a 200 OK success response
-     *
-     * @param mixed|null $data
-     * @return JsonResponse
      */
     public static function successOk(mixed $data = null): JsonResponse
     {
@@ -74,9 +60,6 @@ class ApiResponse
 
     /**
      * Return a 201 Created success response
-     *
-     * @param mixed|null $data
-     * @return JsonResponse
      */
     public static function successCreated(mixed $data = null): JsonResponse
     {
@@ -85,9 +68,6 @@ class ApiResponse
 
     /**
      * Return a 202 Accepted success response
-     *
-     * @param mixed|null $data
-     * @return JsonResponse
      */
     public static function successAccepted(mixed $data = null): JsonResponse
     {
@@ -96,8 +76,6 @@ class ApiResponse
 
     /**
      * Return a 204 No Content success response
-     *
-     * @return JsonResponse
      */
     public static function successNoContent(): JsonResponse
     {
@@ -108,10 +86,6 @@ class ApiResponse
 
     /**
      * Return a 400 Bad Request error response
-     *
-     * @param string $message
-     * @param string|null $code
-     * @return JsonResponse
      */
     public static function errorBadRequest(string $message, ?string $code = 'BAD_REQUEST'): JsonResponse
     {
@@ -120,10 +94,6 @@ class ApiResponse
 
     /**
      * Return a 401 Unauthorized error response
-     *
-     * @param string $message
-     * @param string|null $code
-     * @return JsonResponse
      */
     public static function errorUnauthorized(string $message = 'Unauthorized', ?string $code = 'UNAUTHORIZED'): JsonResponse
     {
@@ -132,10 +102,6 @@ class ApiResponse
 
     /**
      * Return a 403 Forbidden error response
-     *
-     * @param string $message
-     * @param string|null $code
-     * @return JsonResponse
      */
     public static function errorForbidden(string $message = 'Forbidden', ?string $code = 'FORBIDDEN'): JsonResponse
     {
@@ -144,10 +110,6 @@ class ApiResponse
 
     /**
      * Return a 404 Not Found error response
-     *
-     * @param string $message
-     * @param string|null $code
-     * @return JsonResponse
      */
     public static function errorNotFound(string $message = 'Resource not found', ?string $code = 'NOT_FOUND'): JsonResponse
     {
@@ -156,10 +118,6 @@ class ApiResponse
 
     /**
      * Return a 409 Conflict error response
-     *
-     * @param string $message
-     * @param string|null $code
-     * @return JsonResponse
      */
     public static function errorConflict(string $message, ?string $code = 'CONFLICT'): JsonResponse
     {
@@ -170,31 +128,24 @@ class ApiResponse
      * Return a 422 Unprocessable Entity (Validation) error response
      * If an errors array is provided, extracts the first error message
      *
-     * @param string $message
-     * @param array|null $errors Optional: if provided, will extract first error from array
-     * @param string|null $code
-     * @return JsonResponse
+     * @param  array|null  $errors  Optional: if provided, will extract first error from array
      */
     public static function errorValidation(string $message = 'Validation failed', ?array $errors = null, ?string $code = 'VALIDATION_ERROR'): JsonResponse
     {
         // If errors array is provided, extract the first error message
-        if ($errors && !empty($errors)) {
+        if ($errors && ! empty($errors)) {
             $firstFieldErrors = reset($errors);
             $firstError = is_array($firstFieldErrors) ? reset($firstFieldErrors) : $firstFieldErrors;
             if ($firstError) {
                 $message = $firstError;
             }
         }
-        
+
         return self::error($message, $code, 422);
     }
 
     /**
      * Return a 429 Too Many Requests error response
-     *
-     * @param string $message
-     * @param string|null $code
-     * @return JsonResponse
      */
     public static function errorTooManyRequests(string $message = 'Too many requests', ?string $code = 'TOO_MANY_REQUESTS'): JsonResponse
     {
@@ -203,10 +154,6 @@ class ApiResponse
 
     /**
      * Return a 500 Internal Server Error response
-     *
-     * @param string $message
-     * @param string|null $code
-     * @return JsonResponse
      */
     public static function errorInternalServerError(string $message = 'Internal server error', ?string $code = 'INTERNAL_SERVER_ERROR'): JsonResponse
     {
@@ -215,10 +162,6 @@ class ApiResponse
 
     /**
      * Return a 503 Service Unavailable error response
-     *
-     * @param string $message
-     * @param string|null $code
-     * @return JsonResponse
      */
     public static function errorServiceUnavailable(string $message = 'Service unavailable', ?string $code = 'SERVICE_UNAVAILABLE'): JsonResponse
     {

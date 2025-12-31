@@ -37,4 +37,3 @@ class UpdateSelectionRequest extends FormRequest
         ];
     }
 }
-

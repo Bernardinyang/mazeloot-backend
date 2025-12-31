@@ -36,4 +36,3 @@ enum PhaseTypeEnum: string
         };
     }
 }
-

@@ -2,10 +2,10 @@
 
 namespace Tests\Unit\Domains\Memora\Jobs;
 
-use Tests\TestCase;
 use App\Domains\Memora\Jobs\GenerateLowResCopyJob;
 use App\Domains\Memora\Services\MediaService;
 use Mockery;
+use Tests\TestCase;
 
 class GenerateLowResCopyJobTest extends TestCase
 {
@@ -31,4 +31,3 @@ class GenerateLowResCopyJobTest extends TestCase
         $this->assertTrue(true); // Job executed without errors
     }
 }
-

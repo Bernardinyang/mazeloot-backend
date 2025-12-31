@@ -14,7 +14,7 @@ class StripeProvider implements PaymentProviderInterface, SubscriptionProviderIn
     public function __construct()
     {
         $this->config = config('payment.providers.stripe', []);
-        
+
         if (empty($this->config['secret_key']) || empty($this->config['public_key'])) {
             throw new \RuntimeException('Stripe configuration is incomplete');
         }
@@ -46,7 +46,7 @@ class StripeProvider implements PaymentProviderInterface, SubscriptionProviderIn
     {
         // Stripe webhook signature verification
         $webhookSecret = $this->config['webhook_secret'] ?? null;
-        if (!$webhookSecret) {
+        if (! $webhookSecret) {
             return false;
         }
 

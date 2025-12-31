@@ -34,4 +34,3 @@ class MediaSetResource extends JsonResource
         ];
     }
 }
-

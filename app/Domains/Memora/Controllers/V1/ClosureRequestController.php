@@ -4,7 +4,6 @@ namespace App\Domains\Memora\Controllers\V1;
 
 use App\Domains\Memora\Models\MemoraClosureRequest;
 use App\Domains\Memora\Models\MemoraMedia;
-use App\Domains\Memora\Models\MemoraProofing;
 use App\Domains\Memora\Services\ClosureRequestService;
 use App\Http\Controllers\Controller;
 use App\Support\Responses\ApiResponse;
@@ -55,7 +54,8 @@ class ClosureRequestController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            return ApiResponse::error('Failed to create closure request: ' . $e->getMessage(), 500);
+
+            return ApiResponse::error('Failed to create closure request: '.$e->getMessage(), 500);
         }
     }
 
@@ -66,13 +66,13 @@ class ClosureRequestController extends Controller
     {
         try {
             $closureRequest = $this->closureRequestService->findByToken($token);
-            
-            if (!$closureRequest) {
+
+            if (! $closureRequest) {
                 return ApiResponse::error('Closure request not found', 404);
             }
 
             $closureRequest->load('user');
-            
+
             return ApiResponse::success([
                 'closure_request' => [
                     'uuid' => $closureRequest->uuid,
@@ -84,7 +84,7 @@ class ClosureRequestController extends Controller
                         'name' => $closureRequest->proofing->name,
                         'primary_email' => $closureRequest->proofing->primary_email,
                         'allowed_emails' => $closureRequest->proofing->allowed_emails,
-                        'has_password' => !empty($closureRequest->proofing->password),
+                        'has_password' => ! empty($closureRequest->proofing->password),
                         'project_uuid' => $closureRequest->proofing->project_uuid,
                     ],
                     'creative_email' => $closureRequest->user->email ?? null,
@@ -106,6 +106,7 @@ class ClosureRequestController extends Controller
                 'token' => $token,
                 'error' => $e->getMessage(),
             ]);
+
             return ApiResponse::error('Failed to fetch closure request', 500);
         }
     }
@@ -136,7 +137,8 @@ class ClosureRequestController extends Controller
                 'token' => $token,
                 'error' => $e->getMessage(),
             ]);
-            return ApiResponse::error('Failed to approve closure request: ' . $e->getMessage(), 500);
+
+            return ApiResponse::error('Failed to approve closure request: '.$e->getMessage(), 500);
         }
     }
 
@@ -168,7 +170,8 @@ class ClosureRequestController extends Controller
                 'token' => $token,
                 'error' => $e->getMessage(),
             ]);
-            return ApiResponse::error('Failed to reject closure request: ' . $e->getMessage(), 500);
+
+            return ApiResponse::error('Failed to reject closure request: '.$e->getMessage(), 500);
         }
     }
 
@@ -188,7 +191,8 @@ class ClosureRequestController extends Controller
                 'media_id' => $mediaId,
                 'error' => $e->getMessage(),
             ]);
-            return ApiResponse::error('Failed to fetch closure requests: ' . $e->getMessage(), 500);
+
+            return ApiResponse::error('Failed to fetch closure requests: '.$e->getMessage(), 500);
         }
     }
 
@@ -200,21 +204,21 @@ class ClosureRequestController extends Controller
         $guestToken = $request->attributes->get('guest_token');
 
         // Verify guest token exists
-        if (!$guestToken) {
+        if (! $guestToken) {
             return ApiResponse::error('Guest token is required', 'GUEST_TOKEN_MISSING', 401);
         }
 
         try {
             $media = MemoraMedia::findOrFail($mediaId);
-            
+
             // Verify media belongs to proofing associated with guest token
             $mediaSet = $media->mediaSet;
-            if (!$mediaSet) {
+            if (! $mediaSet) {
                 return ApiResponse::error('Media does not belong to any set', 'INVALID_MEDIA', 404);
             }
 
             $proofing = $mediaSet->proofing;
-            if (!$proofing || $proofing->uuid !== $guestToken->proofing_uuid) {
+            if (! $proofing || $proofing->uuid !== $guestToken->proofing_uuid) {
                 return ApiResponse::error('Media does not belong to this proofing', 'UNAUTHORIZED', 403);
             }
 
@@ -246,8 +250,8 @@ class ClosureRequestController extends Controller
                 'media_id' => $mediaId,
                 'error' => $e->getMessage(),
             ]);
-            return ApiResponse::error('Failed to fetch closure requests: ' . $e->getMessage(), 500);
+
+            return ApiResponse::error('Failed to fetch closure requests: '.$e->getMessage(), 500);
         }
     }
 }
-

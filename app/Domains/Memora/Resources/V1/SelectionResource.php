@@ -11,10 +11,10 @@ class SelectionResource extends JsonResource
     {
         // Check if the authenticated user is the owner of this selection
         $isOwner = Auth::check() && Auth::user()->uuid === $this->user_uuid;
-        
+
         // Get password value (even though it's in $hidden, we can access it via getAttribute)
         $password = $isOwner ? $this->getAttribute('password') : null;
-        
+
         return [
             'id' => $this->uuid,
             'projectId' => $this->project_uuid,
@@ -25,7 +25,7 @@ class SelectionResource extends JsonResource
             'color' => $this->color,
             'coverPhotoUrl' => $this->cover_photo_url,
             'coverFocalPoint' => $this->cover_focal_point,
-            'hasPassword' => !empty($this->getAttribute('password')),
+            'hasPassword' => ! empty($this->getAttribute('password')),
             // Only include the actual password if the authenticated user is the owner
             'password' => $password,
             'allowedEmails' => $this->allowed_emails ?? [],
@@ -38,8 +38,8 @@ class SelectionResource extends JsonResource
             'updatedAt' => $this->updated_at->toIso8601String(),
             'mediaCount' => $this->media_count ?? 0,
             'selectedCount' => $this->selected_count ?? 0,
-            'isStarred' => Auth::check() && $this->relationLoaded('starredByUsers') 
-                ? $this->starredByUsers->isNotEmpty() 
+            'isStarred' => Auth::check() && $this->relationLoaded('starredByUsers')
+                ? $this->starredByUsers->isNotEmpty()
                 : false,
             'project' => $this->whenLoaded('project', function () {
                 return new ProjectResource($this->project);
@@ -50,4 +50,3 @@ class SelectionResource extends JsonResource
         ];
     }
 }
-

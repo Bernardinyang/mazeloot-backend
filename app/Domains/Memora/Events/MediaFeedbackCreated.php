@@ -29,7 +29,7 @@ class MediaFeedbackCreated implements ShouldBroadcast
     public function broadcastOn(): array
     {
         return [
-            new Channel('media.' . $this->feedback->media_uuid . '.feedback'),
+            new Channel('media.'.$this->feedback->media_uuid.'.feedback'),
         ];
     }
 
@@ -61,4 +61,3 @@ class MediaFeedbackCreated implements ShouldBroadcast
         ];
     }
 }
-

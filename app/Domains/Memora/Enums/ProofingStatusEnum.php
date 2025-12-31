@@ -36,4 +36,3 @@ enum ProofingStatusEnum: string
         };
     }
 }
-

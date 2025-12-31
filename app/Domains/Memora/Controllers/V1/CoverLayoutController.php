@@ -36,6 +36,7 @@ class CoverLayoutController extends Controller
     public function show(string $uuid): JsonResponse
     {
         $coverLayout = MemoraCoverLayout::findOrFail($uuid);
+
         return ApiResponse::success(new CoverLayoutResource($coverLayout));
     }
 
@@ -46,7 +47,7 @@ class CoverLayoutController extends Controller
     public function showBySlug(string $slug): JsonResponse
     {
         $coverLayout = MemoraCoverLayout::where('slug', $slug)->firstOrFail();
+
         return ApiResponse::success(new CoverLayoutResource($coverLayout));
     }
 }
-

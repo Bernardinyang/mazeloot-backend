@@ -2,10 +2,10 @@
 
 namespace Tests\Unit\Jobs;
 
-use Tests\TestCase;
 use App\Jobs\ProcessPaymentWebhookJob;
 use App\Services\Payment\Webhooks\WebhookHandler;
 use Mockery;
+use Tests\TestCase;
 
 class ProcessPaymentWebhookJobTest extends TestCase
 {
@@ -35,4 +35,3 @@ class ProcessPaymentWebhookJobTest extends TestCase
         $this->assertTrue(true); // Job executed without errors
     }
 }
-

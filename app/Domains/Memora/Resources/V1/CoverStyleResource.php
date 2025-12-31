@@ -28,4 +28,3 @@ class CoverStyleResource extends JsonResource
         ];
     }
 }
-

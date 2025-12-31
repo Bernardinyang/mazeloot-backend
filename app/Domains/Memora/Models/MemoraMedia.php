@@ -2,7 +2,6 @@
 
 namespace App\Domains\Memora\Models;
 
-use App\Domains\Memora\Enums\MediaTypeEnum;
 use Database\Factories\MediaFactory;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,21 +14,21 @@ use Illuminate\Support\Str;
 class MemoraMedia extends Model
 {
     use HasFactory, SoftDeletes;
-    
+
     /**
      * The primary key for the model.
      *
      * @var string
      */
     protected $primaryKey = 'uuid';
-    
+
     /**
      * The "type" of the primary key ID.
      *
      * @var string
      */
     protected $keyType = 'string';
-    
+
     /**
      * Indicates if the IDs are auto-incrementing.
      *
@@ -79,22 +78,22 @@ class MemoraMedia extends Model
             if (empty($model->uuid)) {
                 $model->uuid = (string) Str::uuid();
             }
-            
+
             // Ensure media_set_uuid is set if missing (only in testing environment)
             // Check raw attributes array to catch all cases
             $attributes = $model->getAttributes();
             $mediaSetUuid = $attributes['media_set_uuid'] ?? null;
-            
+
             if ((is_null($mediaSetUuid) || $mediaSetUuid === '') && app()->environment('testing')) {
                 $userId = $attributes['user_uuid'] ?? null;
-                if (empty($userId) || !is_string($userId)) {
+                if (empty($userId) || ! is_string($userId)) {
                     $userId = \App\Models\User::factory()->create()->uuid;
                 }
-                
+
                 $set = \App\Domains\Memora\Models\MemoraMediaSet::factory()->create([
                     'user_uuid' => $userId,
                 ]);
-                
+
                 $model->media_set_uuid = $set->uuid;
             }
         });

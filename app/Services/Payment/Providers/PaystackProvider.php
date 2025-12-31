@@ -35,7 +35,7 @@ class PaystackProvider implements PaymentProviderInterface, SubscriptionProvider
     {
         // Paystack webhook signature verification
         $secretKey = $this->config['secret_key'] ?? null;
-        if (!$secretKey) {
+        if (! $secretKey) {
             return false;
         }
 
