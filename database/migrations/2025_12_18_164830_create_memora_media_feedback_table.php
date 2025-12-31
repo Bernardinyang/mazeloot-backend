@@ -36,16 +36,25 @@ return new class extends Migration {
         } else {
             // Table doesn't exist, create it with all columns
             Schema::create('memora_media_feedback', static function (Blueprint $table) {
-                $table->unsignedBigInteger('id')->nullable();
-                $table->uuid('uuid')->primary()->default(DB::raw('(UUID())'));
-                $table->foreignUuid('media_uuid')->constrained('memora_media', 'uuid')->cascadeOnDelete();
-                $table->uuid('parent_uuid')->nullable(); // For reply threading
-                $table->decimal('timestamp', 10, 2)->nullable(); // Video comment timestamp in seconds
-                $table->json('mentions')->nullable(); // Mentioned email addresses
-                $table->enum('type', MediaFeedbackTypeEnum::values());
-                $table->text('content'); // Text content or URL for video/audio
-                $table->json('created_by')->nullable(); // client-identifier
-                $table->timestamps();
+                // Primary keys
+                $table->unsignedBigInteger('id')->nullable(); // Legacy numeric ID (nullable)
+                $table->uuid('uuid')->primary()->default(DB::raw('(UUID())')); // Primary UUID identifier
+
+                // Foreign keys
+                $table->foreignUuid('media_uuid')->constrained('memora_media', 'uuid')->cascadeOnDelete(); // Media item this feedback belongs to
+                $table->uuid('parent_uuid')->nullable(); // UUID of parent comment for reply threading (self-referencing)
+
+                // Feedback content
+                $table->enum('type', MediaFeedbackTypeEnum::values()); // Type of feedback (comment, annotation, etc.)
+                $table->text('content'); // Text content or URL for video/audio feedback
+                $table->decimal('timestamp', 10, 2)->nullable(); // Video comment timestamp in seconds (for video annotations)
+
+                // Mentions and author
+                $table->json('mentions')->nullable(); // Array of mentioned email addresses
+                $table->json('created_by')->nullable(); // Client identifier or user info stored as JSON
+
+                // Timestamps
+                $table->timestamps(); // created_at, updated_at
 
                 // Foreign key for parent comment (self-referencing)
                 $table->foreign('parent_uuid')
@@ -53,9 +62,9 @@ return new class extends Migration {
                     ->on('memora_media_feedback')
                     ->onDelete('cascade');
 
-                // Index for efficient reply queries
-                $table->index('parent_uuid');
-                $table->index('media_uuid');
+                // Indexes for efficient queries
+                $table->index('parent_uuid'); // For fetching replies to a comment
+                $table->index('media_uuid'); // For fetching all feedback for a media item
             });
         }
     }

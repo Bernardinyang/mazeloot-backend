@@ -45,6 +45,12 @@ class MemoraMedia extends Model
         'revision_number',
         'is_completed',
         'completed_at',
+        'is_rejected',
+        'rejected_at',
+        'is_ready_for_revision',
+        'is_revised',
+        'revision_description',
+        'revision_todos',
         'original_media_uuid',
         'user_file_uuid',
         'url',
@@ -63,6 +69,11 @@ class MemoraMedia extends Model
         'selected_at' => 'datetime',
         'is_completed' => 'boolean',
         'completed_at' => 'datetime',
+        'is_rejected' => 'boolean',
+        'rejected_at' => 'datetime',
+        'is_ready_for_revision' => 'boolean',
+        'is_revised' => 'boolean',
+        'revision_todos' => 'array',
     ];
 
     /**

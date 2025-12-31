@@ -23,6 +23,8 @@ class UpdateProofingRequest extends FormRequest
             'allowedEmails.*' => ['email', 'max:255'],
             'allowed_emails' => ['sometimes', 'nullable', 'array'],
             'allowed_emails.*' => ['email', 'max:255'],
+            'primaryEmail' => ['sometimes', 'nullable', 'email', 'max:255'],
+            'primary_email' => ['sometimes', 'nullable', 'email', 'max:255'],
             'password' => ['sometimes', 'nullable', 'string', 'max:255'],
             'cover_photo_url' => ['sometimes', 'nullable', 'string', 'max:500'],
             'cover_focal_point' => ['sometimes', 'nullable', 'array'],

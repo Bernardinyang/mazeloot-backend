@@ -7,6 +7,7 @@ use App\Domains\Memora\Models\MemoraMediaFeedback;
 use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Services\Upload\UploadService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class MediaService
 {
@@ -206,21 +207,74 @@ class MediaService
     {
         $media = MemoraMedia::query()->findOrFail($id);
 
-        // TODO: If revisions are stored separately, query that table
-        // For now, return empty array as placeholder
-        return [];
+        // Determine the original media UUID
+        $originalUuid = $media->original_media_uuid ?? $media->uuid;
+
+        // Find all revisions (including the original) for this media
+        $revisions = MemoraMedia::where(function($query) use ($originalUuid) {
+            $query->where('original_media_uuid', $originalUuid)
+                  ->orWhere('uuid', $originalUuid);
+        })
+        ->with([
+            'feedback' => function ($query) {
+                $query->whereNull('parent_uuid')->orderBy('created_at', 'asc')
+                    ->with(['replies' => function ($q) {
+                        $this->loadRecursiveReplies($q, 0, 20);
+                    }]);
+            },
+            'file'
+        ])
+        ->orderBy('revision_number', 'asc')
+        ->orderBy('created_at', 'asc')
+        ->get();
+
+        return \App\Domains\Memora\Resources\V1\MediaResource::collection($revisions)->resolve();
     }
 
     /**
      * Mark media as completed
      */
-    public function markCompleted(string $id, bool $isCompleted): MemoraMedia
+    public function markCompleted(string $id, bool $isCompleted, ?string $userId = null): MemoraMedia
     {
         $media = MemoraMedia::findOrFail($id);
+
+        // If userId is provided, verify user owns the proofing
+        if ($userId !== null) {
+            $mediaSet = $media->mediaSet;
+            if ($mediaSet) {
+                $proofing = $mediaSet->proofing;
+                if ($proofing && $proofing->user_uuid !== $userId) {
+                    throw new \Exception('Unauthorized: You do not own this proofing');
+                }
+            }
+        }
 
         $media->update([
             'is_completed' => $isCompleted,
             'completed_at' => $isCompleted ? now() : null,
+        ]);
+
+        return $media->fresh();
+    }
+
+    public function markRejected(string $id, bool $isRejected, ?string $userId = null): MemoraMedia
+    {
+        $media = MemoraMedia::findOrFail($id);
+
+        // If userId is provided, verify user owns the proofing
+        if ($userId !== null) {
+            $mediaSet = $media->mediaSet;
+            if ($mediaSet) {
+                $proofing = $mediaSet->proofing;
+                if ($proofing && $proofing->user_uuid !== $userId) {
+                    throw new \Exception('Unauthorized: You do not own this proofing');
+                }
+            }
+        }
+
+        $media->update([
+            'is_rejected' => $isRejected,
+            'rejected_at' => $isRejected ? now() : null,
         ]);
 
         return $media->fresh();
@@ -237,6 +291,40 @@ class MediaService
         if (!$media) {
             throw new \Illuminate\Database\Eloquent\ModelNotFoundException(
                 "No query results for model [App\\Domains\\Memora\\Models\\MemoraMedia] {$mediaId}"
+            );
+        }
+
+        // Block comments/feedback if media is already approved/completed
+        if ($media->is_completed) {
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'message' => 'Cannot add comments or feedback to approved media',
+                    'error' => 'MEDIA_APPROVED',
+                ], 403)
+            );
+        }
+
+        // Block comments/feedback if media is rejected
+        if ($media->is_rejected) {
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'message' => 'Cannot add comments or feedback to rejected media',
+                    'error' => 'MEDIA_REJECTED',
+                ], 403)
+            );
+        }
+
+        // Block comments/feedback if there's a pending closure request
+        $pendingClosureRequest = \App\Domains\Memora\Models\MemoraClosureRequest::where('media_uuid', $mediaId)
+            ->where('status', 'pending')
+            ->exists();
+
+        if ($pendingClosureRequest) {
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'message' => 'Cannot add comments or feedback while a closure request is pending',
+                    'error' => 'CLOSURE_REQUEST_PENDING',
+                ], 403)
             );
         }
 
@@ -314,6 +402,41 @@ class MediaService
     public function updateFeedback(string $feedbackId, array $data): MemoraMediaFeedback
     {
         $feedback = MemoraMediaFeedback::findOrFail($feedbackId);
+        $media = $feedback->media;
+        
+        // Block updates if media is already approved/completed
+        if ($media->is_completed) {
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'message' => 'Cannot update comments or feedback on approved media',
+                    'error' => 'MEDIA_APPROVED',
+                ], 403)
+            );
+        }
+
+        // Block updates if media is rejected
+        if ($media->is_rejected) {
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'message' => 'Cannot update comments or feedback on rejected media',
+                    'error' => 'MEDIA_REJECTED',
+                ], 403)
+            );
+        }
+
+        // Block updates if there's a pending closure request
+        $pendingClosureRequest = \App\Domains\Memora\Models\MemoraClosureRequest::where('media_uuid', $media->uuid)
+            ->where('status', 'pending')
+            ->exists();
+
+        if ($pendingClosureRequest) {
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'message' => 'Cannot update comments or feedback while a closure request is pending',
+                    'error' => 'CLOSURE_REQUEST_PENDING',
+                ], 403)
+            );
+        }
         
         // Check if comment is within 2 minutes
         $createdAt = $feedback->created_at;
@@ -340,6 +463,41 @@ class MediaService
     public function deleteFeedback(string $feedbackId): bool
     {
         $feedback = MemoraMediaFeedback::findOrFail($feedbackId);
+        $media = $feedback->media;
+        
+        // Block deletes if media is already approved/completed
+        if ($media->is_completed) {
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'message' => 'Cannot delete comments or feedback on approved media',
+                    'error' => 'MEDIA_APPROVED',
+                ], 403)
+            );
+        }
+
+        // Block deletes if media is rejected
+        if ($media->is_rejected) {
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'message' => 'Cannot delete comments or feedback on rejected media',
+                    'error' => 'MEDIA_REJECTED',
+                ], 403)
+            );
+        }
+
+        // Block deletes if there's a pending closure request
+        $pendingClosureRequest = \App\Domains\Memora\Models\MemoraClosureRequest::where('media_uuid', $media->uuid)
+            ->where('status', 'pending')
+            ->exists();
+
+        if ($pendingClosureRequest) {
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'message' => 'Cannot delete comments or feedback while a closure request is pending',
+                    'error' => 'CLOSURE_REQUEST_PENDING',
+                ], 403)
+            );
+        }
         
         // Check if comment has replies
         if ($feedback->replies()->count() > 0) {
@@ -552,11 +710,13 @@ class MediaService
             ->max('order') ?? -1;
 
         // Create media using only user_file_uuid - all other data comes from UserFile relationship
+        // Newly uploaded media is tagged as draft (is_completed = false) until approved
         $media = MemoraMedia::query()->create([
             'user_uuid' => Auth::user()->uuid,
             'media_set_uuid' => $setUuid,
             'user_file_uuid' => $data['user_file_uuid'],
             'order' => $maxOrder + 1,
+            'is_completed' => false,
         ]);
 
         // Load the file relationship for the response
@@ -568,11 +728,28 @@ class MediaService
     /**
      * Delete media from a set
      */
-    public function delete(string $mediaId): bool
+    public function delete(string $mediaId, ?string $userId = null): bool
     {
-        $media = MemoraMedia::where('user_uuid', Auth::user()->uuid)
-            ->where('uuid', $mediaId)
-            ->firstOrFail();
+        $userId = $userId ?? Auth::id();
+        if (!$userId) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $media = MemoraMedia::where('uuid', $mediaId)->firstOrFail();
+
+        // Verify user owns the proofing that contains this media
+        $mediaSet = $media->mediaSet;
+        if ($mediaSet) {
+            $proofing = $mediaSet->proofing;
+            if ($proofing && $proofing->user_uuid !== $userId) {
+                throw new \Exception('Unauthorized: You do not own this proofing');
+            }
+        } else {
+            // Fallback: verify user owns the media directly
+            if ($media->user_uuid !== $userId) {
+                throw new \Exception('Unauthorized: You do not own this media');
+            }
+        }
 
         // Delete the media record
         // Note: We don't delete the user_file record as it may be used elsewhere
@@ -587,21 +764,43 @@ class MediaService
      * @param string $targetSetUuid Target set UUID
      * @return int Number of media items moved
      */
-    public function moveMediaToSet(array $mediaUuids, string $targetSetUuid): int
+    public function moveMediaToSet(array $mediaUuids, string $targetSetUuid, ?string $userId = null): int
     {
-        // Verify target set exists and belongs to user
+        $userId = $userId ?? Auth::id();
+        if (!$userId) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        // Verify target set exists and user owns the proofing
         $targetSet = MemoraMediaSet::query()
             ->where('uuid', $targetSetUuid)
-            ->where('user_uuid', Auth::user()->uuid)
             ->firstOrFail();
 
-        // Verify all media items exist and belong to user
-        $mediaItems = MemoraMedia::where('user_uuid', Auth::user()->uuid)
-            ->whereIn('uuid', $mediaUuids)
-            ->get();
+        $targetProofing = $targetSet->proofing;
+        if ($targetProofing && $targetProofing->user_uuid !== $userId) {
+            throw new \Exception('Unauthorized: You do not own the target proofing');
+        }
+
+        // Verify all media items exist and user owns the proofing that contains them
+        $mediaItems = MemoraMedia::whereIn('uuid', $mediaUuids)->get();
 
         if ($mediaItems->count() !== count($mediaUuids)) {
-            throw new \RuntimeException('One or more media items not found or access denied');
+            throw new \RuntimeException('One or more media items not found');
+        }
+
+        foreach ($mediaItems as $media) {
+            $mediaSet = $media->mediaSet;
+            if ($mediaSet) {
+                $proofing = $mediaSet->proofing;
+                if ($proofing && $proofing->user_uuid !== $userId) {
+                    throw new \Exception('Unauthorized: You do not own the proofing containing this media');
+                }
+            } else {
+                // Fallback: verify user owns the media directly
+                if ($media->user_uuid !== $userId) {
+                    throw new \Exception('Unauthorized: You do not own this media');
+                }
+            }
         }
 
         // Validate: Prevent moving to the same set
@@ -614,17 +813,19 @@ class MediaService
         $maxOrder = MemoraMedia::where('media_set_uuid', $targetSetUuid)
             ->max('order') ?? -1;
 
-        // Update media_set_uuid for each media item and set order
-        $movedCount = 0;
-        foreach ($mediaItems as $index => $media) {
-            $media->update([
-                'media_set_uuid' => $targetSetUuid,
-                'order' => $maxOrder + 1 + $index,
-            ]);
-            $movedCount++;
-        }
+        // Update media_set_uuid for each media item and set order in a transaction
+        return DB::transaction(function () use ($mediaItems, $targetSetUuid, $maxOrder) {
+            $movedCount = 0;
+            foreach ($mediaItems as $index => $media) {
+                $media->update([
+                    'media_set_uuid' => $targetSetUuid,
+                    'order' => $maxOrder + 1 + $index,
+                ]);
+                $movedCount++;
+            }
 
-        return $movedCount;
+            return $movedCount;
+        });
     }
 
     /**
@@ -635,22 +836,45 @@ class MediaService
      * @param string $targetSetUuid Target set UUID
      * @return array Array of newly created media items
      */
-    public function copyMediaToSet(array $mediaUuids, string $targetSetUuid): array
+    public function copyMediaToSet(array $mediaUuids, string $targetSetUuid, ?string $userId = null): array
     {
-        // Verify target set exists and belongs to user
+        $userId = $userId ?? Auth::id();
+        if (!$userId) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        // Verify target set exists and user owns the proofing
         $targetSet = MemoraMediaSet::query()
             ->where('uuid', $targetSetUuid)
-            ->where('user_uuid', Auth::user()->uuid)
             ->firstOrFail();
 
-        // Verify all media items exist and belong to user
-        $mediaItems = MemoraMedia::where('user_uuid', Auth::user()->uuid)
-            ->whereIn('uuid', $mediaUuids)
+        $targetProofing = $targetSet->proofing;
+        if ($targetProofing && $targetProofing->user_uuid !== $userId) {
+            throw new \Exception('Unauthorized: You do not own the target proofing');
+        }
+
+        // Verify all media items exist and user owns the proofing that contains them
+        $mediaItems = MemoraMedia::whereIn('uuid', $mediaUuids)
             ->with('file')
             ->get();
 
         if ($mediaItems->count() !== count($mediaUuids)) {
-            throw new \RuntimeException('One or more media items not found or access denied');
+            throw new \RuntimeException('One or more media items not found');
+        }
+
+        foreach ($mediaItems as $media) {
+            $mediaSet = $media->mediaSet;
+            if ($mediaSet) {
+                $proofing = $mediaSet->proofing;
+                if ($proofing && $proofing->user_uuid !== $userId) {
+                    throw new \Exception('Unauthorized: You do not own the proofing containing this media');
+                }
+            } else {
+                // Fallback: verify user owns the media directly
+                if ($media->user_uuid !== $userId) {
+                    throw new \Exception('Unauthorized: You do not own this media');
+                }
+            }
         }
 
         // Validate: Prevent copying to the same set (would create duplicates)
@@ -663,29 +887,32 @@ class MediaService
         $maxOrder = MemoraMedia::where('media_set_uuid', $targetSetUuid)
             ->max('order') ?? -1;
 
-        $copiedMedia = [];
-        foreach ($mediaItems as $index => $media) {
-            if (!$media->user_file_uuid) {
-                // Skip if media doesn't have a user_file_uuid
-                continue;
+        // Create all copied media items in a transaction
+        return DB::transaction(function () use ($mediaItems, $targetSetUuid, $maxOrder, $userId) {
+            $copiedMedia = [];
+            foreach ($mediaItems as $index => $media) {
+                if (!$media->user_file_uuid) {
+                    // Skip if media doesn't have a user_file_uuid
+                    continue;
+                }
+
+                // Create new media entry with same user_file_uuid
+                $newMedia = MemoraMedia::create([
+                    'user_uuid' => $userId,
+                    'media_set_uuid' => $targetSetUuid,
+                    'user_file_uuid' => $media->user_file_uuid,
+                    'order' => $maxOrder + 1 + $index,
+                    'is_selected' => false,
+                    'is_completed' => false,
+                ]);
+
+                // Load the file relationship
+                $newMedia->load('file');
+                $copiedMedia[] = $newMedia;
             }
 
-            // Create new media entry with same user_file_uuid
-            $newMedia = MemoraMedia::create([
-                'user_uuid' => Auth::user()->uuid,
-                'media_set_uuid' => $targetSetUuid,
-                'user_file_uuid' => $media->user_file_uuid,
-                'order' => $maxOrder + 1 + $index,
-                'is_selected' => false,
-                'is_completed' => false,
-            ]);
-
-            // Load the file relationship
-            $newMedia->load('file');
-            $copiedMedia[] = $newMedia;
-        }
-
-        return $copiedMedia;
+            return $copiedMedia;
+        });
     }
 
     /**
@@ -801,13 +1028,31 @@ class MediaService
      * @param string $newFilename New filename (extension will be preserved from original)
      * @return MemoraMedia Updated media with file relationship
      */
-    public function renameMedia(string $mediaUuid, string $newFilename): MemoraMedia
+    public function renameMedia(string $mediaUuid, string $newFilename, ?string $userId = null): MemoraMedia
     {
-        // Find media and verify ownership
+        $userId = $userId ?? Auth::id();
+        if (!$userId) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        // Find media
         $media = MemoraMedia::where('uuid', $mediaUuid)
-            ->where('user_uuid', Auth::user()->uuid)
             ->with('file')
             ->firstOrFail();
+
+        // Verify user owns the proofing that contains this media
+        $mediaSet = $media->mediaSet;
+        if ($mediaSet) {
+            $proofing = $mediaSet->proofing;
+            if ($proofing && $proofing->user_uuid !== $userId) {
+                throw new \Exception('Unauthorized: You do not own this proofing');
+            }
+        } else {
+            // Fallback: verify user owns the media directly
+            if ($media->user_uuid !== $userId) {
+                throw new \Exception('Unauthorized: You do not own this media');
+            }
+        }
 
         // Ensure file relationship exists
         if (!$media->file) {
@@ -844,17 +1089,34 @@ class MediaService
      * @param string $newUserFileUuid New UserFile UUID
      * @return MemoraMedia Updated media with file relationship
      */
-    public function replaceMedia(string $mediaUuid, string $newUserFileUuid): MemoraMedia
+    public function replaceMedia(string $mediaUuid, string $newUserFileUuid, ?string $userId = null): MemoraMedia
     {
-        // Find media and verify ownership
-        $media = MemoraMedia::where('uuid', $mediaUuid)
-            ->where('user_uuid', Auth::user()->uuid)
-            ->firstOrFail();
+        $userId = $userId ?? Auth::id();
+        if (!$userId) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        // Find media
+        $media = MemoraMedia::where('uuid', $mediaUuid)->firstOrFail();
+
+        // Verify user owns the proofing that contains this media
+        $mediaSet = $media->mediaSet;
+        if ($mediaSet) {
+            $proofing = $mediaSet->proofing;
+            if ($proofing && $proofing->user_uuid !== $userId) {
+                throw new \Exception('Unauthorized: You do not own this proofing');
+            }
+        } else {
+            // Fallback: verify user owns the media directly
+            if ($media->user_uuid !== $userId) {
+                throw new \Exception('Unauthorized: You do not own this media');
+            }
+        }
 
         // Verify the new UserFile exists and belongs to the authenticated user
         $newUserFile = \App\Models\UserFile::query()
             ->where('uuid', $newUserFileUuid)
-            ->where('user_uuid', Auth::user()->uuid)
+            ->where('user_uuid', $userId)
             ->firstOrFail();
 
         // Update the media to point to the new UserFile

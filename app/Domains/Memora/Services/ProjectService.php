@@ -6,6 +6,7 @@ use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraProject;
 use App\Services\Pagination\PaginationService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class ProjectService
 {
@@ -77,6 +78,11 @@ class ProjectService
      */
     public function find(string $id): MemoraProject
     {
+        $user = Auth::user();
+        if (!$user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
         $project = MemoraProject::with([
             'mediaSets',
             'starredByUsers',
@@ -106,6 +112,11 @@ class ProjectService
             'proofing',
             'collections'
         ])->findOrFail($id);
+
+        // Verify user owns the project
+        if ($project->user_uuid !== $user->uuid) {
+            throw new \Exception('Unauthorized: You do not own this project');
+        }
 
         // Map the subquery results to the expected attribute names for selections
         foreach ($project->selections as $selection) {
@@ -200,7 +211,17 @@ class ProjectService
      */
     public function update(string $id, array $data): MemoraProject
     {
+        $user = Auth::user();
+        if (!$user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
         $project = MemoraProject::findOrFail($id);
+
+        // Verify user owns the project
+        if ($project->user_uuid !== $user->uuid) {
+            throw new \Exception('Unauthorized: You do not own this project');
+        }
 
         $updateData = [];
         if (isset($data['name'])) $updateData['name'] = $data['name'];
@@ -247,7 +268,17 @@ class ProjectService
      */
     public function delete(string $id): bool
     {
+        $user = Auth::user();
+        if (!$user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
         $project = MemoraProject::findOrFail($id);
+
+        // Verify user owns the project
+        if ($project->user_uuid !== $user->uuid) {
+            throw new \Exception('Unauthorized: You do not own this project');
+        }
         
         // Use forceDelete to actually delete from database
         // This will trigger database cascade deletes for all foreign keys

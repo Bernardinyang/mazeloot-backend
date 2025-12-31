@@ -6,6 +6,7 @@ use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraSelection;
 use App\Services\Pagination\PaginationService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class MediaSetService
 {
@@ -20,7 +21,17 @@ class MediaSetService
      */
     public function create(string $selectionId, array $data): MemoraMediaSet
     {
+        $user = Auth::user();
+        if (!$user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
         $selection = MemoraSelection::findOrFail($selectionId);
+
+        // Verify user owns the selection
+        if ($selection->user_uuid !== $user->uuid) {
+            throw new \Exception('Unauthorized: You do not own this selection');
+        }
 
         // Get the maximum order for sets in this selection
         $maxOrder = MemoraMediaSet::where('selection_uuid', $selectionId)
@@ -128,14 +139,17 @@ class MediaSetService
             $set->load(['media.feedback.replies', 'media.file']);
         }
         
-        // Soft delete all media in this set
-        // Loop through each media item to ensure soft deletes work correctly
-        foreach ($set->media as $media) {
-            $media->delete();
-        }
-        
-        // Soft delete the set itself
-        return $set->delete();
+        // Soft delete all media in this set, then delete the set in a transaction
+        return DB::transaction(function () use ($set) {
+            // Soft delete all media in this set
+            // Loop through each media item to ensure soft deletes work correctly
+            foreach ($set->media as $media) {
+                $media->delete();
+            }
+            
+            // Soft delete the set itself
+            return $set->delete();
+        });
     }
 
     /**
@@ -143,9 +157,22 @@ class MediaSetService
      */
     public function find(string $selectionId, string $id): MemoraMediaSet
     {
-        return MemoraMediaSet::where('selection_uuid', $selectionId)
+        $user = Auth::user();
+        if (!$user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $set = MemoraMediaSet::where('selection_uuid', $selectionId)
             ->withCount('media')
             ->findOrFail($id);
+
+        // Verify user owns the selection
+        $selection = MemoraSelection::findOrFail($selectionId);
+        if ($selection->user_uuid !== $user->uuid) {
+            throw new \Exception('Unauthorized: You do not own this selection');
+        }
+
+        return $set;
     }
 
     /**
@@ -153,10 +180,23 @@ class MediaSetService
      */
     public function findByProofing(string $proofingId, string $id): MemoraMediaSet
     {
-        return MemoraMediaSet::where('proof_uuid', $proofingId)
+        $user = Auth::user();
+        if (!$user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $set = MemoraMediaSet::where('proof_uuid', $proofingId)
             ->where('uuid', $id)
             ->withCount('media')
             ->firstOrFail();
+
+        // Verify user owns the proofing
+        $proofing = \App\Domains\Memora\Models\MemoraProofing::findOrFail($proofingId);
+        if ($proofing->user_uuid !== $user->uuid) {
+            throw new \Exception('Unauthorized: You do not own this proofing');
+        }
+
+        return $set;
     }
 
     /**
@@ -164,13 +204,27 @@ class MediaSetService
      */
     public function reorder(string $selectionId, array $setUuids): bool
     {
-        foreach ($setUuids as $order => $setUuid) {
-            MemoraMediaSet::where('selection_uuid', $selectionId)
-                ->where('uuid', $setUuid)
-                ->update(['order' => $order]);
+        $user = Auth::user();
+        if (!$user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
-        return true;
+        // Verify user owns the selection
+        $selection = MemoraSelection::findOrFail($selectionId);
+        if ($selection->user_uuid !== $user->uuid) {
+            throw new \Exception('Unauthorized: You do not own this selection');
+        }
+
+        // Update all set orders in a transaction
+        return DB::transaction(function () use ($selectionId, $setUuids) {
+            foreach ($setUuids as $order => $setUuid) {
+                MemoraMediaSet::where('selection_uuid', $selectionId)
+                    ->where('uuid', $setUuid)
+                    ->update(['order' => $order]);
+            }
+
+            return true;
+        });
     }
 
     /**
@@ -213,7 +267,17 @@ class MediaSetService
      */
     public function createForProofing(string $proofingId, array $data): MemoraMediaSet
     {
+        $user = Auth::user();
+        if (!$user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
         $proofing = \App\Domains\Memora\Models\MemoraProofing::findOrFail($proofingId);
+
+        // Verify user owns the proofing
+        if ($proofing->user_uuid !== $user->uuid) {
+            throw new \Exception('Unauthorized: You do not own this proofing');
+        }
 
         // Get the maximum order for sets in this proofing
         $maxOrder = MemoraMediaSet::where('proof_uuid', $proofingId)
@@ -266,13 +330,16 @@ class MediaSetService
             $set->load(['media.feedback.replies', 'media.file']);
         }
         
-        // Soft delete all media in this set
-        foreach ($set->media as $media) {
-            $media->delete();
-        }
-        
-        // Soft delete the set itself
-        return $set->delete();
+        // Soft delete all media in this set, then delete the set in a transaction
+        return DB::transaction(function () use ($set) {
+            // Soft delete all media in this set
+            foreach ($set->media as $media) {
+                $media->delete();
+            }
+            
+            // Soft delete the set itself
+            return $set->delete();
+        });
     }
 
     /**
@@ -280,13 +347,27 @@ class MediaSetService
      */
     public function reorderForProofing(string $proofingId, array $setUuids): bool
     {
-        foreach ($setUuids as $order => $setUuid) {
-            MemoraMediaSet::where('proof_uuid', $proofingId)
-                ->where('uuid', $setUuid)
-                ->update(['order' => $order]);
+        $user = Auth::user();
+        if (!$user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
-        return true;
+        // Verify user owns the proofing
+        $proofing = \App\Domains\Memora\Models\MemoraProofing::findOrFail($proofingId);
+        if ($proofing->user_uuid !== $user->uuid) {
+            throw new \Exception('Unauthorized: You do not own this proofing');
+        }
+
+        // Update all set orders in a transaction
+        return DB::transaction(function () use ($proofingId, $setUuids) {
+            foreach ($setUuids as $order => $setUuid) {
+                MemoraMediaSet::where('proof_uuid', $proofingId)
+                    ->where('uuid', $setUuid)
+                    ->update(['order' => $order]);
+            }
+
+            return true;
+        });
     }
 }
 

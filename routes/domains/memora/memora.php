@@ -1,5 +1,7 @@
 <?php
 
+use App\Domains\Memora\Controllers\V1\ProofingApprovalRequestController;
+use App\Domains\Memora\Controllers\V1\ClosureRequestController;
 use App\Domains\Memora\Controllers\V1\CollectionController;
 use App\Domains\Memora\Controllers\V1\CoverLayoutController;
 use App\Domains\Memora\Controllers\V1\CoverStyleController;
@@ -29,6 +31,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/proofing/{id}/star', [ProofingController::class, 'toggleStarStandalone']);
     Route::post('/proofing/{id}/cover-photo', [ProofingController::class, 'setCoverPhotoStandalone']);
     Route::post('/proofing/{id}/recover', [ProofingController::class, 'recoverStandalone']);
+    Route::post('/proofing/{id}/revisions', [ProofingController::class, 'uploadRevisionStandalone']);
+
+    // Closure Requests
+    Route::post('/closure-requests', [ClosureRequestController::class, 'store']);
+    Route::get('/media/{mediaId}/closure-requests', [ClosureRequestController::class, 'getByMedia']);
+
+    // Approval Requests
+    Route::post('/approval-requests', [ProofingApprovalRequestController::class, 'store']);
+    Route::get('/media/{mediaId}/approval-requests', [ProofingApprovalRequestController::class, 'getByMedia']);
 
     // Media Sets within a standalone proofing
     Route::prefix('proofing/{proofingId}/sets')->group(function () {
@@ -119,6 +130,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::prefix('media')->group(function () {
         Route::get('/phase/{phaseType}/{phaseId}', [MediaController::class, 'getPhaseMedia']);
         Route::post('/move-between-phases', [MediaController::class, 'moveBetweenPhases']);
+        Route::get('/{id}/revisions', [MediaController::class, 'getRevisions']);
     });
 });
 

@@ -20,6 +20,7 @@ use Illuminate\Http\Response;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class MediaController extends Controller
@@ -43,7 +44,12 @@ class MediaController extends Controller
             'isCompleted' => ['required', 'boolean'],
         ]);
 
-        $media = $this->mediaService->markCompleted($id, $request->input('isCompleted'));
+        $userId = Auth::id();
+        if (!$userId) {
+            return ApiResponse::error('Unauthorized', 'UNAUTHORIZED', 401);
+        }
+
+        $media = $this->mediaService->markCompleted($id, $request->input('isCompleted'), $userId);
         return ApiResponse::success(new MediaResource($media));
     }
 
@@ -281,7 +287,18 @@ class MediaController extends Controller
      */
     public function deleteFromSet(string $selectionId, string $setUuid, string $mediaId): JsonResponse
     {
-        $deleted = $this->mediaService->delete($mediaId);
+        $userId = Auth::id();
+        if (!$userId) {
+            return ApiResponse::error('Unauthorized', 'UNAUTHORIZED', 401);
+        }
+
+        // Verify media belongs to set
+        $media = MemoraMedia::findOrFail($mediaId);
+        if ($media->media_set_uuid !== $setUuid) {
+            return ApiResponse::error('Media does not belong to this set', 'MEDIA_NOT_IN_SET', 403);
+        }
+
+        $deleted = $this->mediaService->delete($mediaId, $userId);
 
         if ($deleted) {
             return ApiResponse::success([
@@ -297,9 +314,20 @@ class MediaController extends Controller
      */
     public function rename(RenameMediaRequest $request, string $selectionId, string $setUuid, string $mediaId): JsonResponse
     {
+        $userId = Auth::id();
+        if (!$userId) {
+            return ApiResponse::error('Unauthorized', 'UNAUTHORIZED', 401);
+        }
+
+        // Verify media belongs to set
+        $media = MemoraMedia::findOrFail($mediaId);
+        if ($media->media_set_uuid !== $setUuid) {
+            return ApiResponse::error('Media does not belong to this set', 'MEDIA_NOT_IN_SET', 403);
+        }
+
         try {
             $validated = $request->validated();
-            $media = $this->mediaService->renameMedia($mediaId, $validated['filename']);
+            $media = $this->mediaService->renameMedia($mediaId, $validated['filename'], $userId);
             return ApiResponse::success(new MediaResource($media));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ApiResponse::error('Media not found', 'MEDIA_NOT_FOUND', 404);
@@ -321,9 +349,20 @@ class MediaController extends Controller
      */
     public function replace(ReplaceMediaRequest $request, string $selectionId, string $setUuid, string $mediaId): JsonResponse
     {
+        $userId = Auth::id();
+        if (!$userId) {
+            return ApiResponse::error('Unauthorized', 'UNAUTHORIZED', 401);
+        }
+
+        // Verify media belongs to set
+        $media = MemoraMedia::findOrFail($mediaId);
+        if ($media->media_set_uuid !== $setUuid) {
+            return ApiResponse::error('Media does not belong to this set', 'MEDIA_NOT_IN_SET', 403);
+        }
+
         try {
             $validated = $request->validated();
-            $media = $this->mediaService->replaceMedia($mediaId, $validated['user_file_uuid']);
+            $media = $this->mediaService->replaceMedia($mediaId, $validated['user_file_uuid'], $userId);
             return ApiResponse::success(new MediaResource($media));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ApiResponse::error('Media or file not found', 'NOT_FOUND', 404);
@@ -345,11 +384,17 @@ class MediaController extends Controller
      */
     public function moveToSet(MoveCopyMediaRequest $request, string $selectionId, string $setUuid): JsonResponse
     {
+        $userId = Auth::id();
+        if (!$userId) {
+            return ApiResponse::error('Unauthorized', 'UNAUTHORIZED', 401);
+        }
+
         try {
             $validated = $request->validated();
             $movedCount = $this->mediaService->moveMediaToSet(
                 $validated['media_uuids'],
-                $validated['target_set_uuid']
+                $validated['target_set_uuid'],
+                $userId
             );
 
             return ApiResponse::success([
@@ -375,11 +420,17 @@ class MediaController extends Controller
      */
     public function copyToSet(MoveCopyMediaRequest $request, string $selectionId, string $setUuid): JsonResponse
     {
+        $userId = Auth::id();
+        if (!$userId) {
+            return ApiResponse::error('Unauthorized', 'UNAUTHORIZED', 401);
+        }
+
         try {
             $validated = $request->validated();
             $copiedMedia = $this->mediaService->copyMediaToSet(
                 $validated['media_uuids'],
-                $validated['target_set_uuid']
+                $validated['target_set_uuid'],
+                $userId
             );
 
             return ApiResponse::success([

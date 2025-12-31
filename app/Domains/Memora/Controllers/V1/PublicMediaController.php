@@ -4,6 +4,7 @@ namespace App\Domains\Memora\Controllers\V1;
 
 use App\Domains\Memora\Models\MemoraProofing;
 use App\Domains\Memora\Models\MemoraSelection;
+use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Requests\V1\AddMediaFeedbackRequest;
 use App\Domains\Memora\Resources\V1\MediaFeedbackResource;
 use App\Domains\Memora\Resources\V1\MediaResource;
@@ -176,6 +177,13 @@ class PublicMediaController extends Controller
             return ApiResponse::error('Proofing is not accessible', 'PROOFING_NOT_ACCESSIBLE', 403);
         }
 
+        // Verify media belongs to this proofing
+        $media = MemoraMedia::findOrFail($mediaId);
+        $mediaSet = $media->mediaSet;
+        if (!$mediaSet || $mediaSet->proof_uuid !== $id) {
+            return ApiResponse::error('Media does not belong to this proofing', 'MEDIA_NOT_IN_PROOFING', 403);
+        }
+
         try {
             $feedback = $this->mediaService->addFeedback($mediaId, $request->validated());
             return ApiResponse::success(new MediaFeedbackResource($feedback), 201);
@@ -208,6 +216,19 @@ class PublicMediaController extends Controller
             'content' => ['required', 'string'],
         ]);
 
+        // Verify feedback belongs to media that belongs to this proofing
+        $feedback = \App\Domains\Memora\Models\MemoraMediaFeedback::findOrFail($feedbackId);
+        $media = $feedback->media;
+        $mediaSet = $media->mediaSet;
+        if (!$mediaSet || $mediaSet->proof_uuid !== $id) {
+            return ApiResponse::error('Feedback does not belong to this proofing', 'FEEDBACK_NOT_IN_PROOFING', 403);
+        }
+
+        // Verify media belongs to this proofing
+        if ($media->uuid !== $mediaId) {
+            return ApiResponse::error('Feedback does not belong to this media', 'FEEDBACK_NOT_IN_MEDIA', 403);
+        }
+
         try {
             $feedback = $this->mediaService->updateFeedback($feedbackId, $request->only('content'));
             return ApiResponse::success(new MediaFeedbackResource($feedback));
@@ -232,6 +253,19 @@ class PublicMediaController extends Controller
             return ApiResponse::error('Token does not match proofing', 'INVALID_TOKEN', 403);
         }
 
+        // Verify feedback belongs to media that belongs to this proofing
+        $feedback = \App\Domains\Memora\Models\MemoraMediaFeedback::findOrFail($feedbackId);
+        $media = $feedback->media;
+        $mediaSet = $media->mediaSet;
+        if (!$mediaSet || $mediaSet->proof_uuid !== $id) {
+            return ApiResponse::error('Feedback does not belong to this proofing', 'FEEDBACK_NOT_IN_PROOFING', 403);
+        }
+
+        // Verify media belongs to this proofing
+        if ($media->uuid !== $mediaId) {
+            return ApiResponse::error('Feedback does not belong to this media', 'FEEDBACK_NOT_IN_MEDIA', 403);
+        }
+
         try {
             $deleted = $this->mediaService->deleteFeedback($feedbackId);
             if ($deleted) {
@@ -244,6 +278,109 @@ class PublicMediaController extends Controller
                 'exception' => $e->getMessage(),
             ]);
             return ApiResponse::error($e->getMessage(), 'DELETE_FAILED', 400);
+        }
+    }
+
+    /**
+     * Approve media for proofing (protected by guest token)
+     * Marks media as completed/approved
+     */
+    public function approveProofingMedia(Request $request, string $id, string $mediaId): JsonResponse
+    {
+        $guestToken = $request->attributes->get('guest_token');
+
+        // Verify the token belongs to this proofing
+        if ($guestToken->proofing_uuid !== $id) {
+            return ApiResponse::error('Token does not match proofing', 'INVALID_TOKEN', 403);
+        }
+
+        // Verify proofing is active
+        $proofing = MemoraProofing::query()->where('uuid', $id)->firstOrFail();
+        if ($proofing->status->value !== 'active') {
+            return ApiResponse::error('Proofing is not active', 'PROOFING_NOT_ACTIVE', 403);
+        }
+
+        // Verify media belongs to this proofing
+        $media = MemoraMedia::findOrFail($mediaId);
+        $mediaSet = $media->mediaSet;
+        if (!$mediaSet || $mediaSet->proof_uuid !== $id) {
+            return ApiResponse::error('Media does not belong to this proofing', 'MEDIA_NOT_IN_PROOFING', 403);
+        }
+
+        // Block approval if media is already rejected
+        if ($media->is_rejected) {
+            return ApiResponse::error('Cannot approve rejected media', 'MEDIA_REJECTED', 403);
+        }
+
+        try {
+            // Mark media as completed/approved
+            $updatedMedia = $this->mediaService->markCompleted($mediaId, true);
+
+            Log::info('Media approved for proofing', [
+                'proofing_id' => $id,
+                'media_id' => $mediaId,
+                'guest_email' => $guestToken->email ?? null,
+            ]);
+
+            return ApiResponse::success(new MediaResource($updatedMedia));
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ApiResponse::error('Media not found', 'MEDIA_NOT_FOUND', 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to approve proofing media', [
+                'proofing_id' => $id,
+                'media_id' => $mediaId,
+                'exception' => $e->getMessage(),
+            ]);
+            return ApiResponse::error('Failed to approve media', 'APPROVE_FAILED', 500);
+        }
+    }
+
+    /**
+     * Get revisions for a media item (protected by guest token)
+     */
+    public function getRevisions(Request $request, string $mediaId): JsonResponse
+    {
+        $guestToken = $request->attributes->get('guest_token');
+
+        // Verify guest token exists
+        if (!$guestToken) {
+            return ApiResponse::error('Guest token is required', 'GUEST_TOKEN_MISSING', 401);
+        }
+
+        try {
+            $media = \App\Domains\Memora\Models\MemoraMedia::findOrFail($mediaId);
+            
+            // Verify media belongs to proofing associated with guest token
+            $mediaSet = $media->mediaSet;
+            if (!$mediaSet) {
+                return ApiResponse::error('Media does not belong to any set', 'INVALID_MEDIA', 404);
+            }
+
+            $proofing = $mediaSet->proofing;
+            if (!$proofing) {
+                return ApiResponse::error('Media set does not belong to any proofing', 'INVALID_MEDIA', 404);
+            }
+
+            // Verify token matches proofing
+            if ($proofing->uuid !== $guestToken->proofing_uuid) {
+                return ApiResponse::error('Media does not belong to this proofing', 'UNAUTHORIZED', 403);
+            }
+
+            // Allow access if proofing status is 'active' or 'completed'
+            if (!in_array($proofing->status->value, ['active', 'completed'])) {
+                return ApiResponse::error('Proofing is not accessible', 'PROOFING_NOT_ACCESSIBLE', 403);
+            }
+
+            $revisions = $this->mediaService->getRevisions($mediaId);
+            return ApiResponse::success($revisions);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ApiResponse::error('Media not found', 'MEDIA_NOT_FOUND', 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to get media revisions', [
+                'media_id' => $mediaId,
+                'exception' => $e->getMessage(),
+            ]);
+            return ApiResponse::error('Failed to get revisions', 'FETCH_FAILED', 500);
         }
     }
 }

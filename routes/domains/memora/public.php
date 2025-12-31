@@ -1,5 +1,7 @@
 <?php
 
+use App\Domains\Memora\Controllers\V1\ProofingApprovalRequestController;
+use App\Domains\Memora\Controllers\V1\ClosureRequestController;
 use App\Domains\Memora\Controllers\V1\GuestProofingController;
 use App\Domains\Memora\Controllers\V1\GuestSelectionController;
 use App\Domains\Memora\Controllers\V1\PublicMediaController;
@@ -69,6 +71,28 @@ Route::prefix('public/proofing')->group(function () {
         Route::post('/{id}/sets/{setId}/media/{mediaId}/feedback', [PublicMediaController::class, 'addProofingFeedback']);
         Route::patch('/{id}/sets/{setId}/media/{mediaId}/feedback/{feedbackId}', [PublicMediaController::class, 'updateProofingFeedback']);
         Route::delete('/{id}/sets/{setId}/media/{mediaId}/feedback/{feedbackId}', [PublicMediaController::class, 'deleteProofingFeedback']);
+        Route::post('/{id}/media/{mediaId}/approve', [PublicMediaController::class, 'approveProofingMedia']);
     });
+});
+
+// Public Closure Request Routes (no authentication required)
+Route::prefix('public/closure-requests')->group(function () {
+    Route::get('/{token}', [ClosureRequestController::class, 'showByToken']);
+    Route::post('/{token}/approve', [ClosureRequestController::class, 'approve']);
+    Route::post('/{token}/reject', [ClosureRequestController::class, 'reject']);
+});
+
+// Public Approval Request Routes (no authentication required)
+Route::prefix('public/approval-requests')->group(function () {
+    Route::get('/{token}', [ProofingApprovalRequestController::class, 'showByToken']);
+    Route::post('/{token}/approve', [ProofingApprovalRequestController::class, 'approve']);
+    Route::post('/{token}/reject', [ProofingApprovalRequestController::class, 'reject']);
+});
+
+// Public Media Closure Requests (guest token required)
+Route::prefix('public')->middleware(['guest.token'])->group(function () {
+    Route::get('/media/{mediaId}/closure-requests', [ClosureRequestController::class, 'getByMediaPublic']);
+    Route::get('/media/{mediaId}/approval-requests', [ProofingApprovalRequestController::class, 'getByMediaPublic']);
+    Route::get('/media/{mediaId}/revisions', [PublicMediaController::class, 'getRevisions']);
 });
 

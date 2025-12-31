@@ -254,8 +254,11 @@ class ProofingController extends Controller
     {
         $request->validate([
             'mediaId' => 'required|uuid',
-            'file' => 'required|file',
-            'revisionNumber' => 'required|integer',
+            'userFileUuid' => 'required|uuid',
+            'revisionNumber' => 'required|integer|min:1',
+            'description' => 'nullable|string|max:1000',
+            'completedTodos' => 'nullable|array',
+            'completedTodos.*' => 'integer',
         ]);
 
         $revision = $this->proofingService->uploadRevision(
@@ -263,10 +266,36 @@ class ProofingController extends Controller
             $id,
             $request->input('mediaId'),
             $request->input('revisionNumber'),
-            $request->file('file')
+            $request->input('description', ''),
+            $request->input('userFileUuid'),
+            $request->input('completedTodos', [])
         );
 
-        return ApiResponse::success($revision, 201);
+        return ApiResponse::success(new \App\Domains\Memora\Resources\V1\MediaResource($revision), 201);
+    }
+
+    public function uploadRevisionStandalone(Request $request, string $id): JsonResponse
+    {
+        $request->validate([
+            'mediaId' => 'required|uuid',
+            'userFileUuid' => 'required|uuid',
+            'revisionNumber' => 'required|integer|min:1',
+            'description' => 'nullable|string|max:1000',
+            'completedTodos' => 'nullable|array',
+            'completedTodos.*' => 'integer',
+        ]);
+
+        $revision = $this->proofingService->uploadRevision(
+            null,
+            $id,
+            $request->input('mediaId'),
+            $request->input('revisionNumber'),
+            $request->input('description', ''),
+            $request->input('userFileUuid'),
+            $request->input('completedTodos', [])
+        );
+
+        return ApiResponse::success(new \App\Domains\Memora\Resources\V1\MediaResource($revision), 201);
     }
 
     public function complete(string $projectId, string $id): JsonResponse

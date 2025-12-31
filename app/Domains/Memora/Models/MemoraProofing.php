@@ -55,6 +55,7 @@ class MemoraProofing extends Model
         'cover_photo_url',
         'cover_focal_point',
         'allowed_emails',
+        'primary_email',
         'password',
     ];
 

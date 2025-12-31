@@ -11,6 +11,7 @@ use App\Services\Pagination\PaginationService;
 use App\Services\Upload\UploadService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ProofingService
@@ -64,31 +65,101 @@ class ProofingService
 
     /**
      * Upload a revision
+     * Note: Revisions can only be uploaded if media is ready for revision (approved closure request).
      */
-    public function uploadRevision(string $projectId, string $id, string $mediaId, int $revisionNumber, $file): array
+    public function uploadRevision(?string $projectId, string $id, string $mediaId, int $revisionNumber, string $description, string $userFileUuid, array $completedTodos = []): MemoraMedia
     {
         $proofing = $this->find($projectId, $id);
-        $media = MemoraMedia::whereHas('mediaSet', function ($query) use ($id) {
+        $originalMedia = MemoraMedia::whereHas('mediaSet', function ($query) use ($id) {
             $query->where('proof_uuid', $id);
         })
             ->findOrFail($mediaId);
 
-        // Upload the revision file via upload service
-        $uploadResult = $this->uploadService->upload($file, [
-            'purpose' => 'proofing_revision',
-            'domain' => 'memora',
-        ]);
+        // Check if media is ready for revision
+        if (!$originalMedia->is_ready_for_revision) {
+            throw new \Exception('Media is not ready for revision. A closure request must be approved first.');
+        }
 
-        // Create revision record (assuming revisions table exists, or store in media)
-        // For now, return the upload result formatted as revision
-        return [
-            'id' => $uploadResult->path, // Use path as ID for now
-            'mediaId' => $mediaId,
-            'revisionNumber' => $revisionNumber,
-            'url' => $uploadResult->url,
-            'thumbnail' => $uploadResult->url, // Simplified
-            'createdAt' => now()->toIso8601String(),
-        ];
+        // Verify user_file_uuid exists and belongs to the authenticated user
+        $userFile = \App\Models\UserFile::query()
+            ->where('uuid', $userFileUuid)
+            ->where('user_uuid', Auth::user()->uuid)
+            ->firstOrFail();
+
+        // Get original media UUID (use original_media_uuid if exists, otherwise use media UUID)
+        $originalMediaUuid = $originalMedia->original_media_uuid ?? $originalMedia->uuid;
+
+        // Calculate revision number if not provided or validate it
+        $calculatedRevisionNumber = $revisionNumber;
+        if ($revisionNumber <= 0) {
+            // Calculate next revision number
+            $maxRevision = MemoraMedia::where(function($query) use ($originalMediaUuid) {
+                $query->where('original_media_uuid', $originalMediaUuid)
+                      ->orWhere('uuid', $originalMediaUuid);
+            })->max('revision_number') ?? 0;
+            $calculatedRevisionNumber = $maxRevision + 1;
+        }
+
+        // Check if revision limit is exceeded
+        $maxRevisions = $proofing->max_revisions ?? 5;
+        if ($calculatedRevisionNumber > $maxRevisions) {
+            throw new \Exception("Maximum revision limit ({$maxRevisions}) has been reached for this proofing. Cannot upload revision {$calculatedRevisionNumber}.");
+        }
+
+        // Get max order for the set
+        $maxOrder = MemoraMedia::where('media_set_uuid', $originalMedia->media_set_uuid)
+            ->max('order') ?? -1;
+
+        // Get approved closure request todos to map completed todos
+        $revisionTodos = [];
+        if (!empty($completedTodos)) {
+            $approvedClosureRequest = \App\Domains\Memora\Models\MemoraClosureRequest::where('media_uuid', $mediaId)
+                ->where('status', 'approved')
+                ->orderBy('approved_at', 'desc')
+                ->first();
+            
+            if ($approvedClosureRequest && !empty($approvedClosureRequest->todos)) {
+                foreach ($approvedClosureRequest->todos as $index => $todo) {
+                    $revisionTodos[] = [
+                        'text' => $todo['text'] ?? $todo,
+                        'completed' => in_array($index, $completedTodos),
+                    ];
+                }
+            }
+        }
+
+        // Create new media record for revision and mark older revisions as revised in a transaction
+        return DB::transaction(function () use ($originalMediaUuid, $calculatedRevisionNumber, $originalMedia, $userFile, $description, $revisionTodos, $maxOrder) {
+            // Create new media record for revision
+            $revisionMedia = MemoraMedia::create([
+                'user_uuid' => Auth::user()->uuid,
+                'media_set_uuid' => $originalMedia->media_set_uuid,
+                'user_file_uuid' => $userFile->uuid,
+                'original_media_uuid' => $originalMediaUuid,
+                'revision_number' => $calculatedRevisionNumber,
+                'revision_description' => $description,
+                'revision_todos' => $revisionTodos,
+                'order' => $maxOrder + 1,
+                'is_completed' => false,
+                'is_ready_for_revision' => false,
+                'is_revised' => false,
+            ]);
+
+            // Mark all older revisions (including original) as revised
+            MemoraMedia::where(function($query) use ($originalMediaUuid) {
+                $query->where('original_media_uuid', $originalMediaUuid)
+                      ->orWhere('uuid', $originalMediaUuid);
+            })
+            ->where('uuid', '!=', $revisionMedia->uuid)
+            ->update([
+                'is_revised' => true,
+                'is_ready_for_revision' => false,
+            ]);
+
+            $revisionMedia->load('file');
+
+            return $revisionMedia;
+        });
     }
 
     /**
@@ -174,6 +245,15 @@ class ProofingService
         
         $proofing = $query->firstOrFail();
 
+        Log::info('Proofing update received data', [
+            'proofing_id' => $id,
+            'received_data_keys' => array_keys($data),
+            'has_primaryEmail' => array_key_exists('primaryEmail', $data),
+            'has_primary_email' => array_key_exists('primary_email', $data),
+            'primaryEmail_value' => $data['primaryEmail'] ?? 'not set',
+            'primary_email_value' => $data['primary_email'] ?? 'not set',
+        ]);
+
         $updateData = [];
         if (isset($data['name'])) $updateData['name'] = $data['name'];
         if (array_key_exists('description', $data)) {
@@ -229,6 +309,85 @@ class ProofingService
             ]);
         }
 
+        // Handle primaryEmail (camelCase) or primary_email (snake_case)
+        if (array_key_exists('primaryEmail', $data) || array_key_exists('primary_email', $data)) {
+            $primaryEmail = $data['primaryEmail'] ?? $data['primary_email'] ?? null;
+            
+            // Treat empty string as null
+            if ($primaryEmail === '' || $primaryEmail === null) {
+                $primaryEmail = null;
+            }
+            
+            if ($primaryEmail !== null) {
+                // Normalize primary email
+                $primaryEmail = strtolower(trim($primaryEmail));
+                
+                // Validate email format
+                if (!filter_var($primaryEmail, FILTER_VALIDATE_EMAIL)) {
+                    throw new \Illuminate\Validation\ValidationException(
+                        validator([], []),
+                        ['primary_email' => ['The primary email must be a valid email address.']]
+                    );
+                }
+                
+                // Ensure primary email is in allowed_emails (normalize both for comparison)
+                $allowedEmails = $updateData['allowed_emails'] ?? $proofing->allowed_emails ?? [];
+                // Normalize allowed emails to lowercase for comparison
+                $normalizedAllowedEmails = array_map(function($email) {
+                    return strtolower(trim($email ?? ''));
+                }, $allowedEmails);
+                
+                if (!in_array($primaryEmail, $normalizedAllowedEmails)) {
+                    // If primary email is not in allowed emails, add it
+                    $allowedEmails[] = $primaryEmail;
+                    $allowedEmails = array_values(array_unique($allowedEmails));
+                    $updateData['allowed_emails'] = $allowedEmails;
+                    
+                    Log::info('Primary email added to allowed_emails', [
+                        'proofing_id' => $id,
+                        'primary_email' => $primaryEmail,
+                        'updated_allowed_emails' => $allowedEmails,
+                    ]);
+                }
+                
+                $updateData['primary_email'] = $primaryEmail;
+                
+                Log::info('Setting primary_email', [
+                    'proofing_id' => $id,
+                    'primary_email' => $primaryEmail,
+                    'allowed_emails' => $allowedEmails,
+                ]);
+            } else {
+                // If null is explicitly passed, remove primary email
+                $updateData['primary_email'] = null;
+                Log::info('Removing primary_email', [
+                    'proofing_id' => $id,
+                ]);
+            }
+        } else {
+            // If allowed_emails is being updated but primary_email is not provided,
+            // check if current primary_email is still in the new allowed_emails list
+            if (isset($updateData['allowed_emails'])) {
+                $currentPrimaryEmail = $proofing->primary_email;
+                if ($currentPrimaryEmail) {
+                    $normalizedCurrentPrimary = strtolower(trim($currentPrimaryEmail));
+                    $normalizedAllowedEmails = array_map(function($email) {
+                        return strtolower(trim($email ?? ''));
+                    }, $updateData['allowed_emails']);
+                    
+                    if (!in_array($normalizedCurrentPrimary, $normalizedAllowedEmails)) {
+                        // Current primary email is not in new allowed emails, remove it
+                        $updateData['primary_email'] = null;
+                        Log::info('Removing primary_email (not in allowed_emails)', [
+                            'proofing_id' => $id,
+                            'current_primary_email' => $currentPrimaryEmail,
+                            'allowed_emails' => $updateData['allowed_emails'],
+                        ]);
+                    }
+                }
+            }
+        }
+
         // Handle password update
         if (array_key_exists('password', $data)) {
             if (!empty($data['password'])) {
@@ -242,6 +401,8 @@ class ProofingService
             'proofing_id' => $id,
             'update_data' => $updateData,
             'has_allowed_emails' => isset($updateData['allowed_emails']),
+            'has_primary_email' => isset($updateData['primary_email']),
+            'primary_email_value' => $updateData['primary_email'] ?? 'not set',
         ]);
 
         $proofing->update($updateData);
@@ -251,6 +412,7 @@ class ProofingService
         Log::info('Proofing updated', [
             'proofing_id' => $id,
             'allowed_emails_after_save' => $updated->allowed_emails,
+            'primary_email_after_save' => $updated->primary_email,
         ]);
 
         return $updated;
@@ -514,23 +676,26 @@ class ProofingService
         // Get all media sets for this proofing
         $mediaSets = $proofing->mediaSets;
         
-        // Soft delete all media in all sets, then delete all sets
-        foreach ($mediaSets as $set) {
-            // Ensure media is loaded for this set
-            if (!$set->relationLoaded('media')) {
-                $set->load('media');
+        // Soft delete all media in all sets, then delete all sets, then delete proofing in a transaction
+        return DB::transaction(function () use ($mediaSets, $proofing) {
+            // Soft delete all media in all sets, then delete all sets
+            foreach ($mediaSets as $set) {
+                // Ensure media is loaded for this set
+                if (!$set->relationLoaded('media')) {
+                    $set->load('media');
+                }
+                
+                // Soft delete all media in this set
+                foreach ($set->media as $media) {
+                    $media->delete();
+                }
+                // Soft delete the set
+                $set->delete();
             }
             
-            // Soft delete all media in this set
-            foreach ($set->media as $media) {
-                $media->delete();
-            }
-            // Soft delete the set
-            $set->delete();
-        }
-        
-        // Soft delete the proofing itself
-        return $proofing->delete();
+            // Soft delete the proofing itself
+            return $proofing->delete();
+        });
     }
 
     /**
@@ -653,7 +818,6 @@ class ProofingService
         // First, find the media with its relationships
         $media = MemoraMedia::query()
             ->where('uuid', $mediaUuid)
-            ->where('user_uuid', $user->uuid)
             ->with(['file', 'mediaSet'])
             ->first();
         
@@ -673,6 +837,12 @@ class ProofingService
                 'media_set_uuid' => $media->media_set_uuid,
             ]);
             throw new \RuntimeException('Media does not have an associated set');
+        }
+
+        // Verify media belongs to this proofing
+        $mediaSet = $media->mediaSet;
+        if (!$mediaSet || $mediaSet->proof_uuid !== $proofingId) {
+            throw new \Exception('Media does not belong to this proofing');
         }
         
         // Load the mediaSet relationship if not loaded, including soft-deleted

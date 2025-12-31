@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class SelectionService
@@ -369,35 +370,38 @@ class SelectionService
 
         $selection = $query->firstOrFail();
 
-        // Mark the provided media as selected
-        MemoraMedia::query()->whereHas('mediaSet', function ($query) use ($id) {
-            $query->where('selection_uuid', $id);
-        })
-            ->whereIn('uuid', $mediaIds)
-            ->update([
-                'is_selected' => true,
-                'selected_at' => now(),
+        // Mark media as selected and update selection status in a transaction
+        return DB::transaction(function () use ($selection, $id, $mediaIds, $completedByEmail, $user) {
+            // Mark the provided media as selected
+            MemoraMedia::query()->whereHas('mediaSet', function ($query) use ($id) {
+                $query->where('selection_uuid', $id);
+            })
+                ->whereIn('uuid', $mediaIds)
+                ->update([
+                    'is_selected' => true,
+                    'selected_at' => now(),
+                ]);
+
+            $selection->update([
+                'status' => 'completed',
+                'selection_completed_at' => now(),
+                'completed_by_email' => $completedByEmail,
+                'auto_delete_date' => now()->addDays(30),
             ]);
 
-        $selection->update([
-            'status' => 'completed',
-            'selection_completed_at' => now(),
-            'completed_by_email' => $completedByEmail,
-            'auto_delete_date' => now()->addDays(30),
-        ]);
-
-        $selection->refresh();
-        $selection->load(['mediaSets' => function ($query) {
-            $query->withCount('media')->orderBy('order');
-        }]);
-        
-        if ($user) {
-            $selection->load(['starredByUsers' => function ($q) use ($user) {
-                $q->where('user_uuid', $user->uuid);
+            $selection->refresh();
+            $selection->load(['mediaSets' => function ($query) {
+                $query->withCount('media')->orderBy('order');
             }]);
-        }
+            
+            if ($user) {
+                $selection->load(['starredByUsers' => function ($q) use ($user) {
+                    $q->where('user_uuid', $user->uuid);
+                }]);
+            }
 
-        return new SelectionResource($selection);
+            return new SelectionResource($selection);
+        });
     }
 
     /**
@@ -646,23 +650,26 @@ class SelectionService
         // Get all media sets for this selection
         $mediaSets = $selection->mediaSets;
         
-        // Soft delete all media in all sets, then delete all sets
-        foreach ($mediaSets as $set) {
-            // Ensure media is loaded for this set
-            if (!$set->relationLoaded('media')) {
-                $set->load('media');
+        // Soft delete all media in all sets, then delete all sets, then delete selection in a transaction
+        return DB::transaction(function () use ($mediaSets, $selection) {
+            // Soft delete all media in all sets, then delete all sets
+            foreach ($mediaSets as $set) {
+                // Ensure media is loaded for this set
+                if (!$set->relationLoaded('media')) {
+                    $set->load('media');
+                }
+                
+                // Soft delete all media in this set
+                // Loop through each media item to ensure soft deletes work correctly
+                foreach ($set->media as $media) {
+                    $media->delete();
+                }
+                // Soft delete the set
+                $set->delete();
             }
             
-            // Soft delete all media in this set
-            // Loop through each media item to ensure soft deletes work correctly
-            foreach ($set->media as $media) {
-                $media->delete();
-            }
-            // Soft delete the set
-            $set->delete();
-        }
-        
-        // Soft delete the selection itself
-        return $selection->delete();
+            // Soft delete the selection itself
+            return $selection->delete();
+        });
     }
 }

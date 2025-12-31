@@ -27,6 +27,11 @@ class MediaResource extends JsonResource
             }, null),
             'isCompleted' => $this->is_completed,
             'completedAt' => $this->completed_at?->toIso8601String(),
+            'isRejected' => $this->is_rejected ?? false,
+            'rejectedAt' => $this->rejected_at?->toIso8601String(),
+            'isReadyForRevision' => $this->is_ready_for_revision,
+            'isRevised' => $this->is_revised ?? false,
+            'revisionTodos' => $this->revision_todos ?? [],
             'originalMediaId' => $this->original_media_uuid,
             'lowResCopyUrl' => $this->low_res_copy_url,
             'largeImageUrl' => $this->whenLoaded('file', function () {

@@ -20,6 +20,7 @@ class ProofingResource extends JsonResource
             'coverFocalPoint' => $this->cover_focal_point,
             'hasPassword' => !empty($this->getAttribute('password')),
             'allowedEmails' => $this->allowed_emails ?? [],
+            'primaryEmail' => $this->primary_email,
             'maxRevisions' => $this->max_revisions,
             'currentRevision' => $this->current_revision,
             'completedAt' => $this->completed_at?->toIso8601String(),
