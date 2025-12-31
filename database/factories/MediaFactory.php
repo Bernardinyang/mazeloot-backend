@@ -28,13 +28,7 @@ class MediaFactory extends Factory
             'is_completed' => false,
             'completed_at' => null,
             'original_media_uuid' => null,
-            'url' => fake()->imageUrl(),
-            'type' => 'image',
-            'filename' => fake()->word() . '.jpg',
-            'mime_type' => 'image/jpeg',
-            'size' => fake()->numberBetween(1000, 10000000),
-            'width' => fake()->numberBetween(100, 4000),
-            'height' => fake()->numberBetween(100, 4000),
+            'user_file_uuid' => \App\Models\UserFile::factory(),
             'order' => 0,
         ];
     }

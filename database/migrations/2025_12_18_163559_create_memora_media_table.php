@@ -36,15 +36,8 @@ return new class extends Migration {
             // Completion status
             $table->boolean('is_completed')->default(false); // Whether this media item is marked as completed
             $table->timestamp('completed_at')->nullable(); // Timestamp when media was marked as completed
-
-            // Media metadata (stored here for quick access, also available via user_file relationship)
-            $table->string('url')->nullable(); // Direct URL to media file
-            $table->string('type')->nullable(); // Media type (image/video)
-            $table->string('filename')->nullable(); // Original filename
-            $table->string('mime_type')->nullable(); // MIME type of the file
-            $table->unsignedBigInteger('size')->nullable(); // File size in bytes
-            $table->unsignedInteger('width')->nullable(); // Image/video width in pixels
-            $table->unsignedInteger('height')->nullable(); // Image/video height in pixels
+            $table->boolean('is_rejected')->default(false); // Whether this media item is rejected
+            $table->timestamp('rejected_at')->nullable(); // Timestamp when media was rejected
 
             // Ordering
             $table->integer('order')->default(0); // Display order within the media set

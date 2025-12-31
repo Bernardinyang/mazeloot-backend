@@ -573,7 +573,7 @@ class MediaController extends Controller
                         }
                         
                         // Get the filename for download
-                        $filename = $file->filename ?? $media->filename ?? 'download';
+                        $filename = $file->filename ?? 'download';
                         
                         // Ensure filename has proper extension
                         if (!pathinfo($filename, PATHINFO_EXTENSION)) {
@@ -660,7 +660,7 @@ class MediaController extends Controller
 
                 if ($foundDisk) {
                     // Get the filename for download
-                    $filename = $file->filename ?? $media->filename ?? 'download';
+                    $filename = $file->filename ?? 'download';
                     
                     // Ensure filename has proper extension
                     if (!pathinfo($filename, PATHINFO_EXTENSION)) {
@@ -737,7 +737,7 @@ class MediaController extends Controller
                     }
                     
                     // Get the filename for download
-                    $filename = $file->filename ?? $media->filename ?? 'download';
+                    $filename = $file->filename ?? 'download';
                     
                     // Ensure filename has proper extension
                     if (!pathinfo($filename, PATHINFO_EXTENSION)) {

@@ -53,18 +53,10 @@ class MemoraMedia extends Model
         'revision_todos',
         'original_media_uuid',
         'user_file_uuid',
-        'url',
-        'type',
-        'filename',
-        'mime_type',
-        'size',
-        'width',
-        'height',
         'order',
     ];
 
     protected $casts = [
-        'type' => MediaTypeEnum::class,
         'is_selected' => 'boolean',
         'selected_at' => 'datetime',
         'is_completed' => 'boolean',

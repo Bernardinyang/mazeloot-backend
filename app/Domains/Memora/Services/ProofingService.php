@@ -928,11 +928,6 @@ class ProofingService
             }
         }
         
-        // Fallback: check if media has a direct URL (for legacy media or if file relationship fails)
-        if (!$coverUrl) {
-            $coverUrl = $media->url ?? null;
-        }
-
         if (!$coverUrl) {
             $fileUrl = $media->file ? ($media->file->url ?? 'none') : 'no file relationship';
             Log::error('Failed to get cover URL for media', [
@@ -940,7 +935,6 @@ class ProofingService
                 'proofing_id' => $proofingId,
                 'has_file' => $media->file ? 'yes' : 'no',
                 'file_url' => $fileUrl,
-                'media_url' => $media->url ?? 'none',
                 'file_metadata' => $media->file ? ($media->file->metadata ?? 'none') : 'none',
             ]);
             throw new \RuntimeException('Media does not have a valid URL for cover photo');

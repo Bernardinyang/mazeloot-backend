@@ -64,14 +64,24 @@ class MediaResource extends JsonResource
                 
                 return $this->thumbnail_url ?? $file->url ?? null;
             }, $this->thumbnail_url),
-            'type' => $this->type?->value ?? $this->type,
+            'type' => $this->whenLoaded('file', function () {
+                return $this->file->type?->value ?? $this->file->type;
+            }, null),
             'filename' => $this->whenLoaded('file', function () {
-                return $this->file->filename ?? $this->filename;
-            }, $this->filename),
-            'mimeType' => $this->mime_type,
-            'size' => $this->size,
-            'width' => $this->width,
-            'height' => $this->height,
+                return $this->file->filename;
+            }, null),
+            'mimeType' => $this->whenLoaded('file', function () {
+                return $this->file->mime_type;
+            }, null),
+            'size' => $this->whenLoaded('file', function () {
+                return $this->file->size;
+            }, null),
+            'width' => $this->whenLoaded('file', function () {
+                return $this->file->width;
+            }, null),
+            'height' => $this->whenLoaded('file', function () {
+                return $this->file->height;
+            }, null),
             'order' => $this->order,
             'isStarred' => Auth::check() && $this->relationLoaded('starredByUsers') 
                 ? $this->starredByUsers->isNotEmpty() 

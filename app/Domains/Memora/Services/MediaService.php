@@ -138,7 +138,7 @@ class MediaService
             // 4. Update the media record with the low-res URL
 
             // Placeholder implementation
-            $lowResUrl = $media->url . '?lowres=true';
+            $lowResUrl = ($media->file->url ?? '') . '?lowres=true';
 
             $media->update([
                 'low_res_copy_url' => $lowResUrl,
@@ -1130,37 +1130,4 @@ class MediaService
         return $media;
     }
 
-    /**
-     * Create media from upload URL (domains never handle files directly)
-     */
-    public function createFromUploadUrl(array $data, string $uploadUrl): MemoraMedia
-    {
-        $media = MemoraMedia::create([
-            'project_id' => $data['projectId'],
-            'phase' => $data['phase'] ?? null,
-            'phase_id' => $data['phaseId'] ?? null,
-            'collection_id' => $data['collectionId'] ?? null,
-            'set_id' => $data['setId'] ?? null,
-            'url' => $uploadUrl,
-            'thumbnail' => $data['thumbnail'] ?? null,
-            'type' => $data['type'] ?? 'image',
-            'filename' => $data['filename'],
-            'mime_type' => $data['mimeType'] ?? 'image/jpeg',
-            'size' => $data['size'] ?? 0,
-            'width' => $data['width'] ?? null,
-            'height' => $data['height'] ?? null,
-            'order' => $data['order'] ?? 0,
-        ]);
-
-        // Queue image processing (thumbnails, low-res copies, etc.) for images
-        if (($data['type'] ?? 'image') === 'image') {
-            \App\Domains\Memora\Jobs\ProcessImageJob::dispatch($media->uuid, [
-                'generateThumbnail' => !$data['thumbnail'], // Only if thumbnail not already provided
-                'generateLowRes' => true,
-                'extractExif' => true,
-            ]);
-        }
-
-        return $media;
-    }
 }
