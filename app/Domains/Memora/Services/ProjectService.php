@@ -278,7 +278,7 @@ class ProjectService
                 if (isset($data['selectionSettings']['selectionLimit'])) {
                     $updateData['selectionLimit'] = $data['selectionSettings']['selectionLimit'];
                 }
-                if (!empty($updateData)) {
+                if (! empty($updateData)) {
                     $selectionService->update($selection->uuid, $updateData);
                 }
             }
@@ -298,7 +298,7 @@ class ProjectService
                 if (isset($data['proofingSettings']['maxRevisions'])) {
                     $updateData['maxRevisions'] = $data['proofingSettings']['maxRevisions'];
                 }
-                if (!empty($updateData)) {
+                if (! empty($updateData)) {
                     $proofingService->update($project->uuid, $proofing->uuid, $updateData);
                 }
             }

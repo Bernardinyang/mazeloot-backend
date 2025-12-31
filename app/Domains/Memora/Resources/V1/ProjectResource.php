@@ -3,7 +3,6 @@
 namespace App\Domains\Memora\Resources\V1;
 
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Auth;
 
 class ProjectResource extends JsonResource
 {
@@ -48,8 +47,10 @@ class ProjectResource extends JsonResource
             }
             // If not loaded or empty, try to load it manually
             $selection = $this->selections()->first();
+
             return $selection ? new SelectionResource($selection) : null;
         }
+
         return null;
     }
 
@@ -66,8 +67,10 @@ class ProjectResource extends JsonResource
             }
             // If not loaded or empty, try to load it manually
             $proofing = $this->proofing()->first();
+
             return $proofing ? new ProofingResource($proofing) : null;
         }
+
         return null;
     }
 
@@ -84,8 +87,10 @@ class ProjectResource extends JsonResource
             }
             // If not loaded or empty, try to load it manually
             $collection = $this->collections()->first();
+
             return $collection ? new CollectionResource($collection) : null;
         }
+
         return null;
     }
 }
