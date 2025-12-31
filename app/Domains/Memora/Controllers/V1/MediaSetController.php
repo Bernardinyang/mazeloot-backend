@@ -92,59 +92,76 @@ class MediaSetController extends Controller
 
     /**
      * Get all media sets for a proofing with optional pagination parameters
+     * Unified route: /proofing/{proofingId}/sets
+     * For project-based: pass ?projectId=xxx as query parameter
      */
     public function indexForProofing(Request $request, string $proofingId): JsonResponse
     {
+        $projectId = $request->query('projectId');
         $page = max(1, (int) $request->query('page', 1));
         $perPage = max(1, min(100, (int) $request->query('per_page', 10)));
 
-        $result = $this->mediaSetService->getByProofing($proofingId, $page, $perPage);
+        $result = $this->mediaSetService->getByProofing($proofingId, $page, $perPage, $projectId);
 
         return ApiResponse::success($result);
     }
 
     /**
      * Get a single media set for proofing
+     * Unified route: /proofing/{proofingId}/sets/{id}
+     * For project-based: pass ?projectId=xxx as query parameter
      */
-    public function showForProofing(string $proofingId, string $id): JsonResponse
+    public function showForProofing(Request $request, string $proofingId, string $id): JsonResponse
     {
-        $set = $this->mediaSetService->findByProofing($proofingId, $id);
+        $projectId = $request->query('projectId');
+        $set = $this->mediaSetService->findByProofing($proofingId, $id, $projectId);
 
         return ApiResponse::success(new MediaSetResource($set));
     }
 
     /**
      * Create a media set for proofing
+     * Unified route: /proofing/{proofingId}/sets
+     * For project-based: pass ?projectId=xxx as query parameter
      */
     public function storeForProofing(StoreMediaSetRequest $request, string $proofingId): JsonResponse
     {
-        $set = $this->mediaSetService->createForProofing($proofingId, $request->validated());
+        $projectId = $request->query('projectId');
+        $set = $this->mediaSetService->createForProofing($proofingId, $request->validated(), $projectId);
 
         return ApiResponse::success(new MediaSetResource($set), 201);
     }
 
     /**
      * Update a media set for proofing
+     * Unified route: /proofing/{proofingId}/sets/{id}
+     * For project-based: pass ?projectId=xxx as query parameter
      */
     public function updateForProofing(UpdateMediaSetRequest $request, string $proofingId, string $id): JsonResponse
     {
-        $set = $this->mediaSetService->updateForProofing($proofingId, $id, $request->validated());
+        $projectId = $request->query('projectId');
+        $set = $this->mediaSetService->updateForProofing($proofingId, $id, $request->validated(), $projectId);
 
         return ApiResponse::success(new MediaSetResource($set));
     }
 
     /**
      * Delete a media set for proofing
+     * Unified route: /proofing/{proofingId}/sets/{id}
+     * For project-based: pass ?projectId=xxx as query parameter
      */
-    public function destroyForProofing(string $proofingId, string $id): JsonResponse
+    public function destroyForProofing(Request $request, string $proofingId, string $id): JsonResponse
     {
-        $this->mediaSetService->deleteForProofing($proofingId, $id);
+        $projectId = $request->query('projectId');
+        $this->mediaSetService->deleteForProofing($proofingId, $id, $projectId);
 
         return ApiResponse::success(null, 204);
     }
 
     /**
      * Reorder media sets for proofing
+     * Unified route: /proofing/{proofingId}/sets/reorder
+     * For project-based: pass ?projectId=xxx as query parameter
      */
     public function reorderForProofing(Request $request, string $proofingId): JsonResponse
     {
@@ -153,7 +170,8 @@ class MediaSetController extends Controller
             'setIds.*' => 'uuid',
         ]);
 
-        $this->mediaSetService->reorderForProofing($proofingId, $request->input('setIds'));
+        $projectId = $request->query('projectId');
+        $this->mediaSetService->reorderForProofing($proofingId, $request->input('setIds'), $projectId);
 
         return ApiResponse::success(['message' => 'Sets reordered successfully']);
     }

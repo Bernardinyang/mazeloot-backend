@@ -38,6 +38,7 @@ class SelectionResource extends JsonResource
             'updatedAt' => $this->updated_at->toIso8601String(),
             'mediaCount' => $this->media_count ?? 0,
             'selectedCount' => $this->selected_count ?? 0,
+            'setCount' => $this->set_count ?? ($this->relationLoaded('mediaSets') ? $this->mediaSets->count() : 0),
             'isStarred' => Auth::check() && $this->relationLoaded('starredByUsers')
                 ? $this->starredByUsers->isNotEmpty()
                 : false,

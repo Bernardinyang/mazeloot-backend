@@ -21,18 +21,20 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::middleware(['auth:sanctum'])->group(function () {
-    // Proofing (standalone routes)
+    // Proofing (unified routes - works for both standalone and project-based)
+    // For project-based: pass ?projectId=xxx as query parameter
     Route::get('/proofing', [ProofingController::class, 'index']);
-    Route::post('/proofing', [ProofingController::class, 'storeStandalone']);
-    Route::get('/proofing/{id}', [ProofingController::class, 'showStandalone']);
-    Route::patch('/proofing/{id}', [ProofingController::class, 'updateStandalone']);
-    Route::delete('/proofing/{id}', [ProofingController::class, 'destroyStandalone']);
-    Route::post('/proofing/{id}/publish', [ProofingController::class, 'publishStandalone']);
-    Route::post('/proofing/{id}/star', [ProofingController::class, 'toggleStarStandalone']);
-    Route::post('/proofing/{id}/cover-photo', [ProofingController::class, 'setCoverPhotoStandalone']);
-    Route::post('/proofing/{id}/recover', [ProofingController::class, 'recoverStandalone']);
-    Route::post('/proofing/{id}/revisions', [ProofingController::class, 'uploadRevisionStandalone']);
-    Route::post('/proofing/{id}/complete', [ProofingController::class, 'completeStandalone']);
+    Route::post('/proofing', [ProofingController::class, 'store']);
+    Route::get('/proofing/{id}', [ProofingController::class, 'show']);
+    Route::patch('/proofing/{id}', [ProofingController::class, 'update']);
+    Route::delete('/proofing/{id}', [ProofingController::class, 'destroy']);
+    Route::post('/proofing/{id}/publish', [ProofingController::class, 'publish']);
+    Route::post('/proofing/{id}/star', [ProofingController::class, 'toggleStar']);
+    Route::post('/proofing/{id}/cover-photo', [ProofingController::class, 'setCoverPhoto']);
+    Route::post('/proofing/{id}/recover', [ProofingController::class, 'recover']);
+    Route::post('/proofing/{id}/revisions', [ProofingController::class, 'uploadRevision']);
+    Route::post('/proofing/{id}/complete', [ProofingController::class, 'complete']);
+    Route::post('/proofing/{id}/move-to-collection', [ProofingController::class, 'moveToCollection']);
 
     // Closure Requests
     Route::post('/closure-requests', [ClosureRequestController::class, 'store']);
@@ -42,7 +44,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/approval-requests', [ProofingApprovalRequestController::class, 'store']);
     Route::get('/media/{mediaId}/approval-requests', [ProofingApprovalRequestController::class, 'getByMedia']);
 
-    // Media Sets within a standalone proofing
+    // Media Sets within proofing (unified - works for both standalone and project-based)
+    // For project-based: pass ?projectId=xxx as query parameter
     Route::prefix('proofing/{proofingId}/sets')->group(function () {
         Route::get('/', [MediaSetController::class, 'indexForProofing']);
         Route::post('/', [MediaSetController::class, 'storeForProofing']);
@@ -76,56 +79,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::delete('/{id}', [ProjectController::class, 'destroy']);
         Route::post('/{id}/star', [ProjectController::class, 'toggleStar']);
         Route::get('/{id}/phases', [ProjectController::class, 'phases']);
-
-        // MemoraProofing
-        Route::prefix('{projectId}/proofing')->group(function () {
-            Route::post('/', [ProofingController::class, 'store']);
-            Route::get('/{id}', [ProofingController::class, 'show']);
-            Route::patch('/{id}', [ProofingController::class, 'update']);
-            Route::delete('/{id}', [ProofingController::class, 'destroy']);
-            Route::post('/{id}/publish', [ProofingController::class, 'publish']);
-            Route::post('/{id}/star', [ProofingController::class, 'toggleStar']);
-            Route::post('/{id}/cover-photo', [ProofingController::class, 'setCoverPhoto']);
-            Route::post('/{id}/recover', [ProofingController::class, 'recover']);
-            Route::post('/{id}/revisions', [ProofingController::class, 'uploadRevision']);
-            Route::post('/{id}/complete', [ProofingController::class, 'complete']);
-            Route::post('/{id}/move-to-collection', [ProofingController::class, 'moveToCollection']);
-
-            // Media Sets within a project-based proofing
-            Route::prefix('{proofingId}/sets')->group(function () {
-                Route::get('/', [MediaSetController::class, 'indexForProofing']);
-                Route::post('/', [MediaSetController::class, 'storeForProofing']);
-                Route::get('/{id}', [MediaSetController::class, 'showForProofing']);
-                Route::patch('/{id}', [MediaSetController::class, 'updateForProofing']);
-                Route::delete('/{id}', [MediaSetController::class, 'destroyForProofing']);
-                Route::post('/reorder', [MediaSetController::class, 'reorderForProofing']);
-
-                // Media within a set
-                Route::prefix('{setId}/media')->group(function () {
-                    Route::get('/', [MediaController::class, 'getSetMedia']);
-                    Route::post('/', [MediaController::class, 'uploadToSet']);
-                    Route::post('/move', [MediaController::class, 'moveToSet']);
-                    Route::post('/copy', [MediaController::class, 'copyToSet']);
-                    Route::patch('/{mediaId}/rename', [MediaController::class, 'rename']);
-                    Route::patch('/{mediaId}/replace', [MediaController::class, 'replace']);
-                    Route::post('/{mediaId}/star', [MediaController::class, 'toggleStar']);
-                    Route::delete('/{mediaId}', [MediaController::class, 'deleteFromSet']);
-                    Route::post('/{mediaId}/feedback', [MediaController::class, 'addFeedback']);
-                    Route::patch('/{mediaId}/feedback/{feedbackId}', [MediaController::class, 'updateFeedback']);
-                    Route::delete('/{mediaId}/feedback/{feedbackId}', [MediaController::class, 'deleteFeedback']);
-                });
-            });
-        });
-
-        // Collections
-        Route::prefix('{projectId}/collections')->group(function () {
-            Route::get('/', [CollectionController::class, 'index']);
-            Route::post('/', [CollectionController::class, 'store']);
-            Route::get('/{id}', [CollectionController::class, 'show']);
-            Route::patch('/{id}', [CollectionController::class, 'update']);
-            Route::delete('/{id}', [CollectionController::class, 'destroy']);
-        });
     });
+
+    // Collections (unified routes - works for both standalone and project-based)
+    // For project-based: pass ?projectId=xxx as query parameter
+    Route::get('/collections', [CollectionController::class, 'index']);
+    Route::post('/collections', [CollectionController::class, 'store']);
+    Route::get('/collections/{id}', [CollectionController::class, 'show']);
+    Route::patch('/collections/{id}', [CollectionController::class, 'update']);
+    Route::delete('/collections/{id}', [CollectionController::class, 'destroy']);
 
     // MemoraMedia - General operations (not set-specific)
     Route::prefix('media')->group(function () {

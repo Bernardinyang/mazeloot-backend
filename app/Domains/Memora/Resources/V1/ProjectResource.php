@@ -3,6 +3,7 @@
 namespace App\Domains\Memora\Resources\V1;
 
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Auth;
 
 class ProjectResource extends JsonResource
 {
@@ -26,6 +27,9 @@ class ProjectResource extends JsonResource
             'hasSelections' => $this->has_selections,
             'hasProofing' => $this->has_proofing,
             'hasCollections' => $this->has_collections,
+            'isStarred' => Auth::check() && $this->relationLoaded('starredByUsers')
+                ? $this->starredByUsers->isNotEmpty()
+                : false,
             'selection' => $this->getSelection(),
             'proofing' => $this->getProofing(),
             'collection' => $this->getCollection(),
@@ -39,16 +43,22 @@ class ProjectResource extends JsonResource
      */
     private function getSelection()
     {
-        // Always try to get selection if has_selections is true
-        if ($this->has_selections) {
-            // Check if relationship is loaded
-            if ($this->relationLoaded('selections') && $this->selections->isNotEmpty()) {
-                return new SelectionResource($this->selections->first());
-            }
-            // If not loaded or empty, try to load it manually
-            $selection = $this->selections()->first();
+        if (!$this->has_selections) {
+            return null;
+        }
 
-            return $selection ? new SelectionResource($selection) : null;
+        try {
+            if ($this->relationLoaded('selection')) {
+                $selection = $this->getRelation('selection');
+            } else {
+                $selection = $this->selection;
+            }
+            
+            if ($selection) {
+                return new SelectionResource($selection);
+            }
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            // Selection record doesn't exist, return null
         }
 
         return null;
@@ -59,16 +69,22 @@ class ProjectResource extends JsonResource
      */
     private function getProofing()
     {
-        // Always try to get proofing if has_proofing is true
-        if ($this->has_proofing) {
-            // Check if relationship is loaded
-            if ($this->relationLoaded('proofing') && $this->proofing->isNotEmpty()) {
-                return new ProofingResource($this->proofing->first());
-            }
-            // If not loaded or empty, try to load it manually
-            $proofing = $this->proofing()->first();
+        if (!$this->has_proofing) {
+            return null;
+        }
 
-            return $proofing ? new ProofingResource($proofing) : null;
+        try {
+            if ($this->relationLoaded('proofing')) {
+                $proofing = $this->getRelation('proofing');
+            } else {
+                $proofing = $this->proofing;
+            }
+            
+            if ($proofing) {
+                return new ProofingResource($proofing);
+            }
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            // Proofing record doesn't exist, return null
         }
 
         return null;
@@ -79,16 +95,22 @@ class ProjectResource extends JsonResource
      */
     private function getCollection()
     {
-        // Always try to get collection if has_collections is true
-        if ($this->has_collections) {
-            // Check if relationship is loaded
-            if ($this->relationLoaded('collections') && $this->collections->isNotEmpty()) {
-                return new CollectionResource($this->collections->first());
-            }
-            // If not loaded or empty, try to load it manually
-            $collection = $this->collections()->first();
+        if (!$this->has_collections) {
+            return null;
+        }
 
-            return $collection ? new CollectionResource($collection) : null;
+        try {
+            if ($this->relationLoaded('collection')) {
+                $collection = $this->getRelation('collection');
+            } else {
+                $collection = $this->collection;
+            }
+            
+            if ($collection) {
+                return new CollectionResource($collection);
+            }
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            // Collection record doesn't exist, return null
         }
 
         return null;

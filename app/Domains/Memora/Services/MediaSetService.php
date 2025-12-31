@@ -3,6 +3,7 @@
 namespace App\Domains\Memora\Services;
 
 use App\Domains\Memora\Models\MemoraMediaSet;
+use App\Domains\Memora\Models\MemoraProofing;
 use App\Domains\Memora\Models\MemoraSelection;
 use App\Services\Pagination\PaginationService;
 use Illuminate\Support\Facades\Auth;
@@ -32,6 +33,11 @@ class MediaSetService
         // Verify user owns the selection
         if ($selection->user_uuid !== $user->uuid) {
             throw new \Exception('Unauthorized: You do not own this selection');
+        }
+
+        // Check if selection is completed
+        if ($selection->status->value === 'completed') {
+            throw new \RuntimeException('Cannot create sets for a completed selection');
         }
 
         // Get the maximum order for sets in this selection
@@ -97,10 +103,27 @@ class MediaSetService
      *
      * @return array Paginated response with data and pagination metadata
      */
-    public function getByProofing(string $proofingId, ?int $page = null, ?int $perPage = null)
+    public function getByProofing(string $proofingId, ?int $page = null, ?int $perPage = null, ?string $projectId = null)
     {
+        $user = Auth::user();
+        if (! $user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        // Verify user owns the proofing
+        $proofingQuery = \App\Domains\Memora\Models\MemoraProofing::where('uuid', $proofingId)
+            ->where('user_uuid', $user->uuid);
+        
+        if ($projectId !== null) {
+            $proofingQuery->where('project_uuid', $projectId);
+        }
+        
+        $proofingQuery->firstOrFail();
+
         $query = MemoraMediaSet::where('proof_uuid', $proofingId)
-            ->withCount('media')
+            ->withCount(['media' => function ($query) {
+                $query->whereNull('deleted_at');
+            }])
             ->orderBy('order');
 
         // Paginate the query
@@ -173,7 +196,7 @@ class MediaSetService
     /**
      * Find a media set by proofing ID and set ID
      */
-    public function findByProofing(string $proofingId, string $id): MemoraMediaSet
+    public function findByProofing(string $proofingId, string $id, ?string $projectId = null): MemoraMediaSet
     {
         $user = Auth::user();
         if (! $user) {
@@ -186,10 +209,14 @@ class MediaSetService
             ->firstOrFail();
 
         // Verify user owns the proofing
-        $proofing = \App\Domains\Memora\Models\MemoraProofing::findOrFail($proofingId);
-        if ($proofing->user_uuid !== $user->uuid) {
-            throw new \Exception('Unauthorized: You do not own this proofing');
+        $query = \App\Domains\Memora\Models\MemoraProofing::where('uuid', $proofingId)
+            ->where('user_uuid', $user->uuid);
+        
+        if ($projectId !== null) {
+            $query->where('project_uuid', $projectId);
         }
+        
+        $proofing = $query->firstOrFail();
 
         return $set;
     }
@@ -260,18 +287,25 @@ class MediaSetService
     /**
      * Create a media set in a proofing
      */
-    public function createForProofing(string $proofingId, array $data): MemoraMediaSet
+    public function createForProofing(string $proofingId, array $data, ?string $projectId = null): MemoraMediaSet
     {
         $user = Auth::user();
         if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
-        $proofing = \App\Domains\Memora\Models\MemoraProofing::findOrFail($proofingId);
+        $query = \App\Domains\Memora\Models\MemoraProofing::where('uuid', $proofingId)
+            ->where('user_uuid', $user->uuid);
+        
+        if ($projectId !== null) {
+            $query->where('project_uuid', $projectId);
+        }
+        
+        $proofing = $query->firstOrFail();
 
-        // Verify user owns the proofing
-        if ($proofing->user_uuid !== $user->uuid) {
-            throw new \Exception('Unauthorized: You do not own this proofing');
+        // Check if proofing is completed
+        if ($proofing->status->value === 'completed') {
+            throw new \RuntimeException('Cannot create sets for a completed proofing');
         }
 
         // Get the maximum order for sets in this proofing
@@ -293,9 +327,9 @@ class MediaSetService
     /**
      * Update a media set for proofing
      */
-    public function updateForProofing(string $proofingId, string $id, array $data): MemoraMediaSet
+    public function updateForProofing(string $proofingId, string $id, array $data, ?string $projectId = null): MemoraMediaSet
     {
-        $set = $this->findByProofing($proofingId, $id);
+        $set = $this->findByProofing($proofingId, $id, $projectId);
 
         $updateData = [];
         if (isset($data['name'])) {
@@ -316,9 +350,9 @@ class MediaSetService
     /**
      * Delete a media set for proofing and all media in it
      */
-    public function deleteForProofing(string $proofingId, string $id): bool
+    public function deleteForProofing(string $proofingId, string $id, ?string $projectId = null): bool
     {
-        $set = $this->findByProofing($proofingId, $id);
+        $set = $this->findByProofing($proofingId, $id, $projectId);
 
         // Load media relationship if not already loaded
         if (! $set->relationLoaded('media')) {
@@ -340,7 +374,7 @@ class MediaSetService
     /**
      * Reorder media sets for proofing
      */
-    public function reorderForProofing(string $proofingId, array $setUuids): bool
+    public function reorderForProofing(string $proofingId, array $setUuids, ?string $projectId = null): bool
     {
         $user = Auth::user();
         if (! $user) {
@@ -348,10 +382,14 @@ class MediaSetService
         }
 
         // Verify user owns the proofing
-        $proofing = \App\Domains\Memora\Models\MemoraProofing::findOrFail($proofingId);
-        if ($proofing->user_uuid !== $user->uuid) {
-            throw new \Exception('Unauthorized: You do not own this proofing');
+        $query = \App\Domains\Memora\Models\MemoraProofing::where('uuid', $proofingId)
+            ->where('user_uuid', $user->uuid);
+        
+        if ($projectId !== null) {
+            $query->where('project_uuid', $projectId);
         }
+        
+        $proofing = $query->firstOrFail();
 
         // Update all set orders in a transaction
         return DB::transaction(function () use ($proofingId, $setUuids) {

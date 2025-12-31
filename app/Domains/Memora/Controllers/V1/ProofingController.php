@@ -46,43 +46,25 @@ class ProofingController extends Controller
     }
 
     /**
-     * Show standalone proofing (not tied to a project)
+     * Show proofing (unified for standalone and project-based)
+     * For project-based: pass ?projectId=xxx as query parameter
      */
-    public function showStandalone(string $id): JsonResponse
+    public function show(Request $request, string $id): JsonResponse
     {
-        $proofing = $this->proofingService->find(null, $id);
-
-        return ApiResponse::success(new ProofingResource($proofing));
-    }
-
-    /**
-     * Show project-based proofing
-     */
-    public function show(string $projectId, string $id): JsonResponse
-    {
+        $projectId = $request->query('projectId');
         $proofing = $this->proofingService->find($projectId, $id);
 
         return ApiResponse::success(new ProofingResource($proofing));
     }
 
     /**
-     * Create a standalone proofing (not tied to a project)
+     * Create proofing (unified for standalone and project-based)
+     * For project-based: pass projectId in request body or ?projectId=xxx as query parameter
      */
-    public function storeStandalone(StoreProofingRequest $request): JsonResponse
+    public function store(StoreProofingRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $data['project_uuid'] = null; // Ensure standalone
-        $proofing = $this->proofingService->create($data);
-
-        return ApiResponse::success(new ProofingResource($proofing), 201);
-    }
-
-    /**
-     * Create a project-based proofing
-     */
-    public function store(StoreProofingRequest $request, string $projectId): JsonResponse
-    {
-        $data = $request->validated();
+        $projectId = $request->input('projectId') ?? $request->query('projectId');
         $data['project_uuid'] = $projectId;
         $proofing = $this->proofingService->create($data);
 
@@ -90,89 +72,68 @@ class ProofingController extends Controller
     }
 
     /**
-     * Update standalone proofing
+     * Update proofing (unified for standalone and project-based)
+     * For project-based: pass ?projectId=xxx as query parameter
      */
-    public function updateStandalone(UpdateProofingRequest $request, string $id): JsonResponse
+    public function update(UpdateProofingRequest $request, string $id): JsonResponse
     {
-        $proofing = $this->proofingService->updateStandalone($id, $request->validated());
+        $projectId = $request->query('projectId');
+        $proofing = $projectId 
+            ? $this->proofingService->update($projectId, $id, $request->validated())
+            : $this->proofingService->updateStandalone($id, $request->validated());
 
         return ApiResponse::success(new ProofingResource($proofing));
     }
 
     /**
-     * Update project-based proofing
+     * Delete proofing (unified for standalone and project-based)
+     * For project-based: pass ?projectId=xxx as query parameter
      */
-    public function update(UpdateProofingRequest $request, string $projectId, string $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
-        $proofing = $this->proofingService->update($projectId, $id, $request->validated());
-
-        return ApiResponse::success(new ProofingResource($proofing));
-    }
-
-    /**
-     * Delete standalone proofing
-     */
-    public function destroyStandalone(string $id): JsonResponse
-    {
-        $this->proofingService->deleteStandalone($id);
+        $projectId = $request->query('projectId');
+        if ($projectId) {
+            $this->proofingService->delete($projectId, $id);
+        } else {
+            $this->proofingService->deleteStandalone($id);
+        }
 
         return ApiResponse::success(null, 204);
     }
 
     /**
-     * Delete project-based proofing
+     * Publish proofing (unified for standalone and project-based)
+     * For project-based: pass ?projectId=xxx as query parameter
      */
-    public function destroy(string $projectId, string $id): JsonResponse
+    public function publish(Request $request, string $id): JsonResponse
     {
-        $this->proofingService->delete($projectId, $id);
-
-        return ApiResponse::success(null, 204);
-    }
-
-    /**
-     * Publish standalone proofing
-     */
-    public function publishStandalone(string $id): JsonResponse
-    {
-        $proofing = $this->proofingService->publishStandalone($id);
+        $projectId = $request->query('projectId');
+        $proofing = $projectId
+            ? $this->proofingService->publish($projectId, $id)
+            : $this->proofingService->publishStandalone($id);
 
         return ApiResponse::success(new ProofingResource($proofing));
     }
 
     /**
-     * Publish project-based proofing
+     * Toggle star status (unified for standalone and project-based)
+     * For project-based: pass ?projectId=xxx as query parameter
      */
-    public function publish(string $projectId, string $id): JsonResponse
+    public function toggleStar(Request $request, string $id): JsonResponse
     {
-        $proofing = $this->proofingService->publish($projectId, $id);
-
-        return ApiResponse::success(new ProofingResource($proofing));
-    }
-
-    /**
-     * Toggle star status for standalone proofing
-     */
-    public function toggleStarStandalone(string $id): JsonResponse
-    {
-        $result = $this->proofingService->toggleStarStandalone($id);
+        $projectId = $request->query('projectId');
+        $result = $projectId
+            ? $this->proofingService->toggleStar($projectId, $id)
+            : $this->proofingService->toggleStarStandalone($id);
 
         return ApiResponse::success($result);
     }
 
     /**
-     * Toggle star status for project-based proofing
+     * Set cover photo from media (unified for standalone and project-based)
+     * For project-based: pass ?projectId=xxx as query parameter
      */
-    public function toggleStar(string $projectId, string $id): JsonResponse
-    {
-        $result = $this->proofingService->toggleStar($projectId, $id);
-
-        return ApiResponse::success($result);
-    }
-
-    /**
-     * Set cover photo from media for standalone proofing
-     */
-    public function setCoverPhotoStandalone(Request $request, string $id): JsonResponse
+    public function setCoverPhoto(Request $request, string $id): JsonResponse
     {
         $validated = $request->validate([
             'media_uuid' => 'required|uuid',
@@ -180,8 +141,11 @@ class ProofingController extends Controller
         ]);
 
         try {
+            $projectId = $request->query('projectId');
             $focalPoint = $validated['focal_point'] ?? null;
-            $proofing = $this->proofingService->setCoverPhotoFromMediaStandalone($id, $validated['media_uuid'], $focalPoint);
+            $proofing = $projectId
+                ? $this->proofingService->setCoverPhotoFromMedia($projectId, $id, $validated['media_uuid'], $focalPoint)
+                : $this->proofingService->setCoverPhotoFromMediaStandalone($id, $validated['media_uuid'], $focalPoint);
 
             return ApiResponse::success(new ProofingResource($proofing));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -189,7 +153,8 @@ class ProofingController extends Controller
         } catch (\RuntimeException $e) {
             return ApiResponse::error($e->getMessage(), 'INVALID_MEDIA', 400);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Failed to set cover photo (standalone)', [
+            \Illuminate\Support\Facades\Log::error('Failed to set cover photo', [
+                'project_id' => $request->query('projectId'),
                 'proofing_id' => $id,
                 'media_uuid' => $request->input('media_uuid'),
                 'focal_point' => $request->input('focal_point'),
@@ -204,71 +169,29 @@ class ProofingController extends Controller
     }
 
     /**
-     * Set cover photo from media for project-based proofing
+     * Recover deleted media (unified for standalone and project-based)
+     * For project-based: pass ?projectId=xxx as query parameter
      */
-    public function setCoverPhoto(Request $request, string $projectId, string $id): JsonResponse
-    {
-        $validated = $request->validate([
-            'media_uuid' => 'required|uuid',
-            'focal_point' => 'nullable|array',
-        ]);
-
-        try {
-            $focalPoint = $validated['focal_point'] ?? null;
-            $proofing = $this->proofingService->setCoverPhotoFromMedia($projectId, $id, $validated['media_uuid'], $focalPoint);
-
-            return ApiResponse::success(new ProofingResource($proofing));
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return ApiResponse::error('Proofing or media not found', 'NOT_FOUND', 404);
-        } catch (\RuntimeException $e) {
-            return ApiResponse::error($e->getMessage(), 'INVALID_MEDIA', 400);
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Failed to set cover photo (project-based)', [
-                'project_id' => $projectId,
-                'proofing_id' => $id,
-                'media_uuid' => $request->input('media_uuid'),
-                'focal_point' => $request->input('focal_point'),
-                'exception' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return ApiResponse::error('Failed to set cover photo', 'SET_COVER_FAILED', 500);
-        }
-    }
-
-    /**
-     * Recover deleted media for standalone proofing
-     */
-    public function recoverStandalone(Request $request, string $id): JsonResponse
+    public function recover(Request $request, string $id): JsonResponse
     {
         $request->validate([
             'mediaIds' => 'required|array',
             'mediaIds.*' => 'uuid',
         ]);
 
-        $result = $this->proofingService->recoverStandalone($id, $request->input('mediaIds'));
+        $projectId = $request->query('projectId');
+        $result = $projectId
+            ? $this->proofingService->recover($projectId, $id, $request->input('mediaIds'))
+            : $this->proofingService->recoverStandalone($id, $request->input('mediaIds'));
 
         return ApiResponse::success($result);
     }
 
     /**
-     * Recover deleted media for project-based proofing
+     * Upload revision (unified for standalone and project-based)
+     * For project-based: pass ?projectId=xxx as query parameter
      */
-    public function recover(Request $request, string $projectId, string $id): JsonResponse
-    {
-        $request->validate([
-            'mediaIds' => 'required|array',
-            'mediaIds.*' => 'uuid',
-        ]);
-
-        $result = $this->proofingService->recover($projectId, $id, $request->input('mediaIds'));
-
-        return ApiResponse::success($result);
-    }
-
-    public function uploadRevision(Request $request, string $projectId, string $id): JsonResponse
+    public function uploadRevision(Request $request, string $id): JsonResponse
     {
         $request->validate([
             'mediaId' => 'required|uuid',
@@ -279,6 +202,7 @@ class ProofingController extends Controller
             'completedTodos.*' => 'integer',
         ]);
 
+        $projectId = $request->query('projectId');
         $revision = $this->proofingService->uploadRevision(
             $projectId,
             $id,
@@ -292,33 +216,16 @@ class ProofingController extends Controller
         return ApiResponse::success(new \App\Domains\Memora\Resources\V1\MediaResource($revision), 201);
     }
 
-    public function uploadRevisionStandalone(Request $request, string $id): JsonResponse
+    /**
+     * Complete proofing (unified for standalone and project-based)
+     * For project-based: pass ?projectId=xxx as query parameter
+     */
+    public function complete(Request $request, string $id): JsonResponse
     {
-        $request->validate([
-            'mediaId' => 'required|uuid',
-            'userFileUuid' => 'required|uuid',
-            'revisionNumber' => 'required|integer|min:1',
-            'description' => 'nullable|string|max:1000',
-            'completedTodos' => 'nullable|array',
-            'completedTodos.*' => 'integer',
-        ]);
-
-        $revision = $this->proofingService->uploadRevision(
-            null,
-            $id,
-            $request->input('mediaId'),
-            $request->input('revisionNumber'),
-            $request->input('description', ''),
-            $request->input('userFileUuid'),
-            $request->input('completedTodos', [])
-        );
-
-        return ApiResponse::success(new \App\Domains\Memora\Resources\V1\MediaResource($revision), 201);
-    }
-
-    public function complete(string $projectId, string $id): JsonResponse
-    {
-        $proofing = $this->proofingService->complete($projectId, $id);
+        $projectId = $request->query('projectId');
+        $proofing = $projectId
+            ? $this->proofingService->complete($projectId, $id)
+            : $this->proofingService->completeStandalone($id);
 
         return ApiResponse::success([
             'id' => $proofing->id,
@@ -327,18 +234,11 @@ class ProofingController extends Controller
         ]);
     }
 
-    public function completeStandalone(string $id): JsonResponse
-    {
-        $proofing = $this->proofingService->completeStandalone($id);
-
-        return ApiResponse::success([
-            'id' => $proofing->id,
-            'status' => $proofing->status,
-            'completedAt' => $proofing->completed_at?->toIso8601String(),
-        ]);
-    }
-
-    public function moveToCollection(Request $request, string $projectId, string $id): JsonResponse
+    /**
+     * Move media to collection (unified for standalone and project-based)
+     * For project-based: pass ?projectId=xxx as query parameter
+     */
+    public function moveToCollection(Request $request, string $id): JsonResponse
     {
         $request->validate([
             'mediaIds' => 'required|array',
@@ -346,6 +246,7 @@ class ProofingController extends Controller
             'collectionId' => 'required|uuid',
         ]);
 
+        $projectId = $request->query('projectId');
         $result = $this->proofingService->moveToCollection(
             $projectId,
             $id,

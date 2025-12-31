@@ -117,6 +117,7 @@ class SelectionService
         int $perPage = 10
     ): array {
         $query = MemoraSelection::query()->where('user_uuid', Auth::user()->uuid)
+            ->with(['project'])
             ->with(['mediaSets' => function ($query) {
                 $query->withCount('media')->orderBy('order');
             }])

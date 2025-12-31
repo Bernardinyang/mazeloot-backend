@@ -215,11 +215,16 @@ class ProofingService
     }
 
     /**
-     * Complete proofing
+     * Complete proofing (requires authentication)
      */
     public function complete(?string $projectId, string $id): MemoraProofing
     {
-        $query = MemoraProofing::where('user_uuid', Auth::user()->uuid)
+        $user = Auth::user();
+        if (! $user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $query = MemoraProofing::where('user_uuid', $user->uuid)
             ->where('uuid', $id);
 
         if ($projectId) {
@@ -262,6 +267,66 @@ class ProofingService
     public function completeStandalone(string $id): MemoraProofing
     {
         return $this->complete(null, $id);
+    }
+
+    /**
+     * Complete proofing (public/guest access - no authentication required)
+     */
+    public function completePublic(string $id): MemoraProofing
+    {
+        $proofing = MemoraProofing::where('uuid', $id)->firstOrFail();
+
+        // Validate all media is completed
+        $mediaCount = MemoraMedia::whereHas('mediaSet', function ($query) use ($id) {
+            $query->where('proof_uuid', $id);
+        })->count();
+
+        $completedCount = MemoraMedia::whereHas('mediaSet', function ($query) use ($id) {
+            $query->where('proof_uuid', $id);
+        })
+            ->where('is_completed', true)
+            ->count();
+
+        if ($mediaCount === 0) {
+            throw new \RuntimeException('Cannot complete proofing with no media items');
+        }
+
+        if ($completedCount !== $mediaCount) {
+            throw new \RuntimeException("Cannot complete proofing. Only {$completedCount} of {$mediaCount} media items are approved.");
+        }
+
+        // Update proofing status to completed
+        MemoraProofing::where('uuid', $id)->update([
+            'status' => \App\Domains\Memora\Enums\ProofingStatusEnum::COMPLETED->value,
+            'completed_at' => now(),
+        ]);
+
+        // Reload with relationships and recompute counts (without authentication requirement)
+        $proofing = MemoraProofing::where('uuid', $id)
+            ->with(['mediaSets' => function ($query) {
+                $query->withCount('media')
+                    ->withCount(['media as approved_count' => function ($q) {
+                        $q->where('is_completed', true);
+                    }])
+                    ->orderBy('order');
+            }])
+            ->firstOrFail();
+
+        // Load counts through media sets
+        $mediaCount = MemoraMedia::whereHas('mediaSet', function ($query) use ($id) {
+            $query->where('proof_uuid', $id);
+        })->count();
+        $completedCount = MemoraMedia::whereHas('mediaSet', function ($query) use ($id) {
+            $query->where('proof_uuid', $id);
+        })
+            ->where('is_completed', true)
+            ->count();
+
+        $proofing->setAttribute('media_count', $mediaCount);
+        $proofing->setAttribute('completed_count', $completedCount);
+        $proofing->setAttribute('pending_count', $mediaCount - $completedCount);
+
+        return $proofing;
     }
 
     /**

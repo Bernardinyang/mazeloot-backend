@@ -33,6 +33,7 @@ class UpdateProjectRequest extends FormRequest
             'selectionSettings.selectionLimit' => ['nullable', 'integer', 'min:0'],
             'proofingSettings' => ['nullable', 'array'],
             'proofingSettings.name' => ['nullable', 'string', 'max:255'],
+            'proofingSettings.description' => ['nullable', 'string', 'max:1000'],
             'proofingSettings.maxRevisions' => ['nullable', 'integer', 'min:1', 'max:20'],
             'collectionSettings' => ['nullable', 'array'],
             'collectionSettings.name' => ['nullable', 'string', 'max:255'],

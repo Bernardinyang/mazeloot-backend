@@ -23,7 +23,15 @@ class ProjectService
      */
     public function list(array $filters = [], ?int $page = null, ?int $perPage = null)
     {
-        $query = MemoraProject::query()->with(['mediaSets', 'starredByUsers']);
+        $user = Auth::user();
+        $query = MemoraProject::query()->with([
+            'mediaSets',
+            'starredByUsers' => function ($query) use ($user) {
+                if ($user) {
+                    $query->where('user_uuid', $user->uuid);
+                }
+            },
+        ]);
 
         // Filter by status
         if (isset($filters['status']) && $filters['status'] !== 'all') {
@@ -78,20 +86,23 @@ class ProjectService
 
         $project = MemoraProject::with([
             'mediaSets',
-            'starredByUsers',
-            'selections' => function ($query) {
+            'starredByUsers' => function ($query) use ($user) {
+                $query->where('user_uuid', $user->uuid);
+            },
+            'selection' => function ($query) {
                 $query->with(['mediaSets' => function ($q) {
                     $q->withCount(['media' => function ($mediaQuery) {
                         $mediaQuery->whereNull('deleted_at');
                     }])->orderBy('order');
                 }])
-                // Add subqueries for media counts (excluding soft-deleted media)
+                // Add subqueries for media counts (excluding soft-deleted media and media sets)
                     ->addSelect([
                         'media_count' => \App\Domains\Memora\Models\MemoraMedia::query()
                             ->selectRaw('COALESCE(COUNT(*), 0)')
                             ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
                             ->whereColumn('memora_media_sets.selection_uuid', 'memora_selections.uuid')
                             ->whereNull('memora_media.deleted_at')
+                            ->whereNull('memora_media_sets.deleted_at')
                             ->limit(1),
                         'selected_count' => \App\Domains\Memora\Models\MemoraMedia::query()
                             ->selectRaw('COALESCE(COUNT(*), 0)')
@@ -99,11 +110,28 @@ class ProjectService
                             ->whereColumn('memora_media_sets.selection_uuid', 'memora_selections.uuid')
                             ->where('memora_media.is_selected', true)
                             ->whereNull('memora_media.deleted_at')
+                            ->whereNull('memora_media_sets.deleted_at')
                             ->limit(1),
                     ]);
             },
-            'proofing',
-            'collections',
+            'proofing' => function ($query) {
+                $query->with(['mediaSets' => function ($q) {
+                    $q->withCount(['media' => function ($mediaQuery) {
+                        $mediaQuery->whereNull('deleted_at');
+                    }])->orderBy('order');
+                }])
+                // Add subqueries for media counts (excluding soft-deleted media and media sets)
+                    ->addSelect([
+                        'media_count' => \App\Domains\Memora\Models\MemoraMedia::query()
+                            ->selectRaw('COALESCE(COUNT(*), 0)')
+                            ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
+                            ->whereColumn('memora_media_sets.proof_uuid', 'memora_proofing.uuid')
+                            ->whereNull('memora_media.deleted_at')
+                            ->whereNull('memora_media_sets.deleted_at')
+                            ->limit(1),
+                    ]);
+            },
+            'collection',
         ])->findOrFail($id);
 
         // Verify user owns the project
@@ -112,10 +140,24 @@ class ProjectService
         }
 
         // Map the subquery results to the expected attribute names for selections
-        if ($project->selections->isNotEmpty()) {
-            $selection = $project->selections->first();
+        if ($project->selection) {
+            $selection = $project->selection;
             $selection->setAttribute('media_count', (int) ($selection->media_count ?? 0));
             $selection->setAttribute('selected_count', (int) ($selection->selected_count ?? 0));
+            // Set set count from loaded relationship
+            if ($selection->relationLoaded('mediaSets')) {
+                $selection->setAttribute('set_count', $selection->mediaSets->count());
+            }
+        }
+
+        // Map the subquery results to the expected attribute names for proofing
+        if ($project->proofing) {
+            $proofing = $project->proofing;
+            $proofing->setAttribute('media_count', (int) ($proofing->media_count ?? 0));
+            // Set set count from loaded relationship
+            if ($proofing->relationLoaded('mediaSets')) {
+                $proofing->setAttribute('set_count', $proofing->mediaSets->count());
+            }
         }
 
         return $project;
@@ -266,7 +308,7 @@ class ProjectService
         // Update phase settings if provided
         if (isset($data['selectionSettings']) && $project->has_selections) {
             $selectionService = app(\App\Domains\Memora\Services\SelectionService::class);
-            $selection = $project->selections()->first();
+            $selection = $project->selection;
             if ($selection) {
                 $updateData = [];
                 if (isset($data['selectionSettings']['name'])) {
@@ -286,14 +328,20 @@ class ProjectService
 
         if (isset($data['proofingSettings']) && $project->has_proofing) {
             $proofingService = app(\App\Domains\Memora\Services\ProofingService::class);
-            $proofing = $project->proofing()->first();
+            $project->load('proofing');
+            $proofing = $project->proofing;
             if ($proofing) {
                 $updateData = [];
                 if (isset($data['proofingSettings']['name'])) {
                     $updateData['name'] = $data['proofingSettings']['name'];
                 }
-                if (isset($data['proofingSettings']['description'])) {
-                    $updateData['description'] = $data['proofingSettings']['description'];
+                if (array_key_exists('description', $data['proofingSettings'])) {
+                    $desc = $data['proofingSettings']['description'];
+                    if ($desc === null || $desc === '') {
+                        $updateData['description'] = null;
+                    } else {
+                        $updateData['description'] = trim((string) $desc);
+                    }
                 }
                 if (isset($data['proofingSettings']['maxRevisions'])) {
                     $updateData['maxRevisions'] = $data['proofingSettings']['maxRevisions'];
@@ -356,9 +404,9 @@ class ProjectService
     {
         $project = MemoraProject::findOrFail($id);
 
-        $selection = $project->selections()->first();
-        $proofing = $project->proofing()->first();
-        $collection = $project->collections()->first();
+        $selection = $project->selection;
+        $proofing = $project->proofing;
+        $collection = $project->collection;
 
         return [
             'selection' => $selection ? [

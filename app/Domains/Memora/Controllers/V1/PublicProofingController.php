@@ -89,7 +89,11 @@ class PublicProofingController extends Controller
             $proofing = MemoraProofing::query()
                 ->where('uuid', $id)
                 ->with(['mediaSets' => function ($query) {
-                    $query->withCount('media')->orderBy('order');
+                    $query->withCount('media')
+                        ->withCount(['media as approved_count' => function ($q) {
+                            $q->where('is_completed', true);
+                        }])
+                        ->orderBy('order');
                 }])
                 ->firstOrFail();
 
@@ -194,14 +198,8 @@ class PublicProofingController extends Controller
             return ApiResponse::error('Token does not match proofing', 'INVALID_TOKEN', 403);
         }
 
-        // Get project UUID from proofing
-        $proofing = MemoraProofing::where('uuid', $id)->firstOrFail();
-        if (! $proofing->project_uuid) {
-            return ApiResponse::error('Proofing is not linked to a project', 'NO_PROJECT', 400);
-        }
-
-        // Complete proofing
-        $completedProofing = $this->proofingService->complete($proofing->project_uuid, $id);
+        // Complete proofing (public access - no authentication required)
+        $completedProofing = $this->proofingService->completePublic($id);
 
         // Mark token as used
         $this->guestProofingService->markTokenAsUsed($guestToken->token);

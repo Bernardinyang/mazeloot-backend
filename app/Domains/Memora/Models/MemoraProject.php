@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -97,19 +98,19 @@ class MemoraProject extends Model
         return $this->hasMany(MemoraMediaSet::class, 'project_uuid', 'uuid');
     }
 
-    public function selections(): HasMany
+    public function selection(): HasOne
     {
-        return $this->hasMany(MemoraSelection::class, 'project_uuid', 'uuid');
+        return $this->hasOne(MemoraSelection::class, 'project_uuid', 'uuid');
     }
 
-    public function proofing(): HasMany
+    public function proofing(): HasOne
     {
-        return $this->hasMany(MemoraProofing::class, 'project_uuid', 'uuid');
+        return $this->hasOne(MemoraProofing::class, 'project_uuid', 'uuid');
     }
 
-    public function collections(): HasMany
+    public function collection(): HasOne
     {
-        return $this->hasMany(MemoraCollection::class, 'project_uuid', 'uuid');
+        return $this->hasOne(MemoraCollection::class, 'project_uuid', 'uuid');
     }
 
     /**

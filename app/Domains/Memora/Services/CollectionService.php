@@ -5,6 +5,7 @@ namespace App\Domains\Memora\Services;
 use App\Domains\Memora\Models\MemoraCollection;
 use App\Domains\Memora\Models\MemoraProject;
 use App\Services\Pagination\PaginationService;
+use Illuminate\Support\Facades\Auth;
 
 class CollectionService
 {
@@ -16,17 +17,32 @@ class CollectionService
     }
 
     /**
-     * List collections for a project with pagination
+     * List collections (standalone or project-based)
      *
+     * @param  string|null  $projectId  If provided, lists collections for that project. If null, lists all user collections.
      * @return array Paginated response with data and pagination metadata
      */
-    public function list(string $projectId, ?int $page = null, ?int $perPage = null)
+    public function list(?string $projectId, ?int $page = null, ?int $perPage = null)
     {
-        // Validate project exists
-        MemoraProject::findOrFail($projectId);
+        $user = Auth::user();
+        if (! $user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
 
-        $query = MemoraCollection::where('project_uuid', $projectId)
-            ->orderBy('created_at', 'desc');
+        $query = MemoraCollection::where('user_uuid', $user->uuid);
+
+        if ($projectId) {
+            // Validate project exists and belongs to user
+            $project = MemoraProject::where('uuid', $projectId)
+                ->where('user_uuid', $user->uuid)
+                ->firstOrFail();
+            $query->where('project_uuid', $projectId);
+        } else {
+            // Standalone collections only
+            $query->whereNull('project_uuid');
+        }
+
+        $query->orderBy('created_at', 'desc');
 
         // Paginate the query
         $perPage = $perPage ?? 10;
@@ -48,27 +64,41 @@ class CollectionService
     }
 
     /**
-     * Create a collection
+     * Create a collection (standalone or project-based)
+     *
+     * @param  string|null  $projectId  If provided, creates collection for that project. If null, creates standalone collection.
      */
-    public function create(string $projectId, array $data): MemoraCollection
+    public function create(?string $projectId, array $data): MemoraCollection
     {
-        // Validate project exists
-        $project = MemoraProject::findOrFail($projectId);
+        $user = Auth::user();
+        if (! $user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $project = null;
+        if ($projectId) {
+            // Validate project exists and belongs to user
+            $project = MemoraProject::where('uuid', $projectId)
+                ->where('user_uuid', $user->uuid)
+                ->firstOrFail();
+        }
 
         return MemoraCollection::create([
-            'user_uuid' => $project->user_uuid,
+            'user_uuid' => $user->uuid,
             'project_uuid' => $projectId,
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
             'status' => $data['status'] ?? 'draft',
-            'color' => $data['color'] ?? $project->color ?? '#8B5CF6',
+            'color' => $data['color'] ?? $project?->color ?? '#8B5CF6',
         ]);
     }
 
     /**
-     * Update a collection
+     * Update a collection (standalone or project-based)
+     *
+     * @param  string|null  $projectId  If provided, validates collection belongs to that project. If null, finds any collection by ID.
      */
-    public function update(string $projectId, string $id, array $data): MemoraCollection
+    public function update(?string $projectId, string $id, array $data): MemoraCollection
     {
         $collection = $this->find($projectId, $id);
 
@@ -89,17 +119,38 @@ class CollectionService
     }
 
     /**
-     * Get a collection
+     * Get a collection (standalone or project-based)
+     *
+     * @param  string|null  $projectId  If provided, validates collection belongs to that project. If null, finds any collection by ID.
      */
-    public function find(string $projectId, string $id): MemoraCollection
+    public function find(?string $projectId, string $id): MemoraCollection
     {
-        return MemoraCollection::where('project_uuid', $projectId)->findOrFail($id);
+        $user = Auth::user();
+        if (! $user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $query = MemoraCollection::where('user_uuid', $user->uuid)
+            ->where('uuid', $id);
+
+        if ($projectId) {
+            // Validate project exists and collection belongs to it
+            MemoraProject::where('uuid', $projectId)
+                ->where('user_uuid', $user->uuid)
+                ->firstOrFail();
+            $query->where('project_uuid', $projectId);
+        }
+        // If no projectId provided, find collection regardless of project association
+
+        return $query->firstOrFail();
     }
 
     /**
-     * Delete a collection
+     * Delete a collection (standalone or project-based)
+     *
+     * @param  string|null  $projectId  If provided, validates collection belongs to that project. If null, finds any collection by ID.
      */
-    public function delete(string $projectId, string $id): bool
+    public function delete(?string $projectId, string $id): bool
     {
         $collection = $this->find($projectId, $id);
 

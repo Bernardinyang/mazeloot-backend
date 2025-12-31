@@ -173,15 +173,15 @@ class ModelRelationshipsTest extends TestCase
         // Verify the mediaSet we created is associated with the project
         $this->assertEquals($project->uuid, $mediaSet->project_uuid);
 
-        // Test project -> selections relationship
+        // Test project -> selection relationship
         $selection = MemoraSelection::factory()->create([
             'user_uuid' => $user->uuid,
             'project_uuid' => $project->uuid,
         ]);
 
         $project->refresh();
-        $this->assertTrue($project->selections->contains($selection));
-        $this->assertEquals($selection->uuid, $project->selections->first()->uuid);
+        $this->assertNotNull($project->selection);
+        $this->assertEquals($selection->uuid, $project->selection->uuid);
 
         // Test project -> proofing relationship
         $proofing = MemoraProofing::factory()->create([
@@ -190,18 +190,18 @@ class ModelRelationshipsTest extends TestCase
         ]);
 
         $project->refresh();
-        $this->assertTrue($project->proofing->contains($proofing));
-        $this->assertEquals($proofing->uuid, $project->proofing->first()->uuid);
+        $this->assertNotNull($project->proofing);
+        $this->assertEquals($proofing->uuid, $project->proofing->uuid);
 
-        // Test project -> collections relationship
+        // Test project -> collection relationship
         $collection = MemoraCollection::factory()->create([
             'user_uuid' => $user->uuid,
             'project_uuid' => $project->uuid,
         ]);
 
         $project->refresh();
-        $this->assertTrue($project->collections->contains($collection));
-        $this->assertEquals($collection->uuid, $project->collections->first()->uuid);
+        $this->assertNotNull($project->collection);
+        $this->assertEquals($collection->uuid, $project->collection->uuid);
 
         // Note: parent/children relationships not implemented in schema
         // Skipping parent/children relationship test

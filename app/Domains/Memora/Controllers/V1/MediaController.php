@@ -477,8 +477,16 @@ class MediaController extends Controller
     /**
      * Get media for a specific set with optional sorting
      */
-    public function getSetMedia(Request $request, string $selectionId, string $setUuid): JsonResponse
+    /**
+     * Get media for a set
+     * Unified route for selections and proofing (both standalone and project-based)
+     * Routes: /selections/{selectionId}/sets/{setId}/media or /proofing/{proofingId}/sets/{setId}/media
+     * For project-based: pass ?projectId=xxx as query parameter
+     */
+    public function getSetMedia(Request $request, string $parentId, string $setId): JsonResponse
     {
+        $setUuid = $setId;
+        
         $sortBy = $request->query('sort_by');
         $page = $request->has('page') ? max(1, (int) $request->query('page', 1)) : null;
         $perPage = $request->has('per_page') ? max(1, min(100, (int) $request->query('per_page', 10))) : null;

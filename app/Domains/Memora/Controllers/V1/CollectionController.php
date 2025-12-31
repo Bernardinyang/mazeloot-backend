@@ -19,39 +19,64 @@ class CollectionController extends Controller
         $this->collectionService = $collectionService;
     }
 
-    public function index(Request $request, string $projectId): JsonResponse
+    /**
+     * List collections (unified for standalone and project-based)
+     * For project-based: pass ?projectId=xxx as query parameter
+     */
+    public function index(Request $request): JsonResponse
     {
+        $projectId = $request->query('projectId');
         $page = max(1, (int) $request->query('page', 1));
-        $perPage = max(1, min(100, (int) $request->query('per_page', 10))); // Limit between 1 and 100
+        $perPage = max(1, min(100, (int) $request->query('per_page', 10)));
 
         $result = $this->collectionService->list($projectId, $page, $perPage);
 
         return ApiResponse::success($result);
     }
 
-    public function show(string $projectId, string $id): JsonResponse
+    /**
+     * Show collection (unified for standalone and project-based)
+     * For project-based: pass ?projectId=xxx as query parameter
+     */
+    public function show(Request $request, string $id): JsonResponse
     {
+        $projectId = $request->query('projectId');
         $collection = $this->collectionService->find($projectId, $id);
 
         return ApiResponse::success(new CollectionResource($collection));
     }
 
-    public function store(StoreCollectionRequest $request, string $projectId): JsonResponse
+    /**
+     * Create collection (unified for standalone and project-based)
+     * For project-based: pass projectId in request body or ?projectId=xxx as query parameter
+     */
+    public function store(StoreCollectionRequest $request): JsonResponse
     {
+        $projectId = $request->input('projectId') ?? $request->query('projectId');
         $collection = $this->collectionService->create($projectId, $request->validated());
 
         return ApiResponse::success(new CollectionResource($collection), 201);
     }
 
-    public function update(UpdateCollectionRequest $request, string $projectId, string $id): JsonResponse
+    /**
+     * Update collection (unified for standalone and project-based)
+     * For project-based: pass ?projectId=xxx as query parameter
+     */
+    public function update(UpdateCollectionRequest $request, string $id): JsonResponse
     {
+        $projectId = $request->query('projectId');
         $collection = $this->collectionService->update($projectId, $id, $request->validated());
 
         return ApiResponse::success(new CollectionResource($collection));
     }
 
-    public function destroy(string $projectId, string $id): JsonResponse
+    /**
+     * Delete collection (unified for standalone and project-based)
+     * For project-based: pass ?projectId=xxx as query parameter
+     */
+    public function destroy(Request $request, string $id): JsonResponse
     {
+        $projectId = $request->query('projectId');
         $this->collectionService->delete($projectId, $id);
 
         return ApiResponse::success(null, 204);

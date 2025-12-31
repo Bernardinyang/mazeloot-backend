@@ -5,6 +5,8 @@ namespace App\Domains\Memora\Services;
 use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraMediaFeedback;
 use App\Domains\Memora\Models\MemoraMediaSet;
+use App\Domains\Memora\Models\MemoraProofing;
+use App\Domains\Memora\Models\MemoraSelection;
 use App\Services\Upload\UploadService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -703,6 +705,11 @@ class MediaService
     {
         $set = MemoraMediaSet::query()->findOrFail($setUuid);
 
+        // Check if phase is completed
+        if ($this->isPhaseCompleted($set)) {
+            throw new \RuntimeException('Cannot upload media to a completed phase');
+        }
+
         // Verify user_file_uuid exists and belongs to the authenticated user
         $userFile = \App\Models\UserFile::query()
             ->where('uuid', $data['user_file_uuid'])
@@ -730,6 +737,24 @@ class MediaService
     }
 
     /**
+     * Check if a phase (proofing or selection) is completed
+     */
+    protected function isPhaseCompleted(MemoraMediaSet $mediaSet): bool
+    {
+        if ($mediaSet->proof_uuid) {
+            $proofing = MemoraProofing::where('uuid', $mediaSet->proof_uuid)->first();
+            return $proofing && $proofing->status->value === 'completed';
+        }
+
+        if ($mediaSet->selection_uuid) {
+            $selection = MemoraSelection::where('uuid', $mediaSet->selection_uuid)->first();
+            return $selection && $selection->status->value === 'completed';
+        }
+
+        return false;
+    }
+
+    /**
      * Delete media from a set
      */
     public function delete(string $mediaId, ?string $userId = null): bool
@@ -747,6 +772,11 @@ class MediaService
             $proofing = $mediaSet->proofing;
             if ($proofing && $proofing->user_uuid !== $userId) {
                 throw new \Exception('Unauthorized: You do not own this proofing');
+            }
+
+            // Check if phase is completed
+            if ($this->isPhaseCompleted($mediaSet)) {
+                throw new \RuntimeException('Cannot delete media from a completed phase');
             }
         } else {
             // Fallback: verify user owns the media directly
@@ -785,6 +815,11 @@ class MediaService
             throw new \Exception('Unauthorized: You do not own the target proofing');
         }
 
+        // Check if target phase is completed
+        if ($this->isPhaseCompleted($targetSet)) {
+            throw new \RuntimeException('Cannot move media to a completed phase');
+        }
+
         // Verify all media items exist and user owns the proofing that contains them
         $mediaItems = MemoraMedia::whereIn('uuid', $mediaUuids)->get();
 
@@ -798,6 +833,11 @@ class MediaService
                 $proofing = $mediaSet->proofing;
                 if ($proofing && $proofing->user_uuid !== $userId) {
                     throw new \Exception('Unauthorized: You do not own the proofing containing this media');
+                }
+
+                // Check if source phase is completed
+                if ($this->isPhaseCompleted($mediaSet)) {
+                    throw new \RuntimeException('Cannot move media from a completed phase');
                 }
             } else {
                 // Fallback: verify user owns the media directly
@@ -857,6 +897,11 @@ class MediaService
             throw new \Exception('Unauthorized: You do not own the target proofing');
         }
 
+        // Check if target phase is completed
+        if ($this->isPhaseCompleted($targetSet)) {
+            throw new \RuntimeException('Cannot copy media to a completed phase');
+        }
+
         // Verify all media items exist and user owns the proofing that contains them
         $mediaItems = MemoraMedia::whereIn('uuid', $mediaUuids)
             ->with('file')
@@ -872,6 +917,11 @@ class MediaService
                 $proofing = $mediaSet->proofing;
                 if ($proofing && $proofing->user_uuid !== $userId) {
                     throw new \Exception('Unauthorized: You do not own the proofing containing this media');
+                }
+
+                // Check if source phase is completed
+                if ($this->isPhaseCompleted($mediaSet)) {
+                    throw new \RuntimeException('Cannot copy media from a completed phase');
                 }
             } else {
                 // Fallback: verify user owns the media directly
@@ -1052,6 +1102,11 @@ class MediaService
             if ($proofing && $proofing->user_uuid !== $userId) {
                 throw new \Exception('Unauthorized: You do not own this proofing');
             }
+
+            // Check if phase is completed
+            if ($this->isPhaseCompleted($mediaSet)) {
+                throw new \RuntimeException('Cannot rename media in a completed phase');
+            }
         } else {
             // Fallback: verify user owns the media directly
             if ($media->user_uuid !== $userId) {
@@ -1110,6 +1165,11 @@ class MediaService
             $proofing = $mediaSet->proofing;
             if ($proofing && $proofing->user_uuid !== $userId) {
                 throw new \Exception('Unauthorized: You do not own this proofing');
+            }
+
+            // Check if phase is completed
+            if ($this->isPhaseCompleted($mediaSet)) {
+                throw new \RuntimeException('Cannot replace media in a completed phase');
             }
         } else {
             // Fallback: verify user owns the media directly
