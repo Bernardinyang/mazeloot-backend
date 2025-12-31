@@ -743,11 +743,13 @@ class MediaService
     {
         if ($mediaSet->proof_uuid) {
             $proofing = MemoraProofing::where('uuid', $mediaSet->proof_uuid)->first();
+
             return $proofing && $proofing->status->value === 'completed';
         }
 
         if ($mediaSet->selection_uuid) {
             $selection = MemoraSelection::where('uuid', $mediaSet->selection_uuid)->first();
+
             return $selection && $selection->status->value === 'completed';
         }
 

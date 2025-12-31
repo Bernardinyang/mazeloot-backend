@@ -43,7 +43,7 @@ class ProjectResource extends JsonResource
      */
     private function getSelection()
     {
-        if (!$this->has_selections) {
+        if (! $this->has_selections) {
             return null;
         }
 
@@ -53,7 +53,7 @@ class ProjectResource extends JsonResource
             } else {
                 $selection = $this->selection;
             }
-            
+
             if ($selection) {
                 return new SelectionResource($selection);
             }
@@ -69,7 +69,7 @@ class ProjectResource extends JsonResource
      */
     private function getProofing()
     {
-        if (!$this->has_proofing) {
+        if (! $this->has_proofing) {
             return null;
         }
 
@@ -79,7 +79,7 @@ class ProjectResource extends JsonResource
             } else {
                 $proofing = $this->proofing;
             }
-            
+
             if ($proofing) {
                 return new ProofingResource($proofing);
             }
@@ -95,7 +95,7 @@ class ProjectResource extends JsonResource
      */
     private function getCollection()
     {
-        if (!$this->has_collections) {
+        if (! $this->has_collections) {
             return null;
         }
 
@@ -105,7 +105,7 @@ class ProjectResource extends JsonResource
             } else {
                 $collection = $this->collection;
             }
-            
+
             if ($collection) {
                 return new CollectionResource($collection);
             }

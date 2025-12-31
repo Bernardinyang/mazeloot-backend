@@ -486,7 +486,7 @@ class MediaController extends Controller
     public function getSetMedia(Request $request, string $parentId, string $setId): JsonResponse
     {
         $setUuid = $setId;
-        
+
         $sortBy = $request->query('sort_by');
         $page = $request->has('page') ? max(1, (int) $request->query('page', 1)) : null;
         $perPage = $request->has('per_page') ? max(1, min(100, (int) $request->query('per_page', 10))) : null;

@@ -78,7 +78,7 @@ class ProofingController extends Controller
     public function update(UpdateProofingRequest $request, string $id): JsonResponse
     {
         $projectId = $request->query('projectId');
-        $proofing = $projectId 
+        $proofing = $projectId
             ? $this->proofingService->update($projectId, $id, $request->validated())
             : $this->proofingService->updateStandalone($id, $request->validated());
 

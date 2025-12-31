@@ -3,7 +3,6 @@
 namespace App\Domains\Memora\Services;
 
 use App\Domains\Memora\Models\MemoraMediaSet;
-use App\Domains\Memora\Models\MemoraProofing;
 use App\Domains\Memora\Models\MemoraSelection;
 use App\Services\Pagination\PaginationService;
 use Illuminate\Support\Facades\Auth;
@@ -113,11 +112,11 @@ class MediaSetService
         // Verify user owns the proofing
         $proofingQuery = \App\Domains\Memora\Models\MemoraProofing::where('uuid', $proofingId)
             ->where('user_uuid', $user->uuid);
-        
+
         if ($projectId !== null) {
             $proofingQuery->where('project_uuid', $projectId);
         }
-        
+
         $proofingQuery->firstOrFail();
 
         $query = MemoraMediaSet::where('proof_uuid', $proofingId)
@@ -211,11 +210,11 @@ class MediaSetService
         // Verify user owns the proofing
         $query = \App\Domains\Memora\Models\MemoraProofing::where('uuid', $proofingId)
             ->where('user_uuid', $user->uuid);
-        
+
         if ($projectId !== null) {
             $query->where('project_uuid', $projectId);
         }
-        
+
         $proofing = $query->firstOrFail();
 
         return $set;
@@ -296,11 +295,11 @@ class MediaSetService
 
         $query = \App\Domains\Memora\Models\MemoraProofing::where('uuid', $proofingId)
             ->where('user_uuid', $user->uuid);
-        
+
         if ($projectId !== null) {
             $query->where('project_uuid', $projectId);
         }
-        
+
         $proofing = $query->firstOrFail();
 
         // Check if proofing is completed
@@ -384,11 +383,11 @@ class MediaSetService
         // Verify user owns the proofing
         $query = \App\Domains\Memora\Models\MemoraProofing::where('uuid', $proofingId)
             ->where('user_uuid', $user->uuid);
-        
+
         if ($projectId !== null) {
             $query->where('project_uuid', $projectId);
         }
-        
+
         $proofing = $query->firstOrFail();
 
         // Update all set orders in a transaction
