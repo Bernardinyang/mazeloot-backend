@@ -3,6 +3,9 @@
 namespace App\Domains\Memora\Models;
 
 use App\Domains\Memora\Enums\ProjectStatusEnum;
+use Database\Factories\MemoraCollectionFactory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -10,7 +13,7 @@ use Illuminate\Support\Str;
 
 class MemoraCollection extends Model
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes;
     /**
      * The primary key for the model.
      *
@@ -75,8 +78,8 @@ class MemoraCollection extends Model
     /**
      * Create a new factory instance for the model.
      */
-    protected static function newFactory()
+    protected static function newFactory(): Factory
     {
-        return \Database\Factories\MemoraCollectionFactory::new();
+        return MemoraCollectionFactory::new();
     }
 }

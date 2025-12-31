@@ -3,6 +3,8 @@
 namespace App\Domains\Memora\Models;
 
 use App\Domains\Memora\Enums\ProofingStatusEnum;
+use Database\Factories\MemoraProofingFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -12,7 +14,7 @@ use Illuminate\Support\Str;
 
 class MemoraProofing extends Model
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes;
     
     /**
      * The table associated with the model.
@@ -110,6 +112,6 @@ class MemoraProofing extends Model
      */
     protected static function newFactory()
     {
-        return \Database\Factories\MemoraProofingFactory::new();
+        return MemoraProofingFactory::new();
     }
 }

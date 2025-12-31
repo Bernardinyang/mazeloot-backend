@@ -3,6 +3,9 @@
 namespace App\Domains\Memora\Models;
 
 use App\Domains\Memora\Enums\SelectionStatusEnum;
+use Database\Factories\MemoraSelectionFactory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -12,7 +15,7 @@ use Illuminate\Support\Str;
 
 class MemoraSelection extends Model
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes;
     /**
      * The primary key for the model.
      *
@@ -119,8 +122,8 @@ class MemoraSelection extends Model
     /**
      * Create a new factory instance for the model.
      */
-    protected static function newFactory()
+    protected static function newFactory(): Factory
     {
-        return \Database\Factories\MemoraSelectionFactory::new();
+        return MemoraSelectionFactory::new();
     }
 }

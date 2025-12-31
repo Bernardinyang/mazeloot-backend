@@ -216,14 +216,22 @@ class ProofingService
      */
     public function complete(string $projectId, string $id): MemoraProofing
     {
-        $proofing = $this->find($projectId, $id);
+        $proofing = MemoraProofing::where('user_uuid', Auth::user()->uuid)
+            ->where('uuid', $id)
+            ->firstOrFail();
 
-        $proofing->update([
-            'status' => 'completed',
+        if ($projectId) {
+            $proofing->where('project_uuid', $projectId);
+        }
+
+        // Update only database columns using update() to avoid computed attributes
+        MemoraProofing::where('uuid', $id)->update([
+            'status' => \App\Domains\Memora\Enums\ProofingStatusEnum::COMPLETED->value,
             'completed_at' => now(),
         ]);
 
-        return $proofing->fresh();
+        // Reload with relationships and recompute counts
+        return $this->find($projectId, $id);
     }
 
     /**

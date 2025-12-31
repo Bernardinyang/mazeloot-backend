@@ -2,6 +2,9 @@
 
 namespace App\Domains\Memora\Models;
 
+use Database\Factories\MemoraClosureRequestFactory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -9,7 +12,7 @@ use Illuminate\Support\Str;
 
 class MemoraClosureRequest extends Model
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes;
     
     protected $table = 'memora_closure_requests';
     
@@ -66,6 +69,11 @@ class MemoraClosureRequest extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(\App\Models\User::class, 'user_uuid', 'uuid');
+    }
+
+    protected static function newFactory(): Factory
+    {
+        return MemoraClosureRequestFactory::new();
     }
 }
 

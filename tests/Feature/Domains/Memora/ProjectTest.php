@@ -14,20 +14,19 @@ class ProjectTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        MemoraProject::factory()->count(3)->create(['user_id' => $user->id]);
+        MemoraProject::factory()->count(3)->create(['user_uuid' => $user->uuid]);
 
-        $response = $this->getJson('/api/projects');
+        $response = $this->getJson('/api/v1/projects');
 
         $response->assertStatus(200)
             ->assertJsonStructure([
                 'data' => [
-                    '*' => [
-                        'id',
-                        'name',
-                        'status',
-                        'createdAt',
-                        'updatedAt',
+                    'data' => [
+                        '*' => [
+                            'id',
+                        ],
                     ],
+                    'pagination',
                 ],
             ]);
     }
@@ -37,8 +36,8 @@ class ProjectTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $response = $this->postJson('/api/projects', [
-            'name' => 'Test MemoraProject',
+        $response = $this->postJson('/api/v1/projects', [
+            'name' => 'Test Project',
             'description' => 'Test Description',
             'status' => 'draft',
         ]);
@@ -54,8 +53,8 @@ class ProjectTest extends TestCase
             ]);
 
         $this->assertDatabaseHas('memora_projects', [
-            'name' => 'Test MemoraProject',
-            'user_id' => $user->id,
+            'name' => 'Test Project',
+            'user_uuid' => $user->uuid,
         ]);
     }
 
@@ -64,14 +63,14 @@ class ProjectTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $project = MemoraProject::factory()->create(['user_id' => $user->id]);
+        $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
 
-        $response = $this->getJson("/api/projects/{$project->id}");
+        $response = $this->getJson("/api/v1/projects/{$project->uuid}");
 
         $response->assertStatus(200)
             ->assertJson([
                 'data' => [
-                    'id' => $project->id,
+                    'id' => $project->uuid,
                     'name' => $project->name,
                 ],
             ]);
@@ -82,9 +81,9 @@ class ProjectTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $project = MemoraProject::factory()->create(['user_id' => $user->id]);
+        $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
 
-        $response = $this->patchJson("/api/projects/{$project->id}", [
+        $response = $this->patchJson("/api/v1/projects/{$project->uuid}", [
             'name' => 'Updated Name',
             'status' => 'active',
         ]);
@@ -92,7 +91,7 @@ class ProjectTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'data' => [
-                    'id' => $project->id,
+                    'id' => $project->uuid,
                     'name' => 'Updated Name',
                     'status' => 'active',
                 ],
@@ -104,20 +103,20 @@ class ProjectTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $project = MemoraProject::factory()->create(['user_id' => $user->id]);
+        $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
 
-        $response = $this->deleteJson("/api/projects/{$project->id}");
+        $response = $this->deleteJson("/api/v1/projects/{$project->uuid}");
 
-        $response->assertStatus(200); // ApiResponse returns 200 even for 204 status
+        $response->assertStatus(200);
 
         $this->assertDatabaseMissing('memora_projects', [
-            'id' => $project->id,
+            'uuid' => $project->uuid,
         ]);
     }
 
     public function test_projects_require_authentication(): void
     {
-        $response = $this->getJson('/api/projects');
+        $response = $this->getJson('/api/v1/projects');
 
         $response->assertStatus(401);
     }

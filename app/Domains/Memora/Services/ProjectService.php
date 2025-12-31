@@ -181,7 +181,8 @@ class ProjectService
         if ($data['hasProofing'] ?? false) {
             $proofingService = app(\App\Domains\Memora\Services\ProofingService::class);
             $proofingSettings = $data['proofingSettings'] ?? [];
-            $proofingService->create($project->uuid, [
+            $proofingService->create([
+                'project_uuid' => $project->uuid,
                 'name' => $proofingSettings['name'] ?? 'Proofing',
                 'maxRevisions' => $proofingSettings['maxRevisions'] ?? 5,
                 'color' => $projectColor,
