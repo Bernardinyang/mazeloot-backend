@@ -197,13 +197,16 @@ class ProofingService
             $query->where('user_uuid', $user->uuid);
         }]);
 
-        // Load counts through media sets
+        // Load counts through media sets (only active revisions)
         $mediaCount = MemoraMedia::whereHas('mediaSet', function ($query) use ($id) {
             $query->where('proof_uuid', $id);
-        })->count();
+        })
+            ->where('is_revised', false)
+            ->count();
         $completedCount = MemoraMedia::whereHas('mediaSet', function ($query) use ($id) {
             $query->where('proof_uuid', $id);
         })
+            ->where('is_revised', false)
             ->where('is_completed', true)
             ->count();
 
@@ -233,14 +236,17 @@ class ProofingService
 
         $proofing = $query->firstOrFail();
 
-        // Validate all media is completed
+        // Validate all media is completed (only active revisions)
         $mediaCount = MemoraMedia::whereHas('mediaSet', function ($query) use ($id) {
             $query->where('proof_uuid', $id);
-        })->count();
+        })
+            ->where('is_revised', false)
+            ->count();
 
         $completedCount = MemoraMedia::whereHas('mediaSet', function ($query) use ($id) {
             $query->where('proof_uuid', $id);
         })
+            ->where('is_revised', false)
             ->where('is_completed', true)
             ->count();
 
@@ -276,14 +282,17 @@ class ProofingService
     {
         $proofing = MemoraProofing::where('uuid', $id)->firstOrFail();
 
-        // Validate all media is completed
+        // Validate all media is completed (only active revisions)
         $mediaCount = MemoraMedia::whereHas('mediaSet', function ($query) use ($id) {
             $query->where('proof_uuid', $id);
-        })->count();
+        })
+            ->where('is_revised', false)
+            ->count();
 
         $completedCount = MemoraMedia::whereHas('mediaSet', function ($query) use ($id) {
             $query->where('proof_uuid', $id);
         })
+            ->where('is_revised', false)
             ->where('is_completed', true)
             ->count();
 
@@ -312,13 +321,16 @@ class ProofingService
             }])
             ->firstOrFail();
 
-        // Load counts through media sets
+        // Load counts through media sets (only active revisions)
         $mediaCount = MemoraMedia::whereHas('mediaSet', function ($query) use ($id) {
             $query->where('proof_uuid', $id);
-        })->count();
+        })
+            ->where('is_revised', false)
+            ->count();
         $completedCount = MemoraMedia::whereHas('mediaSet', function ($query) use ($id) {
             $query->where('proof_uuid', $id);
         })
+            ->where('is_revised', false)
             ->where('is_completed', true)
             ->count();
 
@@ -630,15 +642,17 @@ class ProofingService
             ->with(['starredByUsers' => function ($query) use ($user) {
                 $query->where('user_uuid', $user->uuid);
             }])
-            // Add subqueries for media counts to avoid N+1 queries
+            // Add subqueries for media counts to avoid N+1 queries (only active revisions)
             ->addSelect([
                 'media_count' => MemoraMedia::query()->selectRaw('COALESCE(COUNT(*), 0)')
                     ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
                     ->whereColumn('memora_media_sets.proof_uuid', 'memora_proofing.uuid')
+                    ->where('memora_media.is_revised', false)
                     ->limit(1),
                 'completed_count' => MemoraMedia::query()->selectRaw('COALESCE(COUNT(*), 0)')
                     ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
                     ->whereColumn('memora_media_sets.proof_uuid', 'memora_proofing.uuid')
+                    ->where('memora_media.is_revised', false)
                     ->where('memora_media.is_completed', true)
                     ->limit(1),
             ]);

@@ -47,5 +47,15 @@ class DatabaseSeeder extends Seeder
         $this->call([
             CoverStylesSeeder::class,
         ]);
+
+        // Seed social media platforms
+        $this->call([
+            SocialMediaPlatformSeeder::class,
+        ]);
+
+        // Seed email notification types
+        $this->call([
+            EmailNotificationTypeSeeder::class,
+        ]);
     }
 }

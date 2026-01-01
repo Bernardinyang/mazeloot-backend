@@ -29,6 +29,7 @@ class ProjectController extends Controller
             'status' => $request->query('status', 'all'),
             'search' => $request->query('search'),
             'sortBy' => $request->query('sortBy'),
+            'parentId' => $request->query('parentId'),
         ];
 
         $page = max(1, (int) $request->query('page', 1));

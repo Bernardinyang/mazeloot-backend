@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
@@ -97,6 +98,20 @@ class User extends Authenticatable
             // Set default role to 'user' if not provided
             if (empty($model->role)) {
                 $model->role = UserRoleEnum::USER;
+            }
+        });
+
+        static::created(function ($model) {
+            // Initialize default settings for new users
+            try {
+                $settingsService = app(\App\Domains\Memora\Services\SettingsService::class);
+                $settingsService->initializeDefaults($model->uuid);
+            } catch (\Exception $e) {
+                // Log error but don't fail user creation
+                Log::error('Failed to initialize default settings for user', [
+                    'user_uuid' => $model->uuid,
+                    'error' => $e->getMessage(),
+                ]);
             }
         });
     }

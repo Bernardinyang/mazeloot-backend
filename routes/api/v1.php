@@ -46,3 +46,5 @@ require __DIR__.'/../domains/memora/public.php';
 // Authenticated routes (require authentication)
 require __DIR__.'/../domains/memora/selections.php';
 require __DIR__.'/../domains/memora/memora.php';
+// Admin routes (require authentication and admin role)
+require __DIR__.'/../domains/memora/admin.php';

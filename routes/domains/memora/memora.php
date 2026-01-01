@@ -4,11 +4,14 @@ use App\Domains\Memora\Controllers\V1\ClosureRequestController;
 use App\Domains\Memora\Controllers\V1\CollectionController;
 use App\Domains\Memora\Controllers\V1\CoverLayoutController;
 use App\Domains\Memora\Controllers\V1\CoverStyleController;
+use App\Domains\Memora\Controllers\V1\EmailNotificationController;
 use App\Domains\Memora\Controllers\V1\MediaController;
 use App\Domains\Memora\Controllers\V1\MediaSetController;
 use App\Domains\Memora\Controllers\V1\ProjectController;
 use App\Domains\Memora\Controllers\V1\ProofingApprovalRequestController;
 use App\Domains\Memora\Controllers\V1\ProofingController;
+use App\Domains\Memora\Controllers\V1\SettingsController;
+use App\Domains\Memora\Controllers\V1\SocialLinkController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -20,7 +23,7 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::middleware(['auth:sanctum'])->group(function () {
+Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
     // Proofing (unified routes - works for both standalone and project-based)
     // For project-based: pass ?projectId=xxx as query parameter
     Route::get('/proofing', [ProofingController::class, 'index']);
@@ -94,6 +97,29 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/phase/{phaseType}/{phaseId}', [MediaController::class, 'getPhaseMedia']);
         Route::post('/move-between-phases', [MediaController::class, 'moveBetweenPhases']);
         Route::get('/{id}/revisions', [MediaController::class, 'getRevisions']);
+    });
+
+    // Settings
+    Route::prefix('settings')->group(function () {
+        Route::get('/', [SettingsController::class, 'index']);
+        Route::patch('/branding', [SettingsController::class, 'updateBranding']);
+        Route::patch('/preference', [SettingsController::class, 'updatePreference']);
+        Route::patch('/homepage', [SettingsController::class, 'updateHomepage']);
+        Route::patch('/email', [SettingsController::class, 'updateEmail']);
+
+        // Email Notifications
+        Route::get('/notifications', [EmailNotificationController::class, 'index']);
+        Route::patch('/notifications', [EmailNotificationController::class, 'update']);
+
+        // Social Links
+        Route::prefix('social-links')->group(function () {
+            Route::get('/', [SocialLinkController::class, 'index']);
+            Route::get('/platforms', [SocialLinkController::class, 'getPlatforms']);
+            Route::post('/', [SocialLinkController::class, 'store']);
+            Route::patch('/{id}', [SocialLinkController::class, 'update']);
+            Route::delete('/{id}', [SocialLinkController::class, 'destroy']);
+            Route::post('/reorder', [SocialLinkController::class, 'reorder']);
+        });
     });
 });
 

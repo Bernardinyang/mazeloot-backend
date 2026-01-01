@@ -38,6 +38,15 @@ class ProjectService
             $query->where('status', $filters['status']);
         }
 
+        // Filter by parentId
+        if (isset($filters['parentId'])) {
+            if ($filters['parentId'] === '' || $filters['parentId'] === null) {
+                $query->whereNull('parent_id');
+            } else {
+                $query->where('parent_id', $filters['parentId']);
+            }
+        }
+
         // Search
         if (isset($filters['search']) && ! empty($filters['search'])) {
             $search = $filters['search'];
