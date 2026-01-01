@@ -8,6 +8,7 @@ enum BorderStyleEnum: string
     case SOLID = 'solid';
     case DASHED = 'dashed';
     case DOTTED = 'dotted';
+    case DOUBLE = 'double';
 
     /**
      * Get all values as array
@@ -35,6 +36,7 @@ enum BorderStyleEnum: string
             self::SOLID => 'Solid',
             self::DASHED => 'Dashed',
             self::DOTTED => 'Dotted',
+            self::DOUBLE => 'Double',
         };
     }
 }

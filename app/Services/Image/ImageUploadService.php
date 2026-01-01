@@ -80,9 +80,13 @@ class ImageUploadService
                 str_contains($mimeType, 'png') => 'png',
                 str_contains($mimeType, 'webp') => 'webp',
                 str_contains($mimeType, 'gif') => 'gif',
+                str_contains($mimeType, 'svg') => 'svg',
                 default => 'jpg',
             };
         }
+
+        // Check if file is SVG - SVG files don't need variant generation
+        $isSvg = strtolower($originalExtension) === 'svg' || str_contains($file->getMimeType(), 'svg');
 
         // Create temporary directory for variants
         $tempDir = sys_get_temp_dir().'/'.$uuid;
@@ -91,8 +95,16 @@ class ImageUploadService
         }
 
         try {
-            // Generate all variants (pass original extension for proper handling)
-            $variantPaths = $this->variantGenerator->generateVariants($tempPath, $tempDir, $originalExtension);
+            // For SVG files, skip variant generation and just copy the original
+            if ($isSvg) {
+                $originalVariant = $tempDir.'/original.'.strtolower($originalExtension);
+                copy($tempPath, $originalVariant);
+                $variantPaths = ['original' => $originalVariant];
+                $dimensions = ['width' => 0, 'height' => 0]; // SVG dimensions are viewBox-based
+            } else {
+                // Generate all variants (pass original extension for proper handling)
+                $variantPaths = $this->variantGenerator->generateVariants($tempPath, $tempDir, $originalExtension);
+            }
 
             // Upload all variants to storage
             $uploadedVariants = [];

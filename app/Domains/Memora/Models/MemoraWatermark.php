@@ -8,6 +8,7 @@ use App\Domains\Memora\Enums\TextTransformEnum;
 use App\Domains\Memora\Enums\WatermarkPositionEnum;
 use App\Domains\Memora\Enums\WatermarkTypeEnum;
 use App\Models\User;
+use App\Models\UserFile;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -43,7 +44,7 @@ class MemoraWatermark extends Model
         'user_uuid',
         'name',
         'type',
-        'image_url',
+        'image_file_uuid',
         'text',
         'font_family',
         'font_style',
@@ -110,6 +111,14 @@ class MemoraWatermark extends Model
     public function projects(): HasMany
     {
         return $this->hasMany(MemoraProject::class, 'watermark_uuid', 'uuid');
+    }
+
+    /**
+     * Get the image file for this watermark.
+     */
+    public function imageFile(): BelongsTo
+    {
+        return $this->belongsTo(UserFile::class, 'image_file_uuid', 'uuid');
     }
 
     /**

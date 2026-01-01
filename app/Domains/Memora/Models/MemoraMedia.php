@@ -52,6 +52,8 @@ class MemoraMedia extends Model
         'revision_todos',
         'original_media_uuid',
         'user_file_uuid',
+        'watermark_uuid',
+        'original_file_uuid',
         'order',
     ];
 

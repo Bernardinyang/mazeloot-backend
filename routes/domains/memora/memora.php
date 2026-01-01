@@ -12,6 +12,7 @@ use App\Domains\Memora\Controllers\V1\ProofingApprovalRequestController;
 use App\Domains\Memora\Controllers\V1\ProofingController;
 use App\Domains\Memora\Controllers\V1\SettingsController;
 use App\Domains\Memora\Controllers\V1\SocialLinkController;
+use App\Domains\Memora\Controllers\V1\WatermarkController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -65,6 +66,8 @@ Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
             Route::post('/copy', [MediaController::class, 'copyToSet']);
             Route::patch('/{mediaId}/rename', [MediaController::class, 'rename']);
             Route::patch('/{mediaId}/replace', [MediaController::class, 'replace']);
+            Route::post('/{mediaId}/watermark', [MediaController::class, 'applyWatermark']);
+            Route::delete('/{mediaId}/watermark', [MediaController::class, 'removeWatermark']);
             Route::post('/{mediaId}/star', [MediaController::class, 'toggleStar']);
             Route::delete('/{mediaId}', [MediaController::class, 'deleteFromSet']);
             Route::post('/{mediaId}/feedback', [MediaController::class, 'addFeedback']);
@@ -119,6 +122,18 @@ Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
             Route::patch('/{id}', [SocialLinkController::class, 'update']);
             Route::delete('/{id}', [SocialLinkController::class, 'destroy']);
             Route::post('/reorder', [SocialLinkController::class, 'reorder']);
+        });
+
+        // Watermarks
+        Route::prefix('watermarks')->group(function () {
+            Route::get('/', [WatermarkController::class, 'index']);
+            Route::post('/', [WatermarkController::class, 'store']);
+            Route::post('/upload-image', [WatermarkController::class, 'uploadImage']);
+            Route::get('/{id}', [WatermarkController::class, 'show']);
+            Route::patch('/{id}', [WatermarkController::class, 'update']);
+            Route::delete('/{id}', [WatermarkController::class, 'destroy']);
+            Route::post('/{id}/duplicate', [WatermarkController::class, 'duplicate']);
+            Route::get('/{id}/usage', [WatermarkController::class, 'usage']);
         });
     });
 });

@@ -5,6 +5,7 @@ namespace App\Domains\Memora\Controllers\V1;
 use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Requests\V1\AddMediaFeedbackRequest;
+use App\Domains\Memora\Requests\V1\ApplyWatermarkRequest;
 use App\Domains\Memora\Requests\V1\MoveCopyMediaRequest;
 use App\Domains\Memora\Requests\V1\RenameMediaRequest;
 use App\Domains\Memora\Requests\V1\ReplaceMediaRequest;
@@ -394,6 +395,67 @@ class MediaController extends Controller
             ]);
 
             return ApiResponse::error('Failed to replace media', 'REPLACE_FAILED', 500);
+        }
+    }
+
+    /**
+     * Apply watermark to media
+     */
+    public function applyWatermark(ApplyWatermarkRequest $request, string $selectionId, string $setUuid, string $mediaId): JsonResponse
+    {
+        $userId = Auth::id();
+        if (! $userId) {
+            return ApiResponse::error('Unauthorized', 'UNAUTHORIZED', 401);
+        }
+
+        try {
+            $validated = $request->validated();
+            $media = $this->mediaService->applyWatermark($mediaId, $validated['watermarkUuid'], $userId);
+
+            return ApiResponse::success(new MediaResource($media));
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ApiResponse::error('Media or watermark not found', 'NOT_FOUND', 404);
+        } catch (\RuntimeException $e) {
+            return ApiResponse::error($e->getMessage(), 'WATERMARK_FAILED', 400);
+        } catch (\Exception $e) {
+            Log::error('Failed to apply watermark', [
+                'selection_id' => $selectionId,
+                'set_uuid' => $setUuid,
+                'media_id' => $mediaId,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return ApiResponse::error('Failed to apply watermark', 'WATERMARK_FAILED', 500);
+        }
+    }
+
+    /**
+     * Remove watermark from media
+     */
+    public function removeWatermark(Request $request, string $selectionId, string $setUuid, string $mediaId): JsonResponse
+    {
+        $userId = Auth::id();
+        if (! $userId) {
+            return ApiResponse::error('Unauthorized', 'UNAUTHORIZED', 401);
+        }
+
+        try {
+            $media = $this->mediaService->removeWatermark($mediaId, $userId);
+
+            return ApiResponse::success(new MediaResource($media));
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ApiResponse::error('Media not found', 'NOT_FOUND', 404);
+        } catch (\RuntimeException $e) {
+            return ApiResponse::error($e->getMessage(), 'WATERMARK_REMOVE_FAILED', 400);
+        } catch (\Exception $e) {
+            Log::error('Failed to remove watermark', [
+                'selection_id' => $selectionId,
+                'set_uuid' => $setUuid,
+                'media_id' => $mediaId,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return ApiResponse::error('Failed to remove watermark', 'WATERMARK_REMOVE_FAILED', 500);
         }
     }
 
@@ -836,6 +898,129 @@ class MediaController extends Controller
             ]);
 
             return ApiResponse::error('Failed to download file: '.$e->getMessage(), 'DOWNLOAD_ERROR', 500);
+        }
+    }
+
+    /**
+     * Serve image file by media UUID with CORS headers
+     */
+    public function serve(string $mediaUuid): StreamedResponse|Response|JsonResponse
+    {
+        try {
+            $media = $this->mediaService->getMediaForDownload($mediaUuid);
+            $file = $media->file;
+
+            if (! $file) {
+                return ApiResponse::error('File not found for this media', 'FILE_NOT_FOUND', 404);
+            }
+
+            $filePath = $file->path;
+            $fileUrl = $file->url;
+
+            // Priority 1: If we have a cloud storage URL, proxy it with CORS headers
+            if ($fileUrl && (str_starts_with($fileUrl, 'http://') || str_starts_with($fileUrl, 'https://'))) {
+                $isCloudStorage = str_contains($fileUrl, 'amazonaws.com') ||
+                    str_contains($fileUrl, 'r2.cloudflarestorage.com') ||
+                    str_contains($fileUrl, 'r2.dev') ||
+                    str_contains($fileUrl, 'cloudflare') ||
+                    str_contains($fileUrl, 's3.') ||
+                    str_contains($fileUrl, '.s3.');
+
+                if ($isCloudStorage) {
+                    try {
+                        $fileContents = file_get_contents($fileUrl);
+                        if ($fileContents === false) {
+                            throw new \RuntimeException('Failed to fetch file from cloud storage');
+                        }
+
+                        return response($fileContents)
+                            ->header('Content-Type', $file->mime_type ?? 'application/octet-stream')
+                            ->header('Content-Length', strlen($fileContents))
+                            ->header('Access-Control-Allow-Origin', '*')
+                            ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+                            ->header('Access-Control-Allow-Headers', 'Content-Type')
+                            ->header('Cache-Control', 'public, max-age=31536000');
+                    } catch (\Exception $e) {
+                        Log::error('Failed to serve from cloud storage', [
+                            'media_uuid' => $mediaUuid,
+                            'url' => $fileUrl,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+            }
+
+            // Priority 2: Serve from storage disk
+            if ($filePath) {
+                if ($fileUrl && str_contains($fileUrl, '/storage/')) {
+                    $parsedPath = parse_url($fileUrl, PHP_URL_PATH);
+                    if ($parsedPath) {
+                        $filePath = str_replace('/storage/', '', $parsedPath);
+                    }
+                }
+
+                $disksToCheck = ['public', 'local'];
+                if (config('filesystems.disks.s3.key')) {
+                    $disksToCheck[] = 's3';
+                }
+                if (config('filesystems.disks.r2.key')) {
+                    $disksToCheck[] = 'r2';
+                }
+
+                foreach ($disksToCheck as $checkDisk) {
+                    try {
+                        if (Storage::disk($checkDisk)->exists($filePath)) {
+                            // For local disks, use path() method
+                            if (in_array($checkDisk, ['public', 'local'])) {
+                                return response()->file(Storage::disk($checkDisk)->path($filePath))
+                                    ->header('Access-Control-Allow-Origin', '*')
+                                    ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+                                    ->header('Access-Control-Allow-Headers', 'Content-Type')
+                                    ->header('Cache-Control', 'public, max-age=31536000');
+                            }
+                            
+                            // For cloud storage, download and serve with CORS
+                            $fileContents = Storage::disk($checkDisk)->get($filePath);
+                            return response($fileContents)
+                                ->header('Content-Type', $file->mime_type ?? 'application/octet-stream')
+                                ->header('Content-Length', strlen($fileContents))
+                                ->header('Access-Control-Allow-Origin', '*')
+                                ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+                                ->header('Access-Control-Allow-Headers', 'Content-Type')
+                                ->header('Cache-Control', 'public, max-age=31536000');
+                        }
+                    } catch (\Exception $e) {
+                        continue;
+                    }
+                }
+            }
+
+            // Priority 3: Fallback to URL redirect with CORS headers
+            if ($fileUrl && (str_starts_with($fileUrl, 'http://') || str_starts_with($fileUrl, 'https://'))) {
+                try {
+                    $fileContents = file_get_contents($fileUrl);
+                    if ($fileContents !== false) {
+                        return response($fileContents)
+                            ->header('Content-Type', $file->mime_type ?? 'application/octet-stream')
+                            ->header('Content-Length', strlen($fileContents))
+                            ->header('Access-Control-Allow-Origin', '*')
+                            ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+                            ->header('Access-Control-Allow-Headers', 'Content-Type')
+                            ->header('Cache-Control', 'public, max-age=31536000');
+                    }
+                } catch (\Exception $e) {
+                    // Fall through
+                }
+            }
+
+            return ApiResponse::error('File not available', 'FILE_NOT_FOUND', 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to serve media', [
+                'media_uuid' => $mediaUuid,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return ApiResponse::error('Failed to serve file: '.$e->getMessage(), 'SERVE_ERROR', 500);
         }
     }
 }

@@ -86,6 +86,74 @@ class SettingsService
             $updateData['branding_favicon_uuid'] = $data['faviconUuid'];
         }
 
+        if (array_key_exists('name', $data)) {
+            $updateData['branding_name'] = $data['name'];
+        }
+
+        if (array_key_exists('supportEmail', $data)) {
+            $updateData['branding_support_email'] = $data['supportEmail'];
+        }
+
+        if (array_key_exists('supportPhone', $data)) {
+            $updateData['branding_support_phone'] = $data['supportPhone'];
+        }
+
+        if (array_key_exists('website', $data)) {
+            $updateData['branding_website'] = $data['website'];
+        }
+
+        if (array_key_exists('location', $data)) {
+            $updateData['branding_location'] = $data['location'];
+        }
+
+        if (array_key_exists('tagline', $data)) {
+            $updateData['branding_tagline'] = $data['tagline'];
+        }
+
+        if (array_key_exists('description', $data)) {
+            $updateData['branding_description'] = $data['description'];
+        }
+
+        if (array_key_exists('addressStreet', $data)) {
+            $updateData['branding_address_street'] = $data['addressStreet'];
+        }
+
+        if (array_key_exists('addressCity', $data)) {
+            $updateData['branding_address_city'] = $data['addressCity'];
+        }
+
+        if (array_key_exists('addressState', $data)) {
+            $updateData['branding_address_state'] = $data['addressState'];
+        }
+
+        if (array_key_exists('addressZip', $data)) {
+            $updateData['branding_address_zip'] = $data['addressZip'];
+        }
+
+        if (array_key_exists('addressCountry', $data)) {
+            $updateData['branding_address_country'] = $data['addressCountry'];
+        }
+
+        if (array_key_exists('businessHours', $data)) {
+            $updateData['branding_business_hours'] = $data['businessHours'];
+        }
+
+        if (array_key_exists('contactName', $data)) {
+            $updateData['branding_contact_name'] = $data['contactName'];
+        }
+
+        if (array_key_exists('taxVatId', $data)) {
+            $updateData['branding_tax_vat_id'] = $data['taxVatId'];
+        }
+
+        if (array_key_exists('foundedYear', $data)) {
+            $updateData['branding_founded_year'] = $data['foundedYear'];
+        }
+
+        if (array_key_exists('industry', $data)) {
+            $updateData['branding_industry'] = $data['industry'];
+        }
+
         $settings->update($updateData);
         $settings->refresh();
 

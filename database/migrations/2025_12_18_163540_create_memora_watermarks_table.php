@@ -25,7 +25,7 @@ return new class extends Migration
             $table->enum('type', WatermarkTypeEnum::values());
 
             // Image type fields
-            $table->string('image_url')->nullable();
+            $table->foreignUuid('image_file_uuid')->nullable()->constrained('user_files', 'uuid')->nullOnDelete();
 
             // Text type fields
             $table->text('text')->nullable();

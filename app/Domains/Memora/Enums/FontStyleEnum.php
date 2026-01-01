@@ -7,6 +7,7 @@ enum FontStyleEnum: string
     case NORMAL = 'normal';
     case BOLD = 'bold';
     case ITALIC = 'italic';
+    case BOLD_ITALIC = 'bold-italic';
 
     /**
      * Get all values as array
@@ -33,6 +34,7 @@ enum FontStyleEnum: string
             self::NORMAL => 'Normal',
             self::BOLD => 'Bold',
             self::ITALIC => 'Italic',
+            self::BOLD_ITALIC => 'Bold Italic',
         };
     }
 }

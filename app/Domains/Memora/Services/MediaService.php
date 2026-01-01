@@ -10,6 +10,7 @@ use App\Domains\Memora\Models\MemoraSelection;
 use App\Services\Upload\UploadService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class MediaService
 {
@@ -1195,5 +1196,809 @@ class MediaService
         $media->load('file');
 
         return $media;
+    }
+
+    /**
+     * Apply watermark to media
+     */
+    public function applyWatermark(string $mediaUuid, string $watermarkUuid, ?string $userId = null): MemoraMedia
+    {
+        $userId = $userId ?? Auth::id();
+        if (! $userId) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $media = MemoraMedia::where('uuid', $mediaUuid)->firstOrFail();
+        if ($media->user_uuid !== $userId) {
+            throw new \Exception('Unauthorized: You do not own this media');
+        }
+
+        if (! $media->file) {
+            throw new \RuntimeException('File not found for this media');
+        }
+
+        $watermark = \App\Domains\Memora\Models\MemoraWatermark::where('uuid', $watermarkUuid)
+            ->where('user_uuid', $userId)
+            ->with('imageFile')
+            ->firstOrFail();
+
+        // Get original file - if watermark already exists, use original_file_uuid, otherwise use current file
+        $originalFileUuid = $media->original_file_uuid ?? $media->user_file_uuid;
+        $originalFile = \App\Models\UserFile::where('uuid', $originalFileUuid)->firstOrFail();
+        
+        // If media already has a watermark, we need to delete the old watermarked file
+        $oldWatermarkedFileUuid = null;
+        if ($media->watermark_uuid && $media->user_file_uuid !== $originalFileUuid) {
+            $oldWatermarkedFileUuid = $media->user_file_uuid;
+        }
+
+        // Download original image (always use original, not current watermarked version)
+        $originalUrl = $originalFile->url;
+        $tempPath = $this->downloadImageToTemp($originalUrl);
+
+        try {
+            // Apply watermark
+            $watermarkedPath = $this->applyWatermarkToImage($tempPath, $watermark);
+
+            // Upload watermarked image
+            $uploadService = app(\App\Services\Image\ImageUploadService::class);
+            $uploadedFile = new \Illuminate\Http\UploadedFile(
+                $watermarkedPath,
+                basename($watermarkedPath),
+                mime_content_type($watermarkedPath),
+                null,
+                true
+            );
+
+            $uploadResult = $uploadService->uploadImage($uploadedFile, [
+                'context' => 'watermarked-media',
+                'visibility' => 'public',
+            ]);
+
+            // Create UserFile for watermarked image
+            $watermarkedFile = \App\Models\UserFile::create([
+                'user_uuid' => $userId,
+                'url' => $uploadResult['variants']['original'] ?? $uploadResult['variants']['large'] ?? '',
+                'path' => 'uploads/images/'.$uploadResult['uuid'],
+                'type' => 'image',
+                'filename' => $originalFile->filename,
+                'mime_type' => mime_content_type($watermarkedPath),
+                'size' => filesize($watermarkedPath),
+                'width' => $uploadResult['meta']['width'] ?? null,
+                'height' => $uploadResult['meta']['height'] ?? null,
+                'metadata' => [
+                    'uuid' => $uploadResult['uuid'],
+                    'variants' => $uploadResult['variants'],
+                ],
+            ]);
+
+            // Update media with new watermarked file
+            $media->update([
+                'user_file_uuid' => $watermarkedFile->uuid,
+                'watermark_uuid' => $watermarkUuid,
+                'original_file_uuid' => $originalFileUuid,
+            ]);
+
+            // Delete old watermarked file if it exists (cleanup)
+            if ($oldWatermarkedFileUuid) {
+                try {
+                    $oldWatermarkedFile = \App\Models\UserFile::where('uuid', $oldWatermarkedFileUuid)->first();
+                    if ($oldWatermarkedFile) {
+                        // Collect all file paths to delete (main file + variants)
+                        $pathsToDelete = [];
+                        if ($oldWatermarkedFile->path) {
+                            $pathsToDelete[] = $oldWatermarkedFile->path;
+                        }
+                        if ($oldWatermarkedFile->metadata && isset($oldWatermarkedFile->metadata['variants'])) {
+                            foreach ($oldWatermarkedFile->metadata['variants'] as $variantPath) {
+                                if ($variantPath && !in_array($variantPath, $pathsToDelete)) {
+                                    $pathsToDelete[] = $variantPath;
+                                }
+                            }
+                        }
+                        
+                        // Delete files using UploadService
+                        if (!empty($pathsToDelete)) {
+                            $uploadServiceForDeletion = app(\App\Services\Upload\UploadService::class);
+                            $uploadServiceForDeletion->deleteFiles($pathsToDelete[0], count($pathsToDelete) > 1 ? array_slice($pathsToDelete, 1) : null);
+                        }
+                        
+                        // Delete the UserFile record
+                        $oldWatermarkedFile->delete();
+                    }
+                } catch (\Exception $e) {
+                    // Log but don't fail if cleanup fails
+                    \Illuminate\Support\Facades\Log::warning('Failed to delete old watermarked file', [
+                        'file_uuid' => $oldWatermarkedFileUuid,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // Reload relationships to ensure file is fresh
+            $media->refresh();
+            $media->load('file');
+
+            return $media;
+        } finally {
+            if (isset($tempPath) && file_exists($tempPath)) {
+                unlink($tempPath);
+            }
+            if (isset($watermarkedPath) && file_exists($watermarkedPath)) {
+                unlink($watermarkedPath);
+            }
+        }
+    }
+
+    /**
+     * Remove watermark from media
+     */
+    public function removeWatermark(string $mediaUuid, ?string $userId = null): MemoraMedia
+    {
+        $userId = $userId ?? Auth::id();
+        if (! $userId) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $media = MemoraMedia::where('uuid', $mediaUuid)->firstOrFail();
+        if ($media->user_uuid !== $userId) {
+            throw new \Exception('Unauthorized: You do not own this media');
+        }
+
+        if (! $media->original_file_uuid) {
+            throw new \RuntimeException('No original file found to restore');
+        }
+
+        // Restore original file
+        $media->update([
+            'user_file_uuid' => $media->original_file_uuid,
+            'watermark_uuid' => null,
+            'original_file_uuid' => null,
+        ]);
+
+        // Reload relationships to ensure file is fresh
+        $media->refresh();
+        $media->load('file');
+
+        return $media;
+    }
+
+    /**
+     * Download image from URL to temporary file
+     */
+    protected function downloadImageToTemp(string $url): string
+    {
+        // Detect file extension from URL or content
+        $tempPath = sys_get_temp_dir().'/'.uniqid('watermark_', true);
+        
+        // Check if URL is a storage path (starts with storage:// or is a relative path)
+        if (str_starts_with($url, 'storage://') || (!str_starts_with($url, 'http://') && !str_starts_with($url, 'https://'))) {
+            // Try to get from storage
+            $path = str_replace('storage://', '', $url);
+            $disksToCheck = ['public', 'local', 's3', 'r2'];
+            
+            foreach ($disksToCheck as $disk) {
+                try {
+                    if (\Illuminate\Support\Facades\Storage::disk($disk)->exists($path)) {
+                        $content = \Illuminate\Support\Facades\Storage::disk($disk)->get($path);
+                        if ($content !== false) {
+                            // Detect image type
+                            $imageInfo = @getimagesizefromstring($content);
+                            if ($imageInfo !== false && isset($imageInfo['mime'])) {
+                                $extension = match ($imageInfo['mime']) {
+                                    'image/jpeg', 'image/jpg' => 'jpg',
+                                    'image/png' => 'png',
+                                    'image/gif' => 'gif',
+                                    'image/webp' => 'webp',
+                                    default => 'jpg',
+                                };
+                                $tempPath .= '.'.$extension;
+                                file_put_contents($tempPath, $content);
+                                return $tempPath;
+                            }
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // Continue to next disk
+                    continue;
+                }
+            }
+            
+            throw new \RuntimeException('Watermark image not found in storage: '.$url);
+        }
+        
+        // Handle HTTP/HTTPS URLs
+        $context = stream_context_create([
+            'http' => [
+                'timeout' => 30,
+                'follow_location' => true,
+                'ignore_errors' => true,
+            ],
+        ]);
+        
+        $content = @file_get_contents($url, false, $context);
+        if ($content === false) {
+            $error = error_get_last();
+            throw new \RuntimeException('Failed to download image from URL: '.$url.($error ? ' - '.$error['message'] : ''));
+        }
+        
+        if (empty($content)) {
+            throw new \RuntimeException('Downloaded image is empty from URL: '.$url);
+        }
+        
+        // Try to detect image type from content
+        $imageInfo = @getimagesizefromstring($content);
+        if ($imageInfo === false || !isset($imageInfo['mime'])) {
+            throw new \RuntimeException('Invalid image content. URL may not point to a valid image: '.$url);
+        }
+        
+        $extension = match ($imageInfo['mime']) {
+            'image/jpeg', 'image/jpg' => 'jpg',
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+            'image/webp' => 'webp',
+            'image/svg+xml' => 'svg',
+            default => 'jpg',
+        };
+        
+        $tempPath .= '.'.$extension;
+        file_put_contents($tempPath, $content);
+        
+        return $tempPath;
+    }
+
+    /**
+     * Apply watermark to image file
+     */
+    protected function applyWatermarkToImage(string $imagePath, \App\Domains\Memora\Models\MemoraWatermark $watermark): string
+    {
+        $outputPath = sys_get_temp_dir().'/'.uniqid('watermarked_', true).'.jpg';
+        
+        // Load image using GD
+        $imageInfo = getimagesize($imagePath);
+        if (!$imageInfo) {
+            throw new \RuntimeException('Invalid image file');
+        }
+
+        $mimeType = $imageInfo['mime'];
+        $imageWidth = $imageInfo[0];
+        $imageHeight = $imageInfo[1];
+
+        $gdImage = match ($mimeType) {
+            'image/jpeg', 'image/jpg' => imagecreatefromjpeg($imagePath),
+            'image/png' => imagecreatefrompng($imagePath),
+            'image/gif' => imagecreatefromgif($imagePath),
+            'image/webp' => imagecreatefromwebp($imagePath),
+            default => throw new \RuntimeException('Unsupported image type: '.$mimeType),
+        };
+
+        if (!$gdImage) {
+            throw new \RuntimeException('Failed to create GD image');
+        }
+
+        $opacity = ($watermark->opacity ?? 80) / 100;
+        $position = $watermark->position instanceof \App\Domains\Memora\Enums\WatermarkPositionEnum 
+            ? $watermark->position->value 
+            : ($watermark->position ?? 'bottom-right');
+
+        $watermarkType = $watermark->type instanceof \App\Domains\Memora\Enums\WatermarkTypeEnum
+            ? $watermark->type
+            : \App\Domains\Memora\Enums\WatermarkTypeEnum::from($watermark->type ?? 'text');
+
+        if ($watermarkType === \App\Domains\Memora\Enums\WatermarkTypeEnum::TEXT) {
+            if (empty($watermark->text)) {
+                throw new \RuntimeException('Text watermark requires text content');
+            }
+            $this->applyTextWatermarkGd($gdImage, $watermark, $imageWidth, $imageHeight, $opacity, $position);
+        } elseif ($watermarkType === \App\Domains\Memora\Enums\WatermarkTypeEnum::IMAGE) {
+            if (!$watermark->imageFile || !$watermark->imageFile->url) {
+                throw new \RuntimeException('Image watermark requires an image file');
+            }
+            $this->applyImageWatermarkGd($gdImage, $watermark, $imageWidth, $imageHeight, $opacity, $position);
+        } else {
+            throw new \RuntimeException('Invalid watermark type: '.($watermark->type ?? 'unknown'));
+        }
+
+        imagejpeg($gdImage, $outputPath, 90);
+        imagedestroy($gdImage);
+
+        return $outputPath;
+    }
+
+    /**
+     * Apply text watermark using GD
+     */
+    protected function applyTextWatermarkGd(
+        $gdImage,
+        \App\Domains\Memora\Models\MemoraWatermark $watermark,
+        int $imageWidth,
+        int $imageHeight,
+        float $opacity,
+        string $position
+    ): void {
+        $text = $watermark->text ?? '';
+        if (empty($text)) {
+            return;
+        }
+
+        // Apply text transform
+        if ($watermark->text_transform instanceof \App\Domains\Memora\Enums\TextTransformEnum) {
+            $transform = $watermark->text_transform;
+            if ($transform === \App\Domains\Memora\Enums\TextTransformEnum::UPPERCASE) {
+                $text = strtoupper($text);
+            } elseif ($transform === \App\Domains\Memora\Enums\TextTransformEnum::LOWERCASE) {
+                $text = strtolower($text);
+            }
+        }
+
+        // Enhanced scaling: padding-aware with diagonal fallback for extreme aspect ratios
+        $scalePercent = ($watermark->scale ?? 50) / 100; // Convert to 0.0-1.0
+        
+        // Calculate padding (5% of min dimension, minimum 20px)
+        $basePadding = min($imageWidth, $imageHeight) * 0.05;
+        $padding = max(20, (int)$basePadding);
+        
+        // Calculate usable dimensions (accounting for padding)
+        $usableWidth = max($imageWidth - ($padding * 2), $imageWidth * 0.9);
+        $usableHeight = max($imageHeight - ($padding * 2), $imageHeight * 0.9);
+        $minDimension = min($usableWidth, $usableHeight);
+        
+        // For extreme aspect ratios (panoramic/tall), use diagonal as fallback
+        $aspectRatio = $imageWidth / $imageHeight;
+        $isExtremeAspectRatio = $aspectRatio > 3.0 || $aspectRatio < 0.33;
+        
+        if ($isExtremeAspectRatio) {
+            // Use diagonal-based scaling for extreme aspect ratios
+            $diagonal = sqrt($imageWidth * $imageWidth + $imageHeight * $imageHeight);
+            $baseSize = $diagonal * 0.05; // 5% of diagonal
+            $maxFontSize = $baseSize * 2; // Max 10% of diagonal
+            $baseFontSize = $baseSize * $scalePercent;
+        } else {
+            // Standard min-dimension approach
+            $maxFontSize = $minDimension * 0.1; // Max 10% of min dimension
+            $baseFontSize = $minDimension * $scalePercent * 0.1; // Scale% of max font size
+        }
+        
+        $fontSize = min(max($baseFontSize, 12), $maxFontSize); // Min 12px, enforce max
+
+        // Get colors
+        $fontColor = $watermark->font_color ?? '#FFFFFF';
+        $fontRgb = $this->hexToRgb($fontColor);
+        $bgColor = $watermark->background_color ?? null;
+        $bgRgb = $bgColor ? $this->hexToRgb($bgColor) : null;
+
+        $padding = $watermark->padding ?? 0;
+        $letterSpacing = $watermark->letter_spacing ?? 0;
+        $lineHeight = $watermark->line_height ?? 1.2;
+        
+        // Use high-resolution rendering (3x) for smoother text scaling
+        $renderScale = 3;
+        $renderFontSize = $fontSize * $renderScale;
+        
+        // Estimate text width - use more accurate calculation
+        // Frontend uses measureText which accounts for actual font metrics
+        // For GD fonts, approximate: font size * 0.55-0.65 per character
+        $avgCharWidth = $fontSize * 0.6;
+        $textWidth = (strlen($text) * $avgCharWidth) + (strlen($text) - 1) * $letterSpacing;
+        
+        // Apply max width constraint (80% of image width) - same as frontend
+        $maxTextWidth = $imageWidth * 0.8;
+        if ($textWidth > $maxTextWidth) {
+            $scaleFactor = $maxTextWidth / $textWidth;
+            $fontSize = $fontSize * $scaleFactor;
+            $textWidth = $maxTextWidth;
+        }
+        
+        $totalWidth = $textWidth + ($padding * 2);
+        $totalHeight = ($fontSize * $lineHeight) + ($padding * 2);
+        
+        // Create watermark image with background
+        $textImage = imagecreatetruecolor((int)$totalWidth, (int)$totalHeight);
+        imagealphablending($textImage, false);
+        imagesavealpha($textImage, true);
+        $transparent = imagecolorallocatealpha($textImage, 0, 0, 0, 127);
+        imagefill($textImage, 0, 0, $transparent);
+        
+        // Draw background if specified
+        if ($bgRgb) {
+            $bgAlpha = (int)((1 - $opacity) * 127);
+            $bgColorRes = imagecolorallocatealpha($textImage, $bgRgb['r'], $bgRgb['g'], $bgRgb['b'], $bgAlpha);
+            $borderRadius = $watermark->border_radius ?? 0;
+            
+            if ($borderRadius > 0) {
+                // Draw rounded rectangle (simplified)
+                imagefilledrectangle($textImage, $borderRadius, 0, (int)$totalWidth - $borderRadius - 1, (int)$totalHeight - 1, $bgColorRes);
+                imagefilledrectangle($textImage, 0, $borderRadius, (int)$totalWidth - 1, (int)$totalHeight - $borderRadius - 1, $bgColorRes);
+            } else {
+                imagefilledrectangle($textImage, 0, 0, (int)$totalWidth - 1, (int)$totalHeight - 1, $bgColorRes);
+            }
+            
+            // Draw border if specified
+            if (($watermark->border_width ?? 0) > 0 && $watermark->border_color) {
+                $borderRgb = $this->hexToRgb($watermark->border_color);
+                $borderColorRes = imagecolorallocatealpha($textImage, $borderRgb['r'], $borderRgb['g'], $borderRgb['b'], $bgAlpha);
+                $borderWidth = $watermark->border_width;
+                for ($i = 0; $i < $borderWidth; $i++) {
+                    imagerectangle($textImage, $i, $i, (int)$totalWidth - 1 - $i, (int)$totalHeight - 1 - $i, $borderColorRes);
+                }
+            }
+        }
+        
+        // Render text at high resolution, then scale down
+        $gdFontSize = 5; // Largest built-in font (13px)
+        $gdBaseSize = 13;
+        $scaleFactor = $fontSize / $gdBaseSize;
+        
+        // Create high-res text canvas
+        $textCanvasWidth = (int)($textWidth * $renderScale);
+        $textCanvasHeight = (int)(($fontSize * $lineHeight) * $renderScale);
+        $textCanvas = imagecreatetruecolor($textCanvasWidth, $textCanvasHeight);
+        imagealphablending($textCanvas, false);
+        imagesavealpha($textCanvas, true);
+        $transparentCanvas = imagecolorallocatealpha($textCanvas, 0, 0, 0, 127);
+        imagefill($textCanvas, 0, 0, $transparentCanvas);
+        
+        // Render text using GD font, scaled up
+        $gdTextWidth = (int)(strlen($text) * 6 * $scaleFactor * $renderScale);
+        $gdTextHeight = (int)($gdBaseSize * $scaleFactor * $renderScale);
+        $gdTextCanvas = imagecreatetruecolor($gdTextWidth, $gdTextHeight);
+        imagealphablending($gdTextCanvas, false);
+        imagesavealpha($gdTextCanvas, true);
+        $transparentGd = imagecolorallocatealpha($gdTextCanvas, 0, 0, 0, 127);
+        imagefill($gdTextCanvas, 0, 0, $transparentGd);
+        
+        // Draw at base size first
+        $baseTextCanvas = imagecreatetruecolor((int)(strlen($text) * 6), $gdBaseSize);
+        $textColorBase = imagecolorallocate($baseTextCanvas, $fontRgb['r'], $fontRgb['g'], $fontRgb['b']);
+        imagestring($baseTextCanvas, $gdFontSize, 0, 0, $text, $textColorBase);
+        
+        // Scale to render size
+        imagealphablending($gdTextCanvas, true);
+        imagecopyresampled($gdTextCanvas, $baseTextCanvas, 0, 0, 0, 0, $gdTextWidth, $gdTextHeight, (int)(strlen($text) * 6), $gdBaseSize);
+        imagedestroy($baseTextCanvas);
+        
+        // Center text in canvas
+        $textX = (int)(($textCanvasWidth - $gdTextWidth) / 2);
+        $textY = (int)(($textCanvasHeight - $gdTextHeight) / 2);
+        imagealphablending($textCanvas, true);
+        imagecopy($textCanvas, $gdTextCanvas, $textX, $textY, 0, 0, $gdTextWidth, $gdTextHeight);
+        imagedestroy($gdTextCanvas);
+        
+        // Scale down to final size and composite onto watermark
+        $textX = (int)(($totalWidth - $textWidth) / 2);
+        $textY = (int)(($totalHeight - ($fontSize * $lineHeight)) / 2);
+        imagealphablending($textImage, true);
+        imagecopyresampled(
+            $textImage, $textCanvas,
+            $textX, $textY,
+            0, 0,
+            (int)$textWidth, (int)($fontSize * $lineHeight),
+            $textCanvasWidth, $textCanvasHeight
+        );
+        imagedestroy($textCanvas);
+        
+        // Get position for watermark
+        $pos = $this->getWatermarkPosition($position, $imageWidth, $imageHeight, $totalWidth, $totalHeight);
+        
+        // Composite text image onto main image
+        imagealphablending($gdImage, true);
+        $this->imagecopymerge_alpha($gdImage, $textImage, $pos['x'], $pos['y'], 0, 0, (int)$totalWidth, (int)$totalHeight, (int)($opacity * 100));
+        
+        imagedestroy($textImage);
+    }
+
+    /**
+     * Apply image watermark using GD
+     */
+    protected function applyImageWatermarkGd(
+        $gdImage,
+        \App\Domains\Memora\Models\MemoraWatermark $watermark,
+        int $imageWidth,
+        int $imageHeight,
+        float $opacity,
+        string $position
+    ): void {
+        if (! $watermark->imageFile || ! $watermark->imageFile->url) {
+            throw new \RuntimeException('Watermark image not found');
+        }
+
+        $watermarkUrl = $watermark->imageFile->url;
+        
+        try {
+            $watermarkTempPath = $this->downloadImageToTemp($watermarkUrl);
+        } catch (\Exception $e) {
+            throw new \RuntimeException('Failed to download watermark image: '.$e->getMessage());
+        }
+        
+        if (!file_exists($watermarkTempPath)) {
+            throw new \RuntimeException('Watermark image file not found after download');
+        }
+        
+        // Check if it's SVG and convert to PNG
+        $isSvg = str_ends_with(strtolower($watermarkTempPath), '.svg') || 
+                 str_contains(strtolower($watermarkUrl), '.svg');
+        
+        $originalSvgPath = null;
+        if ($isSvg) {
+            try {
+                $originalSvgPath = $watermarkTempPath;
+                $watermarkTempPath = $this->convertSvgToPng($watermarkTempPath);
+                
+                if (!file_exists($watermarkTempPath)) {
+                    throw new \RuntimeException('SVG conversion failed: PNG file not created');
+                }
+            } catch (\Exception $e) {
+                if (file_exists($watermarkTempPath)) {
+                    unlink($watermarkTempPath);
+                }
+                if ($originalSvgPath && file_exists($originalSvgPath)) {
+                    unlink($originalSvgPath);
+                }
+                throw new \RuntimeException('Failed to convert SVG watermark: '.$e->getMessage());
+            }
+        }
+        
+        $watermarkInfo = @getimagesize($watermarkTempPath);
+        if (!$watermarkInfo || !isset($watermarkInfo['mime'])) {
+            if (file_exists($watermarkTempPath)) {
+                unlink($watermarkTempPath);
+            }
+            if ($originalSvgPath && file_exists($originalSvgPath)) {
+                unlink($originalSvgPath);
+            }
+            throw new \RuntimeException('Invalid watermark image format. File exists but cannot be read as image. Path: '.$watermarkTempPath);
+        }
+
+        $watermarkMime = $watermarkInfo['mime'];
+        $watermarkGd = match ($watermarkMime) {
+            'image/jpeg', 'image/jpg' => imagecreatefromjpeg($watermarkTempPath),
+            'image/png' => imagecreatefrompng($watermarkTempPath),
+            'image/gif' => imagecreatefromgif($watermarkTempPath),
+            'image/webp' => imagecreatefromwebp($watermarkTempPath),
+            default => null,
+        };
+
+        if (!$watermarkGd) {
+            unlink($watermarkTempPath);
+            if ($originalSvgPath && file_exists($originalSvgPath)) {
+                unlink($originalSvgPath);
+            }
+            throw new \RuntimeException('Failed to load watermark image');
+        }
+
+        $watermarkOrigWidth = imagesx($watermarkGd);
+        $watermarkOrigHeight = imagesy($watermarkGd);
+
+        // Enhanced scaling: padding-aware with diagonal fallback for extreme aspect ratios
+        $scalePercent = ($watermark->scale ?? 100) / 100; // Convert to 0.0-1.0
+        
+        // Calculate padding (5% of min dimension, minimum 20px)
+        $basePadding = min($imageWidth, $imageHeight) * 0.05;
+        $padding = max(20, (int)$basePadding);
+        
+        // Calculate usable dimensions (accounting for padding)
+        $usableWidth = max($imageWidth - ($padding * 2), $imageWidth * 0.9);
+        $usableHeight = max($imageHeight - ($padding * 2), $imageHeight * 0.9);
+        $minImageDimension = min($usableWidth, $usableHeight);
+        
+        // For extreme aspect ratios (panoramic/tall), use diagonal as fallback
+        $aspectRatio = $imageWidth / $imageHeight;
+        $isExtremeAspectRatio = $aspectRatio > 3.0 || $aspectRatio < 0.33;
+        
+        if ($isExtremeAspectRatio) {
+            // Use diagonal-based scaling for extreme aspect ratios
+            $diagonal = sqrt($imageWidth * $imageWidth + $imageHeight * $imageHeight);
+            $baseSize = $diagonal * 0.05; // 5% of diagonal
+            $maxWatermarkSize = $baseSize * 5; // Max 25% of diagonal
+            $targetWatermarkSize = $maxWatermarkSize * $scalePercent;
+        } else {
+            // Standard min-dimension approach
+            $maxWatermarkSize = $minImageDimension * 0.25; // Max 25% of min dimension
+            $targetWatermarkSize = $maxWatermarkSize * $scalePercent;
+        }
+        
+        // Maintain watermark aspect ratio
+        $watermarkAspectRatio = $watermarkOrigWidth / $watermarkOrigHeight;
+        
+        if ($watermarkOrigWidth > $watermarkOrigHeight) {
+            $watermarkWidth = $targetWatermarkSize;
+            $watermarkHeight = $targetWatermarkSize / $watermarkAspectRatio;
+        } else {
+            $watermarkHeight = $targetWatermarkSize;
+            $watermarkWidth = $targetWatermarkSize * $watermarkAspectRatio;
+        }
+        
+        // Ensure watermark doesn't exceed image bounds (90% max) and enforce minimum size
+        $maxSize = $minImageDimension * 0.9;
+        $minSize = 20; // Minimum 20px for image watermarks
+        
+        if ($watermarkWidth > $maxSize || $watermarkHeight > $maxSize) {
+            if ($watermarkWidth > $watermarkHeight) {
+                $watermarkWidth = $maxSize;
+                $watermarkHeight = $maxSize / $watermarkAspectRatio;
+            } else {
+                $watermarkHeight = $maxSize;
+                $watermarkWidth = $maxSize * $watermarkAspectRatio;
+            }
+        }
+        
+        // Enforce minimum size
+        if ($watermarkWidth < $minSize || $watermarkHeight < $minSize) {
+            if ($watermarkWidth < $watermarkHeight) {
+                $watermarkWidth = $minSize;
+                $watermarkHeight = $minSize / $watermarkAspectRatio;
+            } else {
+                $watermarkHeight = $minSize;
+                $watermarkWidth = $minSize * $watermarkAspectRatio;
+            }
+        }
+
+        // Resize watermark
+        $watermarkResized = imagecreatetruecolor((int)$watermarkWidth, (int)$watermarkHeight);
+        imagealphablending($watermarkResized, false);
+        imagesavealpha($watermarkResized, true);
+        imagecopyresampled($watermarkResized, $watermarkGd, 0, 0, 0, 0, (int)$watermarkWidth, (int)$watermarkHeight, $watermarkOrigWidth, $watermarkOrigHeight);
+
+        $pos = $this->getWatermarkPosition($position, $imageWidth, $imageHeight, $watermarkWidth, $watermarkHeight);
+
+        // Apply opacity and composite
+        imagealphablending($gdImage, true);
+        $this->imagecopymerge_alpha($gdImage, $watermarkResized, $pos['x'], $pos['y'], 0, 0, (int)$watermarkWidth, (int)$watermarkHeight, (int)($opacity * 100));
+
+        imagedestroy($watermarkGd);
+        imagedestroy($watermarkResized);
+        unlink($watermarkTempPath);
+        // Clean up original SVG if it was converted
+        if ($originalSvgPath && file_exists($originalSvgPath)) {
+            unlink($originalSvgPath);
+        }
+    }
+
+    /**
+     * Image copy merge with alpha support
+     */
+    protected function imagecopymerge_alpha($dst_im, $src_im, $dst_x, $dst_y, $src_x, $src_y, $src_w, $src_h, $pct): void
+    {
+        $cut = imagecreatetruecolor($src_w, $src_h);
+        imagecopy($cut, $dst_im, 0, 0, $dst_x, $dst_y, $src_w, $src_h);
+        imagecopy($cut, $src_im, 0, 0, $src_x, $src_y, $src_w, $src_h);
+        imagecopymerge($dst_im, $cut, $dst_x, $dst_y, 0, 0, $src_w, $src_h, $pct);
+        imagedestroy($cut);
+    }
+
+    /**
+     * Get watermark position coordinates
+     */
+    protected function getWatermarkPosition(string $position, int $imageWidth, int $imageHeight, float $watermarkWidth, float $watermarkHeight): array
+    {
+        // Match frontend getWatermarkPosition logic exactly
+        // Frontend returns values that are used directly as top-left coordinates
+        $positions = [
+            'top-left' => ['x' => $watermarkWidth / 2, 'y' => $watermarkHeight / 2],
+            'top' => ['x' => $imageWidth / 2, 'y' => $watermarkHeight / 2],
+            'top-right' => ['x' => $imageWidth - $watermarkWidth / 2, 'y' => $watermarkHeight / 2],
+            'left' => ['x' => $watermarkWidth / 2, 'y' => $imageHeight / 2],
+            'center' => ['x' => $imageWidth / 2, 'y' => $imageHeight / 2],
+            'right' => ['x' => $imageWidth - $watermarkWidth / 2, 'y' => $imageHeight / 2],
+            'bottom-left' => ['x' => $watermarkWidth / 2, 'y' => $imageHeight - $watermarkHeight / 2],
+            'bottom' => ['x' => $imageWidth / 2, 'y' => $imageHeight - $watermarkHeight / 2],
+            'bottom-right' => ['x' => $imageWidth - $watermarkWidth / 2, 'y' => $imageHeight - $watermarkHeight / 2],
+        ];
+        
+        $pos = $positions[$position] ?? $positions['center'];
+        
+        // Return as integers for GD
+        return [
+            'x' => (int)$pos['x'],
+            'y' => (int)$pos['y'],
+        ];
+    }
+
+    /**
+     * Convert hex color to RGB
+     */
+    protected function hexToRgb(string $hex): array
+    {
+        $hex = ltrim($hex, '#');
+        return [
+            'r' => hexdec(substr($hex, 0, 2)),
+            'g' => hexdec(substr($hex, 2, 2)),
+            'b' => hexdec(substr($hex, 4, 2)),
+        ];
+    }
+
+    /**
+     * Convert SVG to PNG for GD processing
+     */
+    protected function convertSvgToPng(string $svgPath): string
+    {
+        if (!file_exists($svgPath)) {
+            throw new \RuntimeException('SVG file does not exist: '.$svgPath);
+        }
+        
+        $pngPath = sys_get_temp_dir().'/'.uniqid('watermark_svg_', true).'.png';
+        
+        // Try Imagick first (best quality)
+        if (extension_loaded('imagick')) {
+            try {
+                $imagick = new \Imagick();
+                $imagick->setBackgroundColor(new \ImagickPixel('transparent'));
+                $imagick->setResolution(300, 300);
+                $imagick->readImage($svgPath);
+                $imagick->setImageFormat('png');
+                $imagick->writeImage($pngPath);
+                $imagick->clear();
+                $imagick->destroy();
+                
+                if (file_exists($pngPath) && filesize($pngPath) > 0) {
+                    \Illuminate\Support\Facades\Log::info('SVG converted to PNG using Imagick', [
+                        'svg_path' => $svgPath,
+                        'png_path' => $pngPath,
+                        'png_size' => filesize($pngPath),
+                    ]);
+                    return $pngPath;
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning('Imagick SVG conversion failed', [
+                    'error' => $e->getMessage(),
+                    'svg_path' => $svgPath,
+                ]);
+            }
+        }
+        
+        // Fallback: Use Inkscape if available (common on Linux)
+        $inkscapePath = trim(shell_exec('which inkscape') ?: '');
+        if ($inkscapePath && file_exists($inkscapePath)) {
+            $command = escapeshellarg($inkscapePath).' --export-type=png --export-filename='.escapeshellarg($pngPath).' '.escapeshellarg($svgPath).' 2>&1';
+            exec($command, $output, $returnCode);
+            
+            if ($returnCode === 0 && file_exists($pngPath) && filesize($pngPath) > 0) {
+                \Illuminate\Support\Facades\Log::info('SVG converted to PNG using Inkscape', [
+                    'svg_path' => $svgPath,
+                    'png_path' => $pngPath,
+                ]);
+                return $pngPath;
+            }
+        }
+        
+        // Fallback: Use rsvg-convert if available
+        $rsvgPath = trim(shell_exec('which rsvg-convert') ?: '');
+        if ($rsvgPath && file_exists($rsvgPath)) {
+            $command = escapeshellarg($rsvgPath).' -o '.escapeshellarg($pngPath).' '.escapeshellarg($svgPath).' 2>&1';
+            exec($command, $output, $returnCode);
+            
+            if ($returnCode === 0 && file_exists($pngPath) && filesize($pngPath) > 0) {
+                \Illuminate\Support\Facades\Log::info('SVG converted to PNG using rsvg-convert', [
+                    'svg_path' => $svgPath,
+                    'png_path' => $pngPath,
+                ]);
+                return $pngPath;
+            }
+        }
+        
+        // Last resort: Try to read SVG as XML and create a simple PNG placeholder
+        // This is a basic fallback - SVG support in GD is limited
+        $svgContent = file_get_contents($svgPath);
+        if ($svgContent === false) {
+            throw new \RuntimeException('Failed to read SVG file: '.$svgPath);
+        }
+        
+        // Create a simple transparent PNG as fallback
+        // Note: This won't render the SVG properly, but at least won't crash
+        $fallbackPng = imagecreatetruecolor(100, 100);
+        imagealphablending($fallbackPng, false);
+        imagesavealpha($fallbackPng, true);
+        $transparent = imagecolorallocatealpha($fallbackPng, 0, 0, 0, 127);
+        imagefill($fallbackPng, 0, 0, $transparent);
+        imagepng($fallbackPng, $pngPath);
+        imagedestroy($fallbackPng);
+        
+        // Log warning that SVG conversion is not ideal
+        \Illuminate\Support\Facades\Log::warning('SVG watermark converted using fallback method. Install Imagick for better SVG support.', [
+            'svg_path' => $svgPath,
+            'png_path' => $pngPath,
+        ]);
+        
+        return $pngPath;
     }
 }

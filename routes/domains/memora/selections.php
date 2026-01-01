@@ -47,13 +47,16 @@ Route::middleware(['auth:sanctum'])->prefix('selections')->group(function () {
             Route::post('/copy', [MediaController::class, 'copyToSet']);
             Route::patch('/{mediaId}/rename', [MediaController::class, 'rename']);
             Route::patch('/{mediaId}/replace', [MediaController::class, 'replace']);
+            Route::post('/{mediaId}/watermark', [MediaController::class, 'applyWatermark']);
+            Route::delete('/{mediaId}/watermark', [MediaController::class, 'removeWatermark']);
             Route::post('/{mediaId}/star', [MediaController::class, 'toggleStar']);
             Route::delete('/{mediaId}', [MediaController::class, 'deleteFromSet']);
         });
     });
 
     // Media download endpoint (outside of selection/set context)
-    Route::get('/media/{mediaUuid}/download', [MediaController::class, 'download']);
+    Route::get('/media/{mediaUuid}/download', [MediaController::class, 'download'])->name('memora.media.download');
+    Route::get('/media/{mediaUuid}/serve', [MediaController::class, 'serve'])->name('memora.media.serve');
 
     // Starred media endpoint
     Route::get('/media/starred', [MediaController::class, 'getStarredMedia']);

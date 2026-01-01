@@ -83,6 +83,7 @@ class MediaResource extends JsonResource
                 return $this->file->height;
             }, null),
             'order' => $this->order,
+            'watermarkUuid' => $this->watermark_uuid,
             'isStarred' => Auth::check() && $this->relationLoaded('starredByUsers')
                 ? $this->starredByUsers->isNotEmpty()
                 : false,

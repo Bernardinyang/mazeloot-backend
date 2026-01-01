@@ -16,8 +16,7 @@ class ImageUploadRequest extends FormRequest
         $maxSize = config('upload.max_size', 10485760); // 10MB default
         $fileRule = [
             'required',
-            'image',
-            'mimes:jpeg,jpg,png,webp',
+            'mimes:jpeg,jpg,png,webp,svg',
             'max:'.($maxSize / 1024), // Convert to KB
         ];
 
@@ -37,10 +36,8 @@ class ImageUploadRequest extends FormRequest
             'file.required_without' => 'An image file is required.',
             'files.required_without' => 'At least one image file is required.',
             'files.array' => 'Files must be provided as an array.',
-            'file.image' => 'The file must be a valid image.',
-            'files.*.image' => 'Each file must be a valid image.',
-            'file.mimes' => 'Images must be in JPEG, PNG, or WebP format.',
-            'files.*.mimes' => 'Images must be in JPEG, PNG, or WebP format.',
+            'file.mimes' => 'Images must be in JPEG, PNG, WebP, or SVG format.',
+            'files.*.mimes' => 'Images must be in JPEG, PNG, WebP, or SVG format.',
             'file.max' => 'The image must not exceed the maximum file size.',
             'files.*.max' => 'Each image must not exceed the maximum file size.',
         ];

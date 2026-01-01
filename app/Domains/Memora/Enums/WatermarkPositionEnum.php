@@ -5,11 +5,13 @@ namespace App\Domains\Memora\Enums;
 enum WatermarkPositionEnum: string
 {
     case TOP_LEFT = 'top-left';
-    case TOP_CENTER = 'top-center';
+    case TOP = 'top';
     case TOP_RIGHT = 'top-right';
+    case LEFT = 'left';
     case CENTER = 'center';
+    case RIGHT = 'right';
     case BOTTOM_LEFT = 'bottom-left';
-    case BOTTOM_CENTER = 'bottom-center';
+    case BOTTOM = 'bottom';
     case BOTTOM_RIGHT = 'bottom-right';
 
     /**
@@ -35,11 +37,13 @@ enum WatermarkPositionEnum: string
     {
         return match ($this) {
             self::TOP_LEFT => 'Top Left',
-            self::TOP_CENTER => 'Top Center',
+            self::TOP => 'Top',
             self::TOP_RIGHT => 'Top Right',
+            self::LEFT => 'Left',
             self::CENTER => 'Center',
+            self::RIGHT => 'Right',
             self::BOTTOM_LEFT => 'Bottom Left',
-            self::BOTTOM_CENTER => 'Bottom Center',
+            self::BOTTOM => 'Bottom',
             self::BOTTOM_RIGHT => 'Bottom Right',
         };
     }
