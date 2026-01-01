@@ -5,7 +5,6 @@ namespace App\Domains\Memora\Services;
 use App\Domains\Memora\Models\MemoraSettings;
 use App\Services\Upload\UploadService;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class SettingsService
 {
@@ -68,28 +67,28 @@ class SettingsService
     public function updateBranding(array $data): MemoraSettings
     {
         $settings = $this->getSettings();
-        
+
         $updateData = [];
-        
+
         if (isset($data['customDomain'])) {
             $updateData['branding_custom_domain'] = $data['customDomain'];
         }
-        
+
         if (isset($data['showMazelootBranding'])) {
             $updateData['branding_show_mazeloot_branding'] = $data['showMazelootBranding'];
         }
-        
+
         if (isset($data['logoUuid'])) {
             $updateData['branding_logo_uuid'] = $data['logoUuid'];
         }
-        
+
         if (isset($data['faviconUuid'])) {
             $updateData['branding_favicon_uuid'] = $data['faviconUuid'];
         }
-        
+
         $settings->update($updateData);
         $settings->refresh();
-        
+
         return $settings;
     }
 
@@ -99,9 +98,9 @@ class SettingsService
     public function updatePreference(array $data): MemoraSettings
     {
         $settings = $this->getSettings();
-        
+
         $updateData = [];
-        
+
         $preferenceFields = [
             'filenameDisplay' => 'preference_filename_display',
             'searchEngineVisibility' => 'preference_search_engine_visibility',
@@ -113,16 +112,16 @@ class SettingsService
             'language' => 'preference_language',
             'timezone' => 'preference_timezone',
         ];
-        
+
         foreach ($preferenceFields as $key => $dbKey) {
             if (array_key_exists($key, $data)) {
                 $updateData[$dbKey] = $data[$key];
             }
         }
-        
+
         $settings->update($updateData);
         $settings->refresh();
-        
+
         return $settings;
     }
 
@@ -132,28 +131,28 @@ class SettingsService
     public function updateHomepage(array $data): MemoraSettings
     {
         $settings = $this->getSettings();
-        
+
         $updateData = [];
-        
+
         if (array_key_exists('status', $data)) {
             $updateData['homepage_status'] = $data['status'];
         }
-        
+
         if (array_key_exists('password', $data)) {
             $updateData['homepage_password'] = $data['password'];
         }
-        
+
         if (array_key_exists('biography', $data)) {
             $updateData['homepage_biography'] = $data['biography'];
         }
-        
+
         if (array_key_exists('info', $data)) {
             $updateData['homepage_info'] = is_array($data['info']) ? $data['info'] : [];
         }
-        
+
         $settings->update($updateData);
         $settings->refresh();
-        
+
         return $settings;
     }
 
@@ -163,25 +162,24 @@ class SettingsService
     public function updateEmailSettings(array $data): MemoraSettings
     {
         $settings = $this->getSettings();
-        
+
         $updateData = [];
-        
+
         if (array_key_exists('fromName', $data)) {
             $updateData['email_from_name'] = $data['fromName'];
         }
-        
+
         if (array_key_exists('fromAddress', $data)) {
             $updateData['email_from_address'] = $data['fromAddress'];
         }
-        
+
         if (array_key_exists('replyTo', $data)) {
             $updateData['email_reply_to'] = $data['replyTo'];
         }
-        
+
         $settings->update($updateData);
         $settings->refresh();
-        
+
         return $settings;
     }
 }
-

@@ -28,4 +28,3 @@ Route::middleware(['auth:sanctum'])->prefix('memora/admin')->group(function () {
         Route::get('/types', [AdminNotificationController::class, 'getTypes']);
     });
 });
-

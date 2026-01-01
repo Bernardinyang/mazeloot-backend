@@ -91,4 +91,3 @@ class EmailNotificationService
             ->toArray();
     }
 }
-

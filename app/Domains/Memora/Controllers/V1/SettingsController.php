@@ -28,6 +28,7 @@ class SettingsController extends Controller
     {
         $settings = $this->settingsService->getSettings();
         $settings->load(['logo', 'favicon']);
+
         return ApiResponse::success(new SettingsResource($settings));
     }
 
@@ -38,6 +39,7 @@ class SettingsController extends Controller
     {
         $settings = $this->settingsService->updateBranding($request->validated());
         $settings->load(['logo', 'favicon']);
+
         return ApiResponse::success(new SettingsResource($settings));
     }
 
@@ -47,6 +49,7 @@ class SettingsController extends Controller
     public function updatePreference(UpdatePreferenceSettingsRequest $request): JsonResponse
     {
         $settings = $this->settingsService->updatePreference($request->validated());
+
         return ApiResponse::success(new SettingsResource($settings));
     }
 
@@ -56,6 +59,7 @@ class SettingsController extends Controller
     public function updateHomepage(UpdateHomepageSettingsRequest $request): JsonResponse
     {
         $settings = $this->settingsService->updateHomepage($request->validated());
+
         return ApiResponse::success(new SettingsResource($settings));
     }
 
@@ -65,6 +69,7 @@ class SettingsController extends Controller
     public function updateEmail(UpdateEmailSettingsRequest $request): JsonResponse
     {
         $settings = $this->settingsService->updateEmailSettings($request->validated());
+
         return ApiResponse::success(new SettingsResource($settings));
     }
 }

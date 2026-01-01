@@ -3,10 +3,10 @@
 namespace App\Models;
 
 use App\Domains\Memora\Models\MemoraSocialLink;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 
 class SocialMediaPlatform extends Model

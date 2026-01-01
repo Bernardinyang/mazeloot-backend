@@ -18,12 +18,13 @@ class EmailNotificationTypeSeeder extends Seeder
         // This makes the types available system-wide via getAvailableTypes()
         $systemUser = User::where('email', 'superadmin@example.com')->first();
 
-        if (!$systemUser) {
+        if (! $systemUser) {
             $this->command->warn('System user not found. Creating default notification types for first admin user.');
             $systemUser = User::where('role', UserRoleEnum::SUPER_ADMIN)->first();
 
-            if (!$systemUser) {
+            if (! $systemUser) {
                 $this->command->error('No admin user found. Please run DatabaseSeeder first.');
+
                 return;
             }
         }
@@ -187,4 +188,3 @@ class EmailNotificationTypeSeeder extends Seeder
         $this->command->info('Default email notification types seeded successfully.');
     }
 }
-

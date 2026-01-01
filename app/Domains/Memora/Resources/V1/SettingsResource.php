@@ -14,8 +14,8 @@ class SettingsResource extends JsonResource
                 'customDomain' => $this->branding_custom_domain,
                 'logoUuid' => $this->branding_logo_uuid,
                 'faviconUuid' => $this->branding_favicon_uuid,
-                'logoUrl' => $this->whenLoaded('logo', fn() => $this->logo?->url),
-                'faviconUrl' => $this->whenLoaded('favicon', fn() => $this->favicon?->url),
+                'logoUrl' => $this->whenLoaded('logo', fn () => $this->logo?->url),
+                'faviconUrl' => $this->whenLoaded('favicon', fn () => $this->favicon?->url),
                 'showMazelootBranding' => $this->branding_show_mazeloot_branding,
             ],
             'preference' => [

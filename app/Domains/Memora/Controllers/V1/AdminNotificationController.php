@@ -22,6 +22,7 @@ class AdminNotificationController extends Controller
     public function getTypes(): JsonResponse
     {
         $types = $this->notificationService->getAvailableTypes();
+
         return ApiResponse::success($types);
     }
 }

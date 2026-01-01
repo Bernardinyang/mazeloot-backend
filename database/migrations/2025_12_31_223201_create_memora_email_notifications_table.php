@@ -22,7 +22,7 @@ return new class extends Migration
 
             // Composite unique constraint on user_uuid + notification_type
             $table->unique(['user_uuid', 'notification_type'], 'user_notification_type_unique');
-            
+
             // Indexes
             $table->index('user_uuid');
             $table->index('notification_type');

@@ -24,7 +24,7 @@ class UpdateHomepageSettingsRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if ($this->has('info') && !is_array($this->info)) {
+        if ($this->has('info') && ! is_array($this->info)) {
             $this->merge([
                 'info' => [],
             ]);

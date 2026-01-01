@@ -23,6 +23,7 @@ class EmailNotificationController extends Controller
     public function index(): JsonResponse
     {
         $notifications = $this->notificationService->getByUser();
+
         return ApiResponse::success($notifications);
     }
 
@@ -32,6 +33,7 @@ class EmailNotificationController extends Controller
     public function update(UpdateNotificationSettingsRequest $request): JsonResponse
     {
         $notifications = $this->notificationService->bulkUpdate($request->validated()['notifications']);
+
         return ApiResponse::success($notifications);
     }
 }

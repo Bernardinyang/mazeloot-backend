@@ -45,8 +45,8 @@ class SocialLinkService
 
         // Validate platform exists and is active
         $platform = SocialMediaPlatform::findOrFail($data['platformUuid'] ?? $data['platform_uuid']);
-        
-        if (!$platform->is_active) {
+
+        if (! $platform->is_active) {
             throw new \RuntimeException('Cannot create link for inactive platform');
         }
 
@@ -81,11 +81,11 @@ class SocialLinkService
         if (isset($data['platformUuid']) || isset($data['platform_uuid'])) {
             $platformUuid = $data['platformUuid'] ?? $data['platform_uuid'];
             $platform = SocialMediaPlatform::findOrFail($platformUuid);
-            
-            if (!$platform->is_active) {
+
+            if (! $platform->is_active) {
                 throw new \RuntimeException('Cannot update to inactive platform');
             }
-            
+
             $updateData['platform_uuid'] = $platform->uuid;
         }
 
@@ -143,4 +143,3 @@ class SocialLinkService
         return $this->getByUser();
     }
 }
-

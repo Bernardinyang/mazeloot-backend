@@ -26,6 +26,7 @@ class SocialLinkController extends Controller
     public function index(): JsonResponse
     {
         $links = $this->socialLinkService->getByUser();
+
         return ApiResponse::success(SocialLinkResource::collection($links));
     }
 
@@ -35,6 +36,7 @@ class SocialLinkController extends Controller
     public function getPlatforms(): JsonResponse
     {
         $platforms = $this->socialLinkService->getAvailablePlatforms();
+
         return ApiResponse::success(\App\Resources\V1\SocialMediaPlatformResource::collection($platforms));
     }
 
@@ -44,6 +46,7 @@ class SocialLinkController extends Controller
     public function store(StoreSocialLinkRequest $request): JsonResponse
     {
         $link = $this->socialLinkService->create($request->validated());
+
         return ApiResponse::success(new SocialLinkResource($link), 201);
     }
 
@@ -53,6 +56,7 @@ class SocialLinkController extends Controller
     public function update(UpdateSocialLinkRequest $request, string $id): JsonResponse
     {
         $link = $this->socialLinkService->update($id, $request->validated());
+
         return ApiResponse::success(new SocialLinkResource($link));
     }
 
@@ -62,6 +66,7 @@ class SocialLinkController extends Controller
     public function destroy(string $id): JsonResponse
     {
         $this->socialLinkService->delete($id);
+
         return ApiResponse::success(null, 204);
     }
 
@@ -76,6 +81,7 @@ class SocialLinkController extends Controller
         ]);
 
         $links = $this->socialLinkService->reorder($request->input('order'));
+
         return ApiResponse::success(SocialLinkResource::collection($links));
     }
 }
