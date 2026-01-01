@@ -978,9 +978,10 @@ class MediaController extends Controller
                                     ->header('Access-Control-Allow-Headers', 'Content-Type')
                                     ->header('Cache-Control', 'public, max-age=31536000');
                             }
-                            
+
                             // For cloud storage, download and serve with CORS
                             $fileContents = Storage::disk($checkDisk)->get($filePath);
+
                             return response($fileContents)
                                 ->header('Content-Type', $file->mime_type ?? 'application/octet-stream')
                                 ->header('Content-Length', strlen($fileContents))

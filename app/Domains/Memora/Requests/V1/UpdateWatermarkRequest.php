@@ -59,7 +59,7 @@ class UpdateWatermarkRequest extends FormRequest
                 'min:1',
                 function ($attribute, $value, $fail) {
                     $type = $this->input('type');
-                    if (!$type) {
+                    if (! $type) {
                         $watermarkId = $this->route('id');
                         if ($watermarkId) {
                             $watermark = \App\Domains\Memora\Models\MemoraWatermark::find($watermarkId);
@@ -78,4 +78,3 @@ class UpdateWatermarkRequest extends FormRequest
         ];
     }
 }
-

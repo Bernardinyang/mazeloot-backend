@@ -10,7 +10,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\ImageUploadRequest;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class WatermarkController extends Controller
 {
@@ -106,4 +105,3 @@ class WatermarkController extends Controller
         return ApiResponse::success(['count' => $count]);
     }
 }
-

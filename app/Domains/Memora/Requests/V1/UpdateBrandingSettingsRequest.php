@@ -33,7 +33,7 @@ class UpdateBrandingSettingsRequest extends FormRequest
             'businessHours' => ['nullable', 'string'],
             'contactName' => ['nullable', 'string', 'max:255'],
             'taxVatId' => ['nullable', 'string', 'max:100'],
-            'foundedYear' => ['nullable', 'integer', 'min:1800', 'max:' . date('Y')],
+            'foundedYear' => ['nullable', 'integer', 'min:1800', 'max:'.date('Y')],
             'industry' => ['nullable', 'string', 'max:255'],
         ];
     }

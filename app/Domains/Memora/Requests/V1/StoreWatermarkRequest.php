@@ -66,4 +66,3 @@ class StoreWatermarkRequest extends FormRequest
         ];
     }
 }
-

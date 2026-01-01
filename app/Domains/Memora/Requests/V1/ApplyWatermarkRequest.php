@@ -3,7 +3,6 @@
 namespace App\Domains\Memora\Requests\V1;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class ApplyWatermarkRequest extends FormRequest
 {
@@ -25,4 +24,3 @@ class ApplyWatermarkRequest extends FormRequest
         ];
     }
 }
-

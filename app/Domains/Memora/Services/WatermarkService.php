@@ -6,7 +6,6 @@ use App\Domains\Memora\Models\MemoraWatermark;
 use App\Services\Image\ImageUploadService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 
 class WatermarkService
 {
@@ -22,7 +21,7 @@ class WatermarkService
      */
     protected function convertColorToHex(?string $color): ?string
     {
-        if (!$color || $color === 'transparent') {
+        if (! $color || $color === 'transparent') {
             return null;
         }
 
@@ -41,6 +40,7 @@ class WatermarkService
             // If alpha is less than 1, we can't represent it in hex, so use the RGB values
             // For now, we'll just use the RGB values (treating alpha as opaque)
             $hex = sprintf('#%02x%02x%02x', $r, $g, $b);
+
             return $hex;
         }
 
@@ -326,4 +326,3 @@ class WatermarkService
             ->count();
     }
 }
-

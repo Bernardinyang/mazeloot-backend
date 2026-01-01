@@ -23,6 +23,7 @@ class ConfigureR2Cors extends Command
 
         if (! $bucket || ! $endpoint || ! $key || ! $secret) {
             $this->error('R2 configuration is incomplete. Check your .env file.');
+
             return 1;
         }
 
@@ -41,11 +42,11 @@ class ConfigureR2Cors extends Command
         try {
             $adapter = Storage::disk('r2')->getAdapter();
             $reflection = new ReflectionClass($adapter);
-            
+
             // Try different property names that might contain the S3 client
             $clientPropertyNames = ['client', 's3Client', '_client'];
             $s3Client = null;
-            
+
             foreach ($clientPropertyNames as $propName) {
                 if ($reflection->hasProperty($propName)) {
                     $clientProperty = $reflection->getProperty($propName);
@@ -56,7 +57,7 @@ class ConfigureR2Cors extends Command
                     }
                 }
             }
-            
+
             if ($s3Client && method_exists($s3Client, 'putBucketCors')) {
                 $s3Client->putBucketCors([
                     'Bucket' => $bucket,
@@ -64,14 +65,16 @@ class ConfigureR2Cors extends Command
                 ]);
 
                 $this->info('CORS configured successfully!');
-                $this->line('Origins: ' . implode(', ', $origins));
+                $this->line('Origins: '.implode(', ', $origins));
+
                 return 0;
             }
         } catch (\Exception $e) {
-            $this->line('Note: ' . $e->getMessage());
+            $this->line('Note: '.$e->getMessage());
         }
 
         $this->showManualInstructions($bucket, $corsConfiguration);
+
         return 1;
     }
 
@@ -93,11 +96,10 @@ class ConfigureR2Cors extends Command
         $this->warn('Automatic CORS configuration not available.');
         $this->line('');
         $this->line('Configure CORS manually:');
-        $this->line('1. Go to Cloudflare Dashboard > R2 > ' . $bucket . ' > Settings');
+        $this->line('1. Go to Cloudflare Dashboard > R2 > '.$bucket.' > Settings');
         $this->line('2. Find "CORS Policy" section');
         $this->line('3. Add the following JSON:');
         $this->line('');
         $this->line(json_encode($corsConfiguration, JSON_PRETTY_PRINT));
     }
 }
-

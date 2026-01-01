@@ -2,18 +2,17 @@
 
 /**
  * Configure CORS on Cloudflare R2 bucket
- * 
+ *
  * This script configures CORS headers on your R2 bucket to allow cross-origin requests.
- * 
+ *
  * Usage:
  * 1. Set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME in your .env
  * 2. Run: php scripts/configure-r2-cors.php
- * 
+ *
  * Or configure manually via Cloudflare Dashboard:
  * 1. Go to R2 > Your Bucket > Settings > CORS Policy
  * 2. Add the following CORS configuration:
  */
-
 $accountId = env('R2_ACCOUNT_ID');
 $accessKeyId = env('R2_ACCESS_KEY_ID');
 $secretAccessKey = env('R2_SECRET_ACCESS_KEY');
@@ -44,7 +43,7 @@ curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
 curl_setopt($ch, CURLOPT_POSTFIELDS, $corsJson);
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    'Authorization: Bearer ' . $accessKeyId . ':' . $secretAccessKey,
+    'Authorization: Bearer '.$accessKeyId.':'.$secretAccessKey,
     'Content-Type: application/json',
 ]);
 
@@ -60,6 +59,5 @@ if ($httpCode === 200) {
     echo "\nManual configuration:\n";
     echo "Go to Cloudflare Dashboard > R2 > {$bucketName} > Settings > CORS Policy\n";
     echo "Add this configuration:\n";
-    echo $corsJson . "\n";
+    echo $corsJson."\n";
 }
-
