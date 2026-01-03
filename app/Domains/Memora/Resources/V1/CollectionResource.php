@@ -23,11 +23,11 @@ class CollectionResource extends JsonResource
         if (isset($coverDesign['coverFocalPoint'])) {
             if (is_array($coverDesign['coverFocalPoint'])) {
                 $normalized['coverFocalPoint'] = [
-                    'x' => isset($coverDesign['coverFocalPoint']['x']) 
-                        ? (float) $coverDesign['coverFocalPoint']['x'] 
+                    'x' => isset($coverDesign['coverFocalPoint']['x'])
+                        ? (float) $coverDesign['coverFocalPoint']['x']
                         : 50,
-                    'y' => isset($coverDesign['coverFocalPoint']['y']) 
-                        ? (float) $coverDesign['coverFocalPoint']['y'] 
+                    'y' => isset($coverDesign['coverFocalPoint']['y'])
+                        ? (float) $coverDesign['coverFocalPoint']['y']
                         : 50,
                 ];
             } else {
@@ -87,7 +87,7 @@ class CollectionResource extends JsonResource
             $organized['privacy'] = $settings['privacy'];
         } else {
             $organized['privacy'] = [
-                'collectionPassword' => !empty($settings['password']),
+                'collectionPassword' => ! empty($settings['password']),
                 'showOnHomepage' => $settings['showOnHomepage'] ?? false,
                 'clientExclusiveAccess' => $settings['clientExclusiveAccess'] ?? false,
                 'allowClientsMarkPrivate' => $settings['allowClientsMarkPrivate'] ?? false,
@@ -173,11 +173,10 @@ class CollectionResource extends JsonResource
         return $organized;
     }
 
-
     public function toArray($request): array
     {
         $settings = $this->organizeSettings($this->settings ?? []);
-        
+
         return [
             'id' => $this->uuid,
             'userId' => $this->user_uuid,

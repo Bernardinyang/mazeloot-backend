@@ -43,7 +43,7 @@ class PresetController extends Controller
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             // If not found by ID, try by name
             $preset = $this->presetService->getByName($id);
-            if (!$preset) {
+            if (! $preset) {
                 throw $e;
             }
         }
@@ -138,4 +138,3 @@ class PresetController extends Controller
         return ApiResponse::success(['message' => 'Presets reordered successfully']);
     }
 }
-

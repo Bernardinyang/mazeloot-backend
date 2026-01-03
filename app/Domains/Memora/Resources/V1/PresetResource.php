@@ -9,13 +9,13 @@ class PresetResource extends JsonResource
     public function toArray($request): array
     {
         // Ensure we have a valid resource
-        if (!$this->resource) {
+        if (! $this->resource) {
             return [];
         }
 
         // Calculate usage count if not already loaded
-        $usageCount = isset($this->usage_count) 
-            ? (int) $this->usage_count 
+        $usageCount = isset($this->usage_count)
+            ? (int) $this->usage_count
             : 0;
 
         // Calculate completeness score

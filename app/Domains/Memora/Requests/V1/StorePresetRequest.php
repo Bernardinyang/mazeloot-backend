@@ -15,7 +15,7 @@ class StorePresetRequest extends FormRequest
     public function rules(): array
     {
         $user = auth()->user();
-        
+
         return [
             'name' => [
                 'required',
@@ -85,4 +85,3 @@ class StorePresetRequest extends FormRequest
         ];
     }
 }
-

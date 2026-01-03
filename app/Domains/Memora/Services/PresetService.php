@@ -121,7 +121,7 @@ class PresetService
 
         // Normalize the name for comparison
         $normalizedName = strtolower(str_replace([' ', '_'], '-', $name));
-        
+
         // Get all user presets and find by normalized name
         $presets = MemoraPreset::where('user_uuid', $user->uuid)
             ->with('defaultWatermark')
@@ -143,7 +143,7 @@ class PresetService
     protected function mapDataToDatabase(array $data): array
     {
         $dbData = [];
-        
+
         if (isset($data['name'])) {
             $dbData['name'] = $data['name'];
         }
@@ -366,13 +366,13 @@ class PresetService
             ->findOrFail($id);
 
         $dbData = $this->mapDataToDatabase($data);
-        
+
         // Only update if there's data to update
-        if (!empty($dbData)) {
+        if (! empty($dbData)) {
             $preset->update($dbData);
             $preset->refresh();
         }
-        
+
         $preset->load('defaultWatermark');
 
         return $preset;
@@ -438,11 +438,11 @@ class PresetService
 
         // Get existing settings to preserve eventDate and other important data
         $existingSettings = $collection->settings ?? [];
-        
+
         // Use CollectionService to apply preset defaults
         $collectionService = app(\App\Domains\Memora\Services\CollectionService::class);
         $presetSettings = $collectionService->applyPresetDefaults($preset, $existingSettings);
-        
+
         // Flatten nested settings to match collection structure
         $settings = array_merge($existingSettings, [
             // General settings
@@ -494,12 +494,12 @@ class PresetService
                 'tabStyle' => $presetSettings['design']['tabStyle'] ?? 'icon-text',
             ],
         ]);
-        
+
         $updateData = [
             'preset_uuid' => $preset->uuid,
             'settings' => $settings,
         ];
-        
+
         // Apply default watermark from preset if collection doesn't have one
         if (! $collection->watermark_uuid && $preset->default_watermark_uuid) {
             $updateData['watermark_uuid'] = $preset->default_watermark_uuid;
@@ -633,4 +633,3 @@ class PresetService
         return $totalFields > 0 ? (int) round(($filledFields / $totalFields) * 100) : 0;
     }
 }
-

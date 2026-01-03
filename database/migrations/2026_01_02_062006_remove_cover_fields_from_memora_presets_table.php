@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('memora_presets', function (Blueprint $table) {
             // Drop foreign key constraint first
             $table->dropForeign(['design_cover_uuid']);
-            
+
             // Drop the columns
             $table->dropColumn(['design_cover_uuid', 'design_cover_focal_point']);
         });

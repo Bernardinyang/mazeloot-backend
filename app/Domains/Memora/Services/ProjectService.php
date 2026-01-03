@@ -264,7 +264,7 @@ class ProjectService
         if ($data['hasCollections'] ?? false) {
             $collectionService = app(\App\Domains\Memora\Services\CollectionService::class);
             $collectionSettings = $data['collectionSettings'] ?? [];
-            
+
             // Prepare collection data with preset and project settings
             $collectionData = [
                 'name' => $collectionSettings['name'] ?? 'Collections',
@@ -273,7 +273,7 @@ class ProjectService
                 'presetId' => $project->preset_uuid,
                 'watermarkId' => $project->watermark_uuid,
             ];
-            
+
             // Copy eventDate from project settings if it exists
             $projectSettings = $project->settings ?? [];
             if (isset($projectSettings['eventDate'])) {
@@ -281,7 +281,7 @@ class ProjectService
             } elseif (isset($data['eventDate'])) {
                 $collectionData['eventDate'] = $data['eventDate'];
             }
-            
+
             $collectionService->create($project->uuid, $collectionData);
         }
 
@@ -414,7 +414,7 @@ class ProjectService
         if (isset($data['presetId']) && $project->preset_uuid !== $data['presetId'] && $project->has_collections) {
             $project->load('collection');
             $collection = $project->collection;
-            
+
             if ($collection) {
                 $collectionService = app(\App\Domains\Memora\Services\CollectionService::class);
                 try {

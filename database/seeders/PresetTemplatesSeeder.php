@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Domains\Memora\Models\MemoraPreset;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 
 class PresetTemplatesSeeder extends Seeder
 {
@@ -72,4 +71,3 @@ class PresetTemplatesSeeder extends Seeder
         }
     }
 }
-

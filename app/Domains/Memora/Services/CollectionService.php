@@ -144,7 +144,7 @@ class CollectionService
             $organized['privacy'] = $settings['privacy'];
         } else {
             $organized['privacy'] = [
-                'collectionPassword' => !empty($settings['password']),
+                'collectionPassword' => ! empty($settings['password']),
                 'showOnHomepage' => $settings['showOnHomepage'] ?? false,
                 'clientExclusiveAccess' => $settings['clientExclusiveAccess'] ?? false,
                 'allowClientsMarkPrivate' => $settings['allowClientsMarkPrivate'] ?? false,
@@ -334,7 +334,7 @@ class CollectionService
             $preset = MemoraPreset::where('uuid', $data['presetId'])
                 ->where('user_uuid', $user->uuid)
                 ->firstOrFail();
-            
+
             $settings = $this->applyPresetDefaults($preset, $settings);
 
             // Apply default watermark from preset if not explicitly set
@@ -419,11 +419,11 @@ class CollectionService
             $updateData['settings'] = $data['settings'];
         }
         // Initialize settings once to preserve all changes
-        if (!isset($updateData['settings'])) {
+        if (! isset($updateData['settings'])) {
             $updateData['settings'] = $collection->settings ?? [];
         }
         $settings = &$updateData['settings'];
-        
+
         // Handle thumbnail and image in settings (merge to preserve other settings)
         if (isset($data['thumbnail']) || isset($data['image'])) {
             if (isset($data['thumbnail'])) {
@@ -449,42 +449,42 @@ class CollectionService
 
         // Handle design settings (coverDesign, gridDesign, typographyDesign, colorDesign)
         if (isset($data['coverDesign']) || isset($data['gridDesign']) || isset($data['typographyDesign']) || isset($data['colorDesign'])) {
-            
+
             // Initialize design structure if it doesn't exist
-            if (!isset($settings['design'])) {
+            if (! isset($settings['design'])) {
                 $settings['design'] = [];
             }
-            
+
             if (isset($data['coverDesign'])) {
                 $settings['design']['cover'] = $data['coverDesign'];
                 // Explicitly handle coverFocalPoint to preserve float values
                 if (isset($data['coverDesign']['coverFocalPoint']) && is_array($data['coverDesign']['coverFocalPoint'])) {
                     $settings['design']['cover']['coverFocalPoint'] = [
-                        'x' => isset($data['coverDesign']['coverFocalPoint']['x']) 
-                            ? (float) $data['coverDesign']['coverFocalPoint']['x'] 
+                        'x' => isset($data['coverDesign']['coverFocalPoint']['x'])
+                            ? (float) $data['coverDesign']['coverFocalPoint']['x']
                             : 50,
-                        'y' => isset($data['coverDesign']['coverFocalPoint']['y']) 
-                            ? (float) $data['coverDesign']['coverFocalPoint']['y'] 
+                        'y' => isset($data['coverDesign']['coverFocalPoint']['y'])
+                            ? (float) $data['coverDesign']['coverFocalPoint']['y']
                             : 50,
                     ];
                 }
             }
-            
+
             if (isset($data['gridDesign'])) {
                 $settings['design']['grid'] = $data['gridDesign'];
             }
-            
+
             if (isset($data['typographyDesign'])) {
                 $settings['design']['typography'] = $data['typographyDesign'];
             }
-            
+
             if (isset($data['colorDesign'])) {
                 $settings['design']['color'] = $data['colorDesign'];
             }
         }
 
         // Ensure settings reference is maintained
-        if (!isset($updateData['settings'])) {
+        if (! isset($updateData['settings'])) {
             $updateData['settings'] = $collection->settings ?? [];
         }
         $settings = $updateData['settings'];
@@ -492,7 +492,7 @@ class CollectionService
         // Extract all organized settings to flat keys to preserve existing values
         if (isset($settings['general']) && is_array($settings['general'])) {
             foreach ($settings['general'] as $key => $value) {
-                if (!in_array($key, ['slideshowOptions'])) {
+                if (! in_array($key, ['slideshowOptions'])) {
                     $settings[$key] = $value;
                 }
             }
@@ -514,7 +514,7 @@ class CollectionService
                 $settings['webSize'] = $settings['download']['webSize']['size'] ?? '1024px';
             }
             foreach ($settings['download'] as $key => $value) {
-                if (!in_array($key, ['highResolution', 'webSize'])) {
+                if (! in_array($key, ['highResolution', 'webSize'])) {
                     $settings[$key] = $value;
                 }
             }
@@ -530,9 +530,9 @@ class CollectionService
 
         // Apply updates from $data (flat keys take precedence)
         $generalSettings = [
-            'url', 'tags', 'emailRegistration', 'galleryAssist', 'slideshow', 
-            'slideshowSpeed', 'slideshowAutoLoop', 
-            'socialSharing', 'language', 'autoExpiryDate', 'expiryDate', 'expiryDays'
+            'url', 'tags', 'emailRegistration', 'galleryAssist', 'slideshow',
+            'slideshowSpeed', 'slideshowAutoLoop',
+            'socialSharing', 'language', 'autoExpiryDate', 'expiryDate', 'expiryDays',
         ];
         foreach ($generalSettings as $key) {
             if (array_key_exists($key, $data)) {
@@ -545,8 +545,8 @@ class CollectionService
         }
 
         $privacySettings = [
-            'password', 'showOnHomepage', 'clientExclusiveAccess', 
-            'clientPrivatePassword', 'allowClientsMarkPrivate', 'clientOnlySets'
+            'password', 'showOnHomepage', 'clientExclusiveAccess',
+            'clientPrivatePassword', 'allowClientsMarkPrivate', 'clientOnlySets',
         ];
         foreach ($privacySettings as $key) {
             if (array_key_exists($key, $data)) {
@@ -564,7 +564,7 @@ class CollectionService
         $downloadSettings = [
             'photoDownload', 'highResolutionEnabled', 'webSizeEnabled', 'webSize',
             'downloadPin', 'downloadPinEnabled', 'limitDownloads', 'downloadLimit',
-            'restrictToContacts', 'allowedDownloadEmails', 'downloadableSets'
+            'restrictToContacts', 'allowedDownloadEmails', 'downloadableSets',
         ];
         foreach ($downloadSettings as $key) {
             if (array_key_exists($key, $data)) {
@@ -578,7 +578,7 @@ class CollectionService
 
         // Handle favorite settings
         $favoriteSettings = [
-            'favoritePhotos', 'favoriteNotes', 'downloadEnabled', 'favoriteEnabled'
+            'favoritePhotos', 'favoriteNotes', 'downloadEnabled', 'favoriteEnabled',
         ];
         foreach ($favoriteSettings as $key) {
             if (array_key_exists($key, $data)) {
@@ -604,7 +604,7 @@ class CollectionService
                     $newPreset = MemoraPreset::where('uuid', $newPresetUuid)
                         ->where('user_uuid', $user->uuid)
                         ->firstOrFail();
-                    
+
                     // Merge preset defaults with existing settings (preserve user changes)
                     $presetDefaults = $this->applyPresetDefaults($newPreset, $settings);
                     $settings = array_merge($presetDefaults, $settings);
@@ -659,17 +659,17 @@ class CollectionService
             $existingSetIds = MemoraMediaSet::where('collection_uuid', $collection->uuid)
                 ->pluck('uuid')
                 ->toArray();
-            
+
             $providedSetIds = [];
-            
+
             foreach ($data['mediaSets'] as $index => $setData) {
-                if (isset($setData['id']) && !empty($setData['id'])) {
+                if (isset($setData['id']) && ! empty($setData['id'])) {
                     // Try to find existing set by UUID
                     $setId = $setData['id'];
                     $set = MemoraMediaSet::where('uuid', $setId)
                         ->where('collection_uuid', $collection->uuid)
                         ->first();
-                    
+
                     if ($set) {
                         // Update existing set
                         $set->update([
@@ -703,10 +703,10 @@ class CollectionService
                     $providedSetIds[] = $newSet->uuid;
                 }
             }
-            
+
             // Delete sets that are no longer in the provided list
             $setsToDelete = array_diff($existingSetIds, $providedSetIds);
-            if (!empty($setsToDelete)) {
+            if (! empty($setsToDelete)) {
                 MemoraMediaSet::where('collection_uuid', $collection->uuid)
                     ->whereIn('uuid', $setsToDelete)
                     ->delete();
