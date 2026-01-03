@@ -10,7 +10,9 @@ use Illuminate\Support\Str;
 class GuestCollectionToken extends Model
 {
     protected $primaryKey = 'uuid';
+
     protected $keyType = 'string';
+
     public $incrementing = false;
 
     protected $fillable = [
@@ -47,4 +49,3 @@ class GuestCollectionToken extends Model
         return $this->expires_at->isPast();
     }
 }
-

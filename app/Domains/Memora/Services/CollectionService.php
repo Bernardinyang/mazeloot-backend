@@ -145,7 +145,7 @@ class CollectionService
             // Merge flat keys into privacy structure
             if (isset($settings['password'])) {
                 $organized['privacy']['password'] = $settings['password'];
-                $organized['privacy']['collectionPasswordEnabled'] = !empty($settings['password']);
+                $organized['privacy']['collectionPasswordEnabled'] = ! empty($settings['password']);
             }
             if (isset($settings['showOnHomepage'])) {
                 $organized['privacy']['showOnHomepage'] = $settings['showOnHomepage'];
@@ -163,12 +163,12 @@ class CollectionService
                 $organized['privacy']['clientOnlySets'] = $settings['clientOnlySets'];
             }
             // Ensure collectionPasswordEnabled is set correctly
-            if (!isset($organized['privacy']['collectionPasswordEnabled'])) {
-                $organized['privacy']['collectionPasswordEnabled'] = !empty($organized['privacy']['password'] ?? $settings['password'] ?? null);
+            if (! isset($organized['privacy']['collectionPasswordEnabled'])) {
+                $organized['privacy']['collectionPasswordEnabled'] = ! empty($organized['privacy']['password'] ?? $settings['password'] ?? null);
             }
         } else {
             $organized['privacy'] = [
-                'collectionPasswordEnabled' => !empty($settings['password']),
+                'collectionPasswordEnabled' => ! empty($settings['password']),
                 'password' => $settings['password'] ?? null, // Keep password in privacy.password
                 'showOnHomepage' => $settings['showOnHomepage'] ?? false,
                 'clientExclusiveAccess' => $settings['clientExclusiveAccess'] ?? false,

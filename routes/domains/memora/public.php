@@ -7,10 +7,10 @@ use App\Domains\Memora\Controllers\V1\ProofingApprovalRequestController;
 use App\Domains\Memora\Controllers\V1\PublicCollectionController;
 use App\Domains\Memora\Controllers\V1\PublicMediaController;
 use App\Domains\Memora\Controllers\V1\PublicMediaSetController;
-use App\Domains\Memora\Controllers\V1\PublicSettingsController;
 use App\Domains\Memora\Controllers\V1\PublicProofingController;
 use App\Domains\Memora\Controllers\V1\PublicProofingMediaSetController;
 use App\Domains\Memora\Controllers\V1\PublicSelectionController;
+use App\Domains\Memora\Controllers\V1\PublicSettingsController;
 use Illuminate\Support\Facades\Route;
 
 /*

@@ -18,12 +18,11 @@ class PublicSettingsResource extends JsonResource
                 'location' => $this->branding_location,
                 'tagline' => $this->branding_tagline,
                 'description' => $this->branding_description,
-                // Exclude sensitive data: domain, customDomain, logoUuid, faviconUuid, 
-                // showMazelootBranding, supportEmail, supportPhone, address fields, 
+                // Exclude sensitive data: domain, customDomain, logoUuid, faviconUuid,
+                // showMazelootBranding, supportEmail, supportPhone, address fields,
                 // businessHours, contactName, taxVatId, foundedYear, industry
             ],
             // Exclude: preference, homepage, email (all contain sensitive data)
         ];
     }
 }
-

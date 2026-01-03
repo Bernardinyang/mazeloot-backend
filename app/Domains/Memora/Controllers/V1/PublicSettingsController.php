@@ -15,7 +15,7 @@ class PublicSettingsController extends Controller
     /**
      * Get public settings (no authentication required)
      * Returns only public branding information for display in public collections
-     * 
+     *
      * Optional query parameters:
      * - collectionId: Get settings for the collection owner
      * - userId: Get settings for a specific user
@@ -30,7 +30,7 @@ class PublicSettingsController extends Controller
                 $collection = MemoraCollection::where('uuid', $request->query('collectionId'))
                     ->select('user_uuid')
                     ->first();
-                
+
                 if ($collection) {
                     $userId = $collection->user_uuid;
                 }
@@ -45,8 +45,8 @@ class PublicSettingsController extends Controller
                 // Fallback to first settings if no user specified
                 $settings = MemoraSettings::first();
             }
-            
-            if (!$settings) {
+
+            if (! $settings) {
                 // Return empty settings if none exist
                 return ApiResponse::success([
                     'branding' => [
@@ -74,4 +74,3 @@ class PublicSettingsController extends Controller
         }
     }
 }
-

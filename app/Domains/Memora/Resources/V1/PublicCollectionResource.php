@@ -77,7 +77,7 @@ class PublicCollectionResource extends JsonResource
         // Privacy settings - exclude sensitive data
         if (isset($settings['privacy']) && is_array($settings['privacy'])) {
             $organized['privacy'] = [
-                'collectionPasswordEnabled' => !empty($settings['privacy']['collectionPasswordEnabled'] ?? $settings['privacy']['password'] ?? null),
+                'collectionPasswordEnabled' => ! empty($settings['privacy']['collectionPasswordEnabled'] ?? $settings['privacy']['password'] ?? null),
                 'showOnHomepage' => $settings['privacy']['showOnHomepage'] ?? false,
                 'clientExclusiveAccess' => $settings['privacy']['clientExclusiveAccess'] ?? false,
                 'allowClientsMarkPrivate' => $settings['privacy']['allowClientsMarkPrivate'] ?? false,
@@ -85,7 +85,7 @@ class PublicCollectionResource extends JsonResource
             ];
         } else {
             $organized['privacy'] = [
-                'collectionPasswordEnabled' => !empty($settings['password'] ?? null),
+                'collectionPasswordEnabled' => ! empty($settings['password'] ?? null),
                 'showOnHomepage' => $settings['showOnHomepage'] ?? false,
                 'clientExclusiveAccess' => $settings['clientExclusiveAccess'] ?? false,
                 'allowClientsMarkPrivate' => $settings['allowClientsMarkPrivate'] ?? false,
@@ -215,4 +215,3 @@ class PublicCollectionResource extends JsonResource
         ];
     }
 }
-

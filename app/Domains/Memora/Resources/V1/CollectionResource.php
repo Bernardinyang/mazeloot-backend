@@ -86,12 +86,12 @@ class CollectionResource extends JsonResource
         if (isset($settings['privacy']) && is_array($settings['privacy'])) {
             $organized['privacy'] = $settings['privacy'];
             // Ensure collectionPasswordEnabled is set correctly
-            if (!isset($organized['privacy']['collectionPasswordEnabled'])) {
-                $organized['privacy']['collectionPasswordEnabled'] = !empty($organized['privacy']['password'] ?? $settings['password'] ?? null);
+            if (! isset($organized['privacy']['collectionPasswordEnabled'])) {
+                $organized['privacy']['collectionPasswordEnabled'] = ! empty($organized['privacy']['password'] ?? $settings['password'] ?? null);
             }
         } else {
             $organized['privacy'] = [
-                'collectionPasswordEnabled' => !empty($settings['password']),
+                'collectionPasswordEnabled' => ! empty($settings['password']),
                 'password' => $settings['password'] ?? null,
                 'showOnHomepage' => $settings['showOnHomepage'] ?? false,
                 'clientExclusiveAccess' => $settings['clientExclusiveAccess'] ?? false,
@@ -105,8 +105,8 @@ class CollectionResource extends JsonResource
         if (isset($settings['download']) && is_array($settings['download'])) {
             $organized['download'] = $settings['download'];
             // Ensure downloadPinEnabled is set correctly
-            if (!isset($organized['download']['downloadPinEnabled'])) {
-                $organized['download']['downloadPinEnabled'] = !empty($organized['download']['downloadPin'] ?? $settings['downloadPin'] ?? null);
+            if (! isset($organized['download']['downloadPinEnabled'])) {
+                $organized['download']['downloadPinEnabled'] = ! empty($organized['download']['downloadPin'] ?? $settings['downloadPin'] ?? null);
             }
         } else {
             $organized['download'] = [
@@ -120,7 +120,7 @@ class CollectionResource extends JsonResource
                     'size' => $settings['webSize'] ?? '1024px',
                 ],
                 'videoDownload' => $settings['videoDownload'] ?? false,
-                'downloadPinEnabled' => !empty($settings['downloadPin'] ?? null),
+                'downloadPinEnabled' => ! empty($settings['downloadPin'] ?? null),
                 'downloadPin' => $settings['downloadPin'] ?? null,
                 'limitDownloads' => $settings['limitDownloads'] ?? false,
                 'downloadLimit' => $settings['downloadLimit'] ?? 1,

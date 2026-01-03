@@ -460,42 +460,42 @@ class PublicMediaController extends Controller
             }
 
             $settings = $collection->settings ?? [];
-            
+
             // Check password protection if required
-            $hasPasswordProtection = !empty($settings['privacy']['collectionPasswordEnabled'] ?? $settings['privacy']['password'] ?? $settings['password'] ?? false);
+            $hasPasswordProtection = ! empty($settings['privacy']['collectionPasswordEnabled'] ?? $settings['privacy']['password'] ?? $settings['password'] ?? false);
             $password = $settings['privacy']['password'] ?? $settings['password'] ?? null;
-            
+
             $isOwner = false;
             if (auth()->check()) {
                 $userUuid = auth()->user()->uuid;
                 $isOwner = $collection->user_uuid === $userUuid;
             }
-            
-            if ($hasPasswordProtection && $password && !$isOwner) {
+
+            if ($hasPasswordProtection && $password && ! $isOwner) {
                 // Check for guest token first
                 $token = $request->bearerToken() ?? $request->header('X-Guest-Token') ?? $request->query('guest_token');
                 $guestToken = null;
-                
+
                 if ($token) {
                     $guestToken = GuestCollectionToken::where('token', $token)
                         ->where('collection_uuid', $collectionId)
                         ->where('expires_at', '>', now())
                         ->first();
                 }
-                
+
                 // If no valid guest token, check password header
-                if (!$guestToken) {
+                if (! $guestToken) {
                     $providedPassword = $request->header('X-Collection-Password');
-                    if (!$providedPassword || $providedPassword !== $password) {
+                    if (! $providedPassword || $providedPassword !== $password) {
                         return ApiResponse::error('Password required', 'PASSWORD_REQUIRED', 401);
                     }
                 }
             }
-            
+
             $downloadSettings = $settings['download'] ?? [];
 
             // Check if downloads are enabled
-            if (!($downloadSettings['photoDownload'] ?? true)) {
+            if (! ($downloadSettings['photoDownload'] ?? true)) {
                 return ApiResponse::error('Downloads are disabled for this collection', 'DOWNLOADS_DISABLED', 403);
             }
 
@@ -504,7 +504,7 @@ class PublicMediaController extends Controller
             $downloadPin = $downloadSettings['downloadPin'] ?? null;
             if ($downloadPinEnabled && $downloadPin) {
                 $providedPin = $request->header('X-Download-PIN');
-                if (!$providedPin || $providedPin !== $downloadPin) {
+                if (! $providedPin || $providedPin !== $downloadPin) {
                     return ApiResponse::error('Download PIN required', 'DOWNLOAD_PIN_REQUIRED', 401);
                 }
             }
@@ -514,7 +514,7 @@ class PublicMediaController extends Controller
             $allowedEmails = $downloadSettings['allowedDownloadEmails'] ?? null;
             if ($restrictToContacts && $allowedEmails && is_array($allowedEmails) && count($allowedEmails) > 0) {
                 $userEmail = $request->header('X-Collection-Email');
-                if (!$userEmail) {
+                if (! $userEmail) {
                     return ApiResponse::error('Email registration required for downloads', 'EMAIL_REQUIRED', 401);
                 }
                 $emailLower = strtolower(trim($userEmail));
@@ -525,7 +525,7 @@ class PublicMediaController extends Controller
                         break;
                     }
                 }
-                if (!$isEmailAllowed) {
+                if (! $isEmailAllowed) {
                     return ApiResponse::error('Your email is not authorized to download from this collection', 'EMAIL_NOT_AUTHORIZED', 403);
                 }
             }
@@ -533,14 +533,14 @@ class PublicMediaController extends Controller
             // Verify media belongs to collection
             $media = MemoraMedia::findOrFail($mediaId);
             $mediaSet = $media->mediaSet;
-            if (!$mediaSet || $mediaSet->collection_uuid !== $collectionId) {
+            if (! $mediaSet || $mediaSet->collection_uuid !== $collectionId) {
                 return ApiResponse::error('Media does not belong to this collection', 'MEDIA_NOT_IN_COLLECTION', 403);
             }
 
             // Check downloadable sets restriction
             $downloadableSets = $downloadSettings['downloadableSets'] ?? null;
             if ($downloadableSets && is_array($downloadableSets) && count($downloadableSets) > 0) {
-                if (!in_array($mediaSet->uuid, $downloadableSets)) {
+                if (! in_array($mediaSet->uuid, $downloadableSets)) {
                     return ApiResponse::error('This set is not available for download', 'SET_NOT_DOWNLOADABLE', 403);
                 }
             }
@@ -551,7 +551,7 @@ class PublicMediaController extends Controller
                 ->firstOrFail();
             $file = $media->file;
 
-            if (!$file) {
+            if (! $file) {
                 return ApiResponse::error('File not found for this media', 'FILE_NOT_FOUND', 404);
             }
 
@@ -576,7 +576,7 @@ class PublicMediaController extends Controller
                         }
 
                         $filename = $file->filename ?? 'download';
-                        if (!pathinfo($filename, PATHINFO_EXTENSION)) {
+                        if (! pathinfo($filename, PATHINFO_EXTENSION)) {
                             $extension = match ($file->mime_type) {
                                 'image/jpeg', 'image/jpg' => 'jpg',
                                 'image/png' => 'png',
@@ -617,7 +617,7 @@ class PublicMediaController extends Controller
 
                 if ($foundDisk) {
                     $filename = $file->filename ?? 'download';
-                    if (!pathinfo($filename, PATHINFO_EXTENSION)) {
+                    if (! pathinfo($filename, PATHINFO_EXTENSION)) {
                         $extension = match ($file->mime_type) {
                             'image/jpeg', 'image/jpg' => 'jpg',
                             'image/png' => 'png',

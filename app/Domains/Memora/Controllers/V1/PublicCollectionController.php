@@ -28,6 +28,7 @@ class PublicCollectionController extends Controller
     {
         $this->mediaSetService = $mediaSetService;
     }
+
     /**
      * Check collection status (public endpoint - no authentication required)
      * Returns status and ownership info for quick validation
@@ -48,7 +49,7 @@ class PublicCollectionController extends Controller
 
             // Check if collection has password protection and email registration
             $settings = $collection->settings ?? [];
-            $hasPassword = !empty($settings['privacy']['collectionPasswordEnabled'] ?? $settings['privacy']['password'] ?? $settings['password'] ?? false);
+            $hasPassword = ! empty($settings['privacy']['collectionPasswordEnabled'] ?? $settings['privacy']['password'] ?? $settings['password'] ?? false);
             $emailRegistration = $settings['general']['emailRegistration'] ?? $settings['emailRegistration'] ?? false;
 
             return ApiResponse::success([
@@ -94,31 +95,31 @@ class PublicCollectionController extends Controller
             $status = $collection->status?->value ?? $collection->status;
 
             // Allow access if collection is active (published) or if owner viewing draft
-            if ($status !== 'active' && !($status === 'draft' && $isOwner)) {
+            if ($status !== 'active' && ! ($status === 'draft' && $isOwner)) {
                 return ApiResponse::error('Collection is not accessible', 'COLLECTION_NOT_ACCESSIBLE', 403);
             }
 
             // Check password if required
             $settings = $collection->settings ?? [];
-            $hasPasswordProtection = !empty($settings['privacy']['collectionPasswordEnabled'] ?? $settings['privacy']['password'] ?? $settings['password'] ?? false);
+            $hasPasswordProtection = ! empty($settings['privacy']['collectionPasswordEnabled'] ?? $settings['privacy']['password'] ?? $settings['password'] ?? false);
             $password = $settings['privacy']['password'] ?? $settings['password'] ?? null;
-            
-            if ($hasPasswordProtection && $password && !$isOwner) {
+
+            if ($hasPasswordProtection && $password && ! $isOwner) {
                 // Check for guest token first
                 $token = $request->bearerToken() ?? $request->header('X-Guest-Token') ?? $request->query('guest_token');
                 $guestToken = null;
-                
+
                 if ($token) {
                     $guestToken = GuestCollectionToken::where('token', $token)
                         ->where('collection_uuid', $id)
                         ->where('expires_at', '>', now())
                         ->first();
                 }
-                
+
                 // If no valid guest token, check password header
-                if (!$guestToken) {
+                if (! $guestToken) {
                     $providedPassword = $request->header('X-Collection-Password');
-                    if (!$providedPassword || $providedPassword !== $password) {
+                    if (! $providedPassword || $providedPassword !== $password) {
                         return ApiResponse::error('Password required', 'PASSWORD_REQUIRED', 401);
                     }
                 }
@@ -129,7 +130,7 @@ class PublicCollectionController extends Controller
             if ($isOwner) {
                 return ApiResponse::success(new CollectionResource($collection));
             }
-            
+
             return ApiResponse::success(new PublicCollectionResource($collection));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ApiResponse::error('Collection not found', 'NOT_FOUND', 404);
@@ -158,13 +159,13 @@ class PublicCollectionController extends Controller
                 ->firstOrFail();
 
             $settings = $collection->settings ?? [];
-            
+
             // Check if password protection is enabled
             $collectionPasswordEnabled = $settings['privacy']['collectionPasswordEnabled'] ?? false;
             $password = $settings['privacy']['password'] ?? $settings['password'] ?? null;
-            
+
             // If password protection is not enabled or no password is set, allow access
-            if (!$collectionPasswordEnabled || !$password) {
+            if (! $collectionPasswordEnabled || ! $password) {
                 return ApiResponse::success(['verified' => true]);
             }
 
@@ -222,7 +223,7 @@ class PublicCollectionController extends Controller
             $downloadPin = $settings['download']['downloadPin'] ?? null;
             $downloadPinEnabled = $settings['download']['downloadPinEnabled'] ?? false;
 
-            if (!$downloadPinEnabled || !$downloadPin) {
+            if (! $downloadPinEnabled || ! $downloadPin) {
                 return ApiResponse::success(['verified' => true]);
             }
 
@@ -279,4 +280,3 @@ class PublicCollectionController extends Controller
         }
     }
 }
-
