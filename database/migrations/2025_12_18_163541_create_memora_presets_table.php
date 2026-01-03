@@ -28,17 +28,15 @@ return new class extends Migration
             $table->boolean('social_sharing')->default(true);
             $table->string('language', 10)->default('en');
 
-            // Design section fields
-            $table->foreignUuid('design_cover_uuid')->nullable()->constrained('memora_cover_styles', 'uuid')->nullOnDelete(); // Cover style reference
-            $table->json('design_cover_focal_point')->nullable(); // {x, y} coordinates
+            // Design section fields (excluding cover style/focal point - removed from presets)
             $table->string('design_font_family')->default('sans');
             $table->string('design_font_style')->default('normal');
             $table->string('design_color_palette')->default('light');
-            $table->string('design_grid_style')->default('vertical');
+            $table->string('design_grid_style')->default('grid');
             $table->integer('design_grid_columns')->default(3);
-            $table->string('design_thumbnail_size')->default('medium');
+            $table->string('design_thumbnail_orientation')->default('square');
             $table->integer('design_grid_spacing')->default(16);
-            $table->string('design_navigation_style')->default('icon-text');
+            $table->string('design_tab_style')->default('icon-text');
 
             // Privacy section fields
             $table->string('privacy_collection_password')->nullable();

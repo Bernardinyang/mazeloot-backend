@@ -18,6 +18,7 @@ class MediaSetResource extends JsonResource
             'selectionLimit' => $this->selection_limit,
             'selectionUuid' => $this->selection_uuid,
             'proofUuid' => $this->proof_uuid,
+            'collectionUuid' => $this->collection_uuid,
             'media' => $this->whenLoaded('media', function () {
                 return MediaResource::collection($this->media);
             }, []),
@@ -26,6 +27,9 @@ class MediaSetResource extends JsonResource
             }, null),
             'proofing' => $this->whenLoaded('proofing', function () {
                 return new ProofingResource($this->proofing);
+            }, null),
+            'collection' => $this->whenLoaded('collection', function () {
+                return new CollectionResource($this->collection);
             }, null),
             'project' => $this->whenLoaded('project', function () {
                 return new ProjectResource($this->project);

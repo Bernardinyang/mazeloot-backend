@@ -95,6 +95,8 @@ class ProjectService
 
         $project = MemoraProject::with([
             'mediaSets',
+            'preset',
+            'watermark',
             'starredByUsers' => function ($query) use ($user) {
                 $query->where('user_uuid', $user->uuid);
             },
@@ -140,7 +142,28 @@ class ProjectService
                             ->limit(1),
                     ]);
             },
-            'collection',
+            'collection' => function ($query) {
+                $query->with(['mediaSets' => function ($q) {
+                    $q->withCount(['media' => function ($mediaQuery) {
+                        $mediaQuery->whereNull('deleted_at');
+                    }])->orderBy('order');
+                }])
+                // Add subqueries for media and set counts (excluding soft-deleted media and media sets)
+                    ->addSelect([
+                        'media_count' => \App\Domains\Memora\Models\MemoraMedia::query()
+                            ->selectRaw('COALESCE(COUNT(*), 0)')
+                            ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
+                            ->whereColumn('memora_media_sets.collection_uuid', 'memora_collections.uuid')
+                            ->whereNull('memora_media.deleted_at')
+                            ->whereNull('memora_media_sets.deleted_at')
+                            ->limit(1),
+                        'set_count' => \App\Domains\Memora\Models\MemoraMediaSet::query()
+                            ->selectRaw('COALESCE(COUNT(*), 0)')
+                            ->whereColumn('collection_uuid', 'memora_collections.uuid')
+                            ->whereNull('deleted_at')
+                            ->limit(1),
+                    ]);
+            },
         ])->findOrFail($id);
 
         // Verify user owns the project
@@ -167,6 +190,13 @@ class ProjectService
             if ($proofing->relationLoaded('mediaSets')) {
                 $proofing->setAttribute('set_count', $proofing->mediaSets->count());
             }
+        }
+
+        // Map the subquery results to the expected attribute names for collection
+        if ($project->collection) {
+            $collection = $project->collection;
+            $collection->setAttribute('media_count', (int) ($collection->media_count ?? 0));
+            $collection->setAttribute('set_count', (int) ($collection->set_count ?? 0));
         }
 
         return $project;
@@ -234,11 +264,25 @@ class ProjectService
         if ($data['hasCollections'] ?? false) {
             $collectionService = app(\App\Domains\Memora\Services\CollectionService::class);
             $collectionSettings = $data['collectionSettings'] ?? [];
-            $collectionService->create($project->uuid, [
+            
+            // Prepare collection data with preset and project settings
+            $collectionData = [
                 'name' => $collectionSettings['name'] ?? 'Collections',
                 'description' => $collectionSettings['description'] ?? null,
                 'color' => $projectColor,
-            ]);
+                'presetId' => $project->preset_uuid,
+                'watermarkId' => $project->watermark_uuid,
+            ];
+            
+            // Copy eventDate from project settings if it exists
+            $projectSettings = $project->settings ?? [];
+            if (isset($projectSettings['eventDate'])) {
+                $collectionData['eventDate'] = $projectSettings['eventDate'];
+            } elseif (isset($data['eventDate'])) {
+                $collectionData['eventDate'] = $data['eventDate'];
+            }
+            
+            $collectionService->create($project->uuid, $collectionData);
         }
 
         return $project->load('mediaSets');
@@ -364,6 +408,27 @@ class ProjectService
         if (isset($data['collectionSettings']) && $project->has_collections) {
             // Collections don't have a single entity to update, they're multiple collections
             // This would need to be handled differently if needed
+        }
+
+        // Update collection when project preset changes (only one collection per project)
+        if (isset($data['presetId']) && $project->preset_uuid !== $data['presetId'] && $project->has_collections) {
+            $project->load('collection');
+            $collection = $project->collection;
+            
+            if ($collection) {
+                $collectionService = app(\App\Domains\Memora\Services\CollectionService::class);
+                try {
+                    $collectionService->update($project->uuid, $collection->uuid, [
+                        'presetId' => $data['presetId'],
+                    ]);
+                } catch (\Exception $e) {
+                    // If error is about media existing, rethrow with collection context
+                    if (str_contains($e->getMessage(), 'Media exists')) {
+                        throw new \Exception("Collection '{$collection->name}': {$e->getMessage()}");
+                    }
+                    throw $e;
+                }
+            }
         }
 
         return $project->load('mediaSets');

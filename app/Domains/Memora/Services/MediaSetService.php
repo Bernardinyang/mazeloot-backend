@@ -401,4 +401,200 @@ class MediaSetService
             return true;
         });
     }
+
+    // ==================== Collection Media Sets ====================
+
+    /**
+     * Get all media sets for a collection with pagination
+     *
+     * @return array Paginated response with data and pagination metadata
+     */
+    public function getByCollection(string $collectionId, ?int $page = null, ?int $perPage = null, ?string $projectId = null)
+    {
+        $user = Auth::user();
+        if (! $user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        // Verify user owns the collection
+        $collectionQuery = \App\Domains\Memora\Models\MemoraCollection::where('uuid', $collectionId)
+            ->where('user_uuid', $user->uuid);
+
+        if ($projectId !== null) {
+            $collectionQuery->where('project_uuid', $projectId);
+        }
+
+        $collectionQuery->firstOrFail();
+
+        $query = MemoraMediaSet::where('collection_uuid', $collectionId)
+            ->withCount(['media' => function ($query) {
+                $query->whereNull('deleted_at');
+            }])
+            ->orderBy('order');
+
+        // Paginate the query
+        $perPage = $perPage ?? 10;
+        $paginator = $this->paginationService->paginate($query, $perPage, $page);
+
+        // Transform items to resources
+        $data = \App\Domains\Memora\Resources\V1\MediaSetResource::collection($paginator->items());
+
+        // Format response with pagination metadata
+        return [
+            'data' => $data,
+            'pagination' => [
+                'page' => $paginator->currentPage(),
+                'limit' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'totalPages' => $paginator->lastPage(),
+            ],
+        ];
+    }
+
+    /**
+     * Find a media set by collection ID and set ID
+     */
+    public function findByCollection(string $collectionId, string $id, ?string $projectId = null): MemoraMediaSet
+    {
+        $user = Auth::user();
+        if (! $user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $set = MemoraMediaSet::where('collection_uuid', $collectionId)
+            ->where('uuid', $id)
+            ->withCount('media')
+            ->firstOrFail();
+
+        // Verify user owns the collection
+        $query = \App\Domains\Memora\Models\MemoraCollection::where('uuid', $collectionId)
+            ->where('user_uuid', $user->uuid);
+
+        if ($projectId !== null) {
+            $query->where('project_uuid', $projectId);
+        }
+
+        $query->firstOrFail();
+
+        return $set;
+    }
+
+    /**
+     * Create a media set in a collection
+     */
+    public function createForCollection(string $collectionId, array $data, ?string $projectId = null): MemoraMediaSet
+    {
+        $user = Auth::user();
+        if (! $user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $query = \App\Domains\Memora\Models\MemoraCollection::where('uuid', $collectionId)
+            ->where('user_uuid', $user->uuid);
+
+        if ($projectId !== null) {
+            $query->where('project_uuid', $projectId);
+        }
+
+        $collection = $query->firstOrFail();
+
+        // Check if collection is completed
+        if ($collection->status->value === 'completed') {
+            throw new \RuntimeException('Cannot create sets for a completed collection');
+        }
+
+        // Get the maximum order for sets in this collection
+        $maxOrder = MemoraMediaSet::where('collection_uuid', $collectionId)
+            ->max('order') ?? -1;
+
+        $setData = [
+            'user_uuid' => Auth::user()->uuid,
+            'collection_uuid' => $collectionId,
+            'project_uuid' => $collection->project_uuid,
+            'name' => $data['name'],
+            'description' => $data['description'] ?? null,
+            'order' => $maxOrder + 1,
+        ];
+
+        return MemoraMediaSet::create($setData);
+    }
+
+    /**
+     * Update a media set for collection
+     */
+    public function updateForCollection(string $collectionId, string $id, array $data, ?string $projectId = null): MemoraMediaSet
+    {
+        $set = $this->findByCollection($collectionId, $id, $projectId);
+
+        $updateData = [];
+        if (isset($data['name'])) {
+            $updateData['name'] = $data['name'];
+        }
+        if (isset($data['description'])) {
+            $updateData['description'] = $data['description'];
+        }
+        if (isset($data['order'])) {
+            $updateData['order'] = $data['order'];
+        }
+
+        $set->update($updateData);
+
+        return $set->fresh();
+    }
+
+    /**
+     * Delete a media set for collection and all media in it
+     */
+    public function deleteForCollection(string $collectionId, string $id, ?string $projectId = null): bool
+    {
+        $set = $this->findByCollection($collectionId, $id, $projectId);
+
+        // Load media relationship if not already loaded
+        if (! $set->relationLoaded('media')) {
+            $set->load(['media.feedback.replies', 'media.file']);
+        }
+
+        // Soft delete all media in this set, then delete the set in a transaction
+        return DB::transaction(function () use ($set) {
+            // Soft delete all media in this set
+            foreach ($set->media as $media) {
+                $media->delete();
+            }
+
+            // Soft delete the set itself
+            return $set->delete();
+        });
+    }
+
+    /**
+     * Reorder media sets for collection
+     */
+    public function reorderForCollection(string $collectionId, array $setUuids, ?string $projectId = null): bool
+    {
+        $user = Auth::user();
+        if (! $user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        // Verify user owns the collection
+        $query = \App\Domains\Memora\Models\MemoraCollection::where('uuid', $collectionId)
+            ->where('user_uuid', $user->uuid);
+
+        if ($projectId !== null) {
+            $query->where('project_uuid', $projectId);
+        }
+
+        $query->firstOrFail();
+
+        // Update all set orders in a transaction
+        return DB::transaction(function () use ($collectionId, $setUuids) {
+            foreach ($setUuids as $order => $setUuid) {
+                MemoraMediaSet::where('collection_uuid', $collectionId)
+                    ->where('uuid', $setUuid)
+                    ->update(['order' => $order]);
+            }
+
+            return true;
+        });
+    }
 }

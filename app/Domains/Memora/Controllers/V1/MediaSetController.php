@@ -175,4 +175,92 @@ class MediaSetController extends Controller
 
         return ApiResponse::success(['message' => 'Sets reordered successfully']);
     }
+
+    // ==================== Collection Media Sets ====================
+
+    /**
+     * Get all media sets for a collection with optional pagination parameters
+     * Unified route: /collections/{collectionId}/sets
+     * For project-based: pass ?projectId=xxx as query parameter
+     */
+    public function indexForCollection(Request $request, string $collectionId): JsonResponse
+    {
+        $projectId = $request->query('projectId');
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = max(1, min(100, (int) $request->query('per_page', 10)));
+
+        $result = $this->mediaSetService->getByCollection($collectionId, $page, $perPage, $projectId);
+
+        return ApiResponse::success($result);
+    }
+
+    /**
+     * Get a single media set for collection
+     * Unified route: /collections/{collectionId}/sets/{id}
+     * For project-based: pass ?projectId=xxx as query parameter
+     */
+    public function showForCollection(Request $request, string $collectionId, string $id): JsonResponse
+    {
+        $projectId = $request->query('projectId');
+        $set = $this->mediaSetService->findByCollection($collectionId, $id, $projectId);
+
+        return ApiResponse::success(new MediaSetResource($set));
+    }
+
+    /**
+     * Create a media set for collection
+     * Unified route: /collections/{collectionId}/sets
+     * For project-based: pass ?projectId=xxx as query parameter
+     */
+    public function storeForCollection(StoreMediaSetRequest $request, string $collectionId): JsonResponse
+    {
+        $projectId = $request->query('projectId');
+        $set = $this->mediaSetService->createForCollection($collectionId, $request->validated(), $projectId);
+
+        return ApiResponse::success(new MediaSetResource($set), 201);
+    }
+
+    /**
+     * Update a media set for collection
+     * Unified route: /collections/{collectionId}/sets/{id}
+     * For project-based: pass ?projectId=xxx as query parameter
+     */
+    public function updateForCollection(UpdateMediaSetRequest $request, string $collectionId, string $id): JsonResponse
+    {
+        $projectId = $request->query('projectId');
+        $set = $this->mediaSetService->updateForCollection($collectionId, $id, $request->validated(), $projectId);
+
+        return ApiResponse::success(new MediaSetResource($set));
+    }
+
+    /**
+     * Delete a media set for collection
+     * Unified route: /collections/{collectionId}/sets/{id}
+     * For project-based: pass ?projectId=xxx as query parameter
+     */
+    public function destroyForCollection(Request $request, string $collectionId, string $id): JsonResponse
+    {
+        $projectId = $request->query('projectId');
+        $this->mediaSetService->deleteForCollection($collectionId, $id, $projectId);
+
+        return ApiResponse::success(null, 204);
+    }
+
+    /**
+     * Reorder media sets for collection
+     * Unified route: /collections/{collectionId}/sets/reorder
+     * For project-based: pass ?projectId=xxx as query parameter
+     */
+    public function reorderForCollection(Request $request, string $collectionId): JsonResponse
+    {
+        $request->validate([
+            'setIds' => 'required|array',
+            'setIds.*' => 'uuid',
+        ]);
+
+        $projectId = $request->query('projectId');
+        $this->mediaSetService->reorderForCollection($collectionId, $request->input('setIds'), $projectId);
+
+        return ApiResponse::success(['message' => 'Sets reordered successfully']);
+    }
 }

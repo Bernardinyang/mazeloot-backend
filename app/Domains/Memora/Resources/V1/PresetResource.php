@@ -8,81 +8,96 @@ class PresetResource extends JsonResource
 {
     public function toArray($request): array
     {
+        // Ensure we have a valid resource
+        if (!$this->resource) {
+            return [];
+        }
+
+        // Calculate usage count if not already loaded
+        $usageCount = isset($this->usage_count) 
+            ? (int) $this->usage_count 
+            : 0;
+
+        // Calculate completeness score
+        $presetService = app(\App\Domains\Memora\Services\PresetService::class);
+        $completenessScore = $presetService->getCompletenessScore($this->resource);
+
         return [
-            'id' => $this->uuid,
-            'name' => $this->name,
-            'isSelected' => $this->is_selected,
-            'collectionTags' => $this->collection_tags,
-            'photoSets' => $this->photo_sets,
-            'defaultWatermarkId' => $this->default_watermark_uuid,
+            'id' => $this->resource->uuid ?? null,
+            'name' => $this->resource->name ?? '',
+            'description' => $this->resource->description ?? null,
+            'category' => $this->resource->category ?? null,
+            'isSelected' => (bool) ($this->resource->is_selected ?? false),
+            'usageCount' => $usageCount,
+            'completenessScore' => $completenessScore,
+            'collectionTags' => $this->resource->collection_tags ?? null,
+            'photoSets' => $this->resource->photo_sets ?? ['Highlights'],
+            'defaultWatermarkId' => $this->resource->default_watermark_uuid ?? null,
             'defaultWatermark' => $this->whenLoaded('defaultWatermark', function () {
                 return new WatermarkResource($this->defaultWatermark);
             }, null),
-            'coverStyle' => $this->whenLoaded('coverStyle', function () {
-                return new CoverStyleResource($this->coverStyle);
-            }, null),
-            'emailRegistration' => $this->email_registration,
-            'galleryAssist' => $this->gallery_assist,
-            'slideshow' => $this->slideshow,
-            'socialSharing' => $this->social_sharing,
-            'language' => $this->language,
-            // Design fields
+            'emailRegistration' => (bool) ($this->resource->email_registration ?? false),
+            'galleryAssist' => (bool) ($this->resource->gallery_assist ?? false),
+            'slideshow' => (bool) ($this->resource->slideshow ?? true),
+            'slideshowSpeed' => $this->resource->slideshow_speed ?? 'regular',
+            'slideshowAutoLoop' => (bool) ($this->resource->slideshow_auto_loop ?? true),
+            'socialSharing' => (bool) ($this->resource->social_sharing ?? true),
+            'language' => $this->resource->language ?? 'en',
+            // Design fields (excluding cover style/focal point)
             'design' => [
-                'coverId' => $this->design_cover_uuid,
-                'coverFocalPoint' => $this->design_cover_focal_point,
-                'fontFamily' => $this->design_font_family,
-                'fontStyle' => $this->design_font_style,
-                'colorPalette' => $this->design_color_palette,
-                'gridStyle' => $this->design_grid_style,
-                'gridColumns' => $this->design_grid_columns,
-                'thumbnailSize' => $this->design_thumbnail_size,
-                'gridSpacing' => $this->design_grid_spacing,
-                'navigationStyle' => $this->design_navigation_style,
+                'fontFamily' => $this->resource->design_font_family ?? 'inter',
+                'fontStyle' => $this->resource->design_font_style ?? 'regular',
+                'colorPalette' => $this->resource->design_color_palette ?? 'light',
+                'gridStyle' => $this->resource->design_grid_style ?? 'masonry',
+                'gridColumns' => $this->resource->design_grid_columns ?? 3,
+                'thumbnailOrientation' => $this->resource->design_thumbnail_orientation ?? 'medium',
+                'gridSpacing' => $this->resource->design_grid_spacing ?? 16,
+                'tabStyle' => $this->resource->design_tab_style ?? 'icon-text',
                 'joyCover' => [
-                    'title' => $this->design_joy_cover_title,
-                    'avatar' => $this->design_joy_cover_avatar,
-                    'showDate' => $this->design_joy_cover_show_date,
-                    'showName' => $this->design_joy_cover_show_name,
-                    'buttonText' => $this->design_joy_cover_button_text,
-                    'showButton' => $this->design_joy_cover_show_button,
-                    'backgroundPattern' => $this->design_joy_cover_background_pattern,
+                    'title' => $this->resource->design_joy_cover_title ?? '',
+                    'avatar' => $this->resource->design_joy_cover_avatar ?? null,
+                    'showDate' => (bool) ($this->resource->design_joy_cover_show_date ?? false),
+                    'showName' => (bool) ($this->resource->design_joy_cover_show_name ?? false),
+                    'buttonText' => $this->resource->design_joy_cover_button_text ?? 'View Gallery',
+                    'showButton' => (bool) ($this->resource->design_joy_cover_show_button ?? false),
+                    'backgroundPattern' => $this->resource->design_joy_cover_background_pattern ?? 'crosses',
                 ],
             ],
             // Privacy fields
             'privacy' => [
-                'collectionPassword' => $this->privacy_collection_password,
-                'showOnHomepage' => $this->privacy_show_on_homepage,
-                'clientExclusiveAccess' => $this->privacy_client_exclusive_access,
-                'allowClientsMarkPrivate' => $this->privacy_allow_clients_mark_private,
-                'clientOnlySets' => $this->privacy_client_only_sets,
+                'collectionPassword' => (bool) ($this->resource->privacy_collection_password ?? false),
+                'showOnHomepage' => (bool) ($this->resource->privacy_show_on_homepage ?? false),
+                'clientExclusiveAccess' => (bool) ($this->resource->privacy_client_exclusive_access ?? false),
+                'allowClientsMarkPrivate' => (bool) ($this->resource->privacy_allow_clients_mark_private ?? false),
+                'clientOnlySets' => $this->resource->privacy_client_only_sets ?? null,
             ],
             // Download fields
             'download' => [
-                'photoDownload' => $this->download_photo_download,
+                'photoDownload' => (bool) ($this->resource->download_photo_download ?? false),
                 'highResolution' => [
-                    'enabled' => $this->download_high_resolution_enabled,
-                    'size' => $this->download_high_resolution_size,
+                    'enabled' => (bool) ($this->resource->download_high_resolution_enabled ?? false),
+                    'size' => $this->resource->download_high_resolution_size ?? '3600px',
                 ],
                 'webSize' => [
-                    'enabled' => $this->download_web_size_enabled,
-                    'size' => $this->download_web_size,
+                    'enabled' => (bool) ($this->resource->download_web_size_enabled ?? false),
+                    'size' => $this->resource->download_web_size ?? '1920px',
                 ],
-                'videoDownload' => $this->download_video_download,
-                'downloadPin' => $this->download_download_pin,
-                'downloadPinEnabled' => $this->download_download_pin_enabled,
-                'limitDownloads' => $this->download_limit_downloads,
-                'downloadLimit' => $this->download_download_limit,
-                'restrictToContacts' => $this->download_restrict_to_contacts,
-                'downloadableSets' => $this->download_downloadable_sets,
+                'videoDownload' => (bool) ($this->resource->download_video_download ?? false),
+                'downloadPin' => $this->resource->download_download_pin ?? null,
+                'downloadPinEnabled' => (bool) ($this->resource->download_download_pin_enabled ?? false),
+                'limitDownloads' => (bool) ($this->resource->download_limit_downloads ?? false),
+                'downloadLimit' => $this->resource->download_download_limit ?? null,
+                'restrictToContacts' => (bool) ($this->resource->download_restrict_to_contacts ?? false),
+                'downloadableSets' => $this->resource->download_downloadable_sets ?? null,
             ],
             // Favorite fields
             'favorite' => [
-                'enabled' => $this->favorite_favorite_enabled,
-                'photos' => $this->favorite_favorite_photos,
-                'notes' => $this->favorite_favorite_notes,
+                'enabled' => (bool) ($this->resource->favorite_favorite_enabled ?? false),
+                'photos' => (bool) ($this->resource->favorite_favorite_photos ?? false),
+                'notes' => (bool) ($this->resource->favorite_favorite_notes ?? false),
             ],
-            'createdAt' => $this->created_at->toIso8601String(),
-            'updatedAt' => $this->updated_at->toIso8601String(),
+            'createdAt' => $this->resource->created_at ? $this->resource->created_at->toIso8601String() : null,
+            'updatedAt' => $this->resource->updated_at ? $this->resource->updated_at->toIso8601String() : null,
         ];
     }
 }

@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -39,14 +41,18 @@ class MemoraCollection extends Model
     protected $fillable = [
         'user_uuid',
         'project_uuid',
+        'preset_uuid',
+        'watermark_uuid',
         'name',
         'description',
         'status',
         'color',
+        'settings',
     ];
 
     protected $casts = [
         'status' => ProjectStatusEnum::class,
+        'settings' => 'array',
     ];
 
     /**
@@ -63,17 +69,53 @@ class MemoraCollection extends Model
         });
     }
 
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\User::class, 'user_uuid', 'uuid');
+    }
+
     public function project(): BelongsTo
     {
         return $this->belongsTo(MemoraProject::class, 'project_uuid', 'uuid');
     }
 
     /**
-     * Get the cover layout relationship (optional - if cover_layout_uuid is stored)
+     * Get the preset relationship
      */
-    public function coverLayout(): BelongsTo
+    public function preset(): BelongsTo
     {
-        return $this->belongsTo(MemoraCoverLayout::class, 'cover_layout_uuid', 'uuid');
+        return $this->belongsTo(MemoraPreset::class, 'preset_uuid', 'uuid');
+    }
+
+    /**
+     * Get the watermark relationship
+     */
+    public function watermark(): BelongsTo
+    {
+        return $this->belongsTo(MemoraWatermark::class, 'watermark_uuid', 'uuid');
+    }
+
+    /**
+     * Get the users who starred this collection.
+     */
+    public function starredByUsers(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            \App\Models\User::class,
+            'user_starred_collections',
+            'collection_uuid',
+            'user_uuid',
+            'uuid',
+            'uuid'
+        )->withTimestamps();
+    }
+
+    /**
+     * Get the media sets for this collection.
+     */
+    public function mediaSets(): HasMany
+    {
+        return $this->hasMany(MemoraMediaSet::class, 'collection_uuid', 'uuid');
     }
 
     /**

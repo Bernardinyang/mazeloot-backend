@@ -26,10 +26,11 @@ class CollectionController extends Controller
     public function index(Request $request): JsonResponse
     {
         $projectId = $request->query('projectId');
+        $starred = $request->has('starred') ? filter_var($request->query('starred'), FILTER_VALIDATE_BOOLEAN) : null;
         $page = max(1, (int) $request->query('page', 1));
         $perPage = max(1, min(100, (int) $request->query('per_page', 10)));
 
-        $result = $this->collectionService->list($projectId, $page, $perPage);
+        $result = $this->collectionService->list($projectId, $starred, $page, $perPage);
 
         return ApiResponse::success($result);
     }
@@ -80,5 +81,17 @@ class CollectionController extends Controller
         $this->collectionService->delete($projectId, $id);
 
         return ApiResponse::success(null, 204);
+    }
+
+    /**
+     * Toggle star status for a collection (unified for standalone and project-based)
+     * For project-based: pass ?projectId=xxx as query parameter
+     */
+    public function toggleStar(Request $request, string $id): JsonResponse
+    {
+        $projectId = $request->query('projectId');
+        $result = $this->collectionService->toggleStar($projectId, $id);
+
+        return ApiResponse::success($result);
     }
 }

@@ -11,6 +11,7 @@ use App\Domains\Memora\Controllers\V1\ProjectController;
 use App\Domains\Memora\Controllers\V1\ProofingApprovalRequestController;
 use App\Domains\Memora\Controllers\V1\ProofingController;
 use App\Domains\Memora\Controllers\V1\SettingsController;
+use App\Domains\Memora\Controllers\V1\PresetController;
 use App\Domains\Memora\Controllers\V1\SocialLinkController;
 use App\Domains\Memora\Controllers\V1\WatermarkController;
 use Illuminate\Support\Facades\Route;
@@ -94,6 +95,32 @@ Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
     Route::get('/collections/{id}', [CollectionController::class, 'show']);
     Route::patch('/collections/{id}', [CollectionController::class, 'update']);
     Route::delete('/collections/{id}', [CollectionController::class, 'destroy']);
+    Route::post('/collections/{id}/star', [CollectionController::class, 'toggleStar']);
+
+    // Media Sets within collections (unified - works for both standalone and project-based)
+    // For project-based: pass ?projectId=xxx as query parameter
+    Route::prefix('collections/{collectionId}/sets')->group(function () {
+        Route::get('/', [MediaSetController::class, 'indexForCollection']);
+        Route::post('/', [MediaSetController::class, 'storeForCollection']);
+        Route::get('/{id}', [MediaSetController::class, 'showForCollection']);
+        Route::patch('/{id}', [MediaSetController::class, 'updateForCollection']);
+        Route::delete('/{id}', [MediaSetController::class, 'destroyForCollection']);
+        Route::post('/reorder', [MediaSetController::class, 'reorderForCollection']);
+
+        // Media within a set
+        Route::prefix('{setId}/media')->group(function () {
+            Route::get('/', [MediaController::class, 'getSetMedia']);
+            Route::post('/', [MediaController::class, 'uploadToSet']);
+            Route::post('/move', [MediaController::class, 'moveToSet']);
+            Route::post('/copy', [MediaController::class, 'copyToSet']);
+            Route::patch('/{mediaId}/rename', [MediaController::class, 'rename']);
+            Route::patch('/{mediaId}/replace', [MediaController::class, 'replace']);
+            Route::post('/{mediaId}/watermark', [MediaController::class, 'applyWatermark']);
+            Route::delete('/{mediaId}/watermark', [MediaController::class, 'removeWatermark']);
+            Route::post('/{mediaId}/star', [MediaController::class, 'toggleStar']);
+            Route::delete('/{mediaId}', [MediaController::class, 'deleteFromSet']);
+        });
+    });
 
     // MemoraMedia - General operations (not set-specific)
     Route::prefix('media')->group(function () {
@@ -134,6 +161,20 @@ Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
             Route::delete('/{id}', [WatermarkController::class, 'destroy']);
             Route::post('/{id}/duplicate', [WatermarkController::class, 'duplicate']);
             Route::get('/{id}/usage', [WatermarkController::class, 'usage']);
+        });
+
+        // Presets
+        Route::prefix('presets')->group(function () {
+            Route::get('/', [PresetController::class, 'index']);
+            Route::post('/', [PresetController::class, 'store']);
+            Route::patch('/reorder', [PresetController::class, 'reorder']);
+            Route::get('/{id}', [PresetController::class, 'show']);
+            Route::patch('/{id}', [PresetController::class, 'update']);
+            Route::delete('/{id}', [PresetController::class, 'destroy']);
+            Route::post('/{id}/duplicate', [PresetController::class, 'duplicate']);
+            Route::post('/{id}/apply-to-collection/{collectionId}', [PresetController::class, 'applyToCollection']);
+            Route::get('/{id}/usage', [PresetController::class, 'usage']);
+            Route::patch('/{id}/set-default', [PresetController::class, 'setDefault']);
         });
     });
 });

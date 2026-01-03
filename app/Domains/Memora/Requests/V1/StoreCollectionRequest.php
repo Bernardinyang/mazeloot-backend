@@ -17,6 +17,10 @@ class StoreCollectionRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'status' => ['nullable', 'in:draft,active,archived'],
+            'presetId' => ['nullable', 'uuid', 'exists:memora_presets,uuid'],
+            'watermarkId' => ['nullable', 'uuid', 'exists:memora_watermarks,uuid'],
+            'settings' => ['nullable', 'array'],
+            'eventDate' => ['nullable', 'date'],
         ];
     }
 }

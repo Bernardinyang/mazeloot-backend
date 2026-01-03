@@ -2,6 +2,7 @@
 
 namespace App\Domains\Memora\Services;
 
+use App\Domains\Memora\Models\MemoraCollection;
 use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraMediaFeedback;
 use App\Domains\Memora\Models\MemoraMediaSet;
@@ -738,7 +739,7 @@ class MediaService
     }
 
     /**
-     * Check if a phase (proofing or selection) is completed
+     * Check if a phase (proofing, selection, or collection) is completed
      */
     protected function isPhaseCompleted(MemoraMediaSet $mediaSet): bool
     {
@@ -752,6 +753,12 @@ class MediaService
             $selection = MemoraSelection::where('uuid', $mediaSet->selection_uuid)->first();
 
             return $selection && $selection->status->value === 'completed';
+        }
+
+        if ($mediaSet->collection_uuid) {
+            $collection = MemoraCollection::where('uuid', $mediaSet->collection_uuid)->first();
+
+            return $collection && $collection->status->value === 'completed';
         }
 
         return false;
@@ -769,12 +776,30 @@ class MediaService
 
         $media = MemoraMedia::where('uuid', $mediaId)->firstOrFail();
 
-        // Verify user owns the proofing that contains this media
+        // Verify user owns the phase (proofing, selection, or collection) that contains this media
         $mediaSet = $media->mediaSet;
         if ($mediaSet) {
-            $proofing = $mediaSet->proofing;
-            if ($proofing && $proofing->user_uuid !== $userId) {
-                throw new \Exception('Unauthorized: You do not own this proofing');
+            // Check ownership based on phase type
+            $isAuthorized = false;
+            if ($mediaSet->proof_uuid) {
+                $proofing = $mediaSet->proofing;
+                if ($proofing && $proofing->user_uuid === $userId) {
+                    $isAuthorized = true;
+                }
+            } elseif ($mediaSet->selection_uuid) {
+                $selection = $mediaSet->selection;
+                if ($selection && $selection->user_uuid === $userId) {
+                    $isAuthorized = true;
+                }
+            } elseif ($mediaSet->collection_uuid) {
+                $collection = $mediaSet->collection;
+                if ($collection && $collection->user_uuid === $userId) {
+                    $isAuthorized = true;
+                }
+            }
+
+            if (! $isAuthorized) {
+                throw new \Exception('Unauthorized: You do not own this media');
             }
 
             // Check if phase is completed

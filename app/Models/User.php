@@ -211,6 +211,21 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the collections starred by this user.
+     */
+    public function starredCollections(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            \App\Domains\Memora\Models\MemoraCollection::class,
+            'user_starred_collections',
+            'user_uuid',
+            'collection_uuid',
+            'uuid',
+            'uuid'
+        )->withTimestamps();
+    }
+
+    /**
      * Check if the user has a specific role.
      */
     public function hasRole(UserRoleEnum $role): bool

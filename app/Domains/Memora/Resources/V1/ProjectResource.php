@@ -22,7 +22,13 @@ class ProjectResource extends JsonResource
             'createdAt' => $this->created_at->toIso8601String(),
             'updatedAt' => $this->updated_at->toIso8601String(),
             'presetId' => $this->preset_uuid,
+            'preset' => $this->whenLoaded('preset', function () {
+                return new PresetResource($this->preset);
+            }, null),
             'watermarkId' => $this->watermark_uuid,
+            'watermark' => $this->whenLoaded('watermark', function () {
+                return new WatermarkResource($this->watermark);
+            }, null),
             'color' => $this->color,
             'hasSelections' => $this->has_selections,
             'hasProofing' => $this->has_proofing,
