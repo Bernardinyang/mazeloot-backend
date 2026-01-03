@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\GuestCollectionToken;
 use App\Models\GuestProofingToken;
 use App\Models\GuestSelectionToken;
 use App\Support\Responses\ApiResponse;
@@ -34,6 +35,11 @@ class GuestTokenAuth
         // If not found, try proofing token
         if (! $guestToken) {
             $guestToken = GuestProofingToken::where('token', $token)->first();
+        }
+
+        // If not found, try collection token
+        if (! $guestToken) {
+            $guestToken = GuestCollectionToken::where('token', $token)->first();
         }
 
         if (! $guestToken) {

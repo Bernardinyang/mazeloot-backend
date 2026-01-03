@@ -3,9 +3,8 @@
 namespace App\Domains\Memora\Resources\V1;
 
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Auth;
 
-class CollectionResource extends JsonResource
+class PublicCollectionResource extends JsonResource
 {
     /**
      * Normalize coverDesign to ensure proper structure
@@ -39,8 +38,7 @@ class CollectionResource extends JsonResource
     }
 
     /**
-     * Organize settings by section (general, privacy, download, favorite, design)
-     * Reads from organized DB structure or falls back to flat fields for backward compatibility
+     * Organize settings by section, excluding sensitive data
      */
     private function organizeSettings(array $settings): array
     {
@@ -49,9 +47,6 @@ class CollectionResource extends JsonResource
         // Preserve metadata fields
         if (isset($settings['eventDate'])) {
             $organized['eventDate'] = $settings['eventDate'];
-        }
-        if (isset($settings['display_settings'])) {
-            $organized['display_settings'] = $settings['display_settings'];
         }
         if (isset($settings['thumbnail'])) {
             $organized['thumbnail'] = $settings['thumbnail'];
@@ -76,38 +71,46 @@ class CollectionResource extends JsonResource
                 'slideshowAutoLoop' => $settings['slideshowAutoLoop'] ?? true,
                 'socialSharing' => $settings['socialSharing'] ?? true,
                 'language' => $settings['language'] ?? 'en',
-                'autoExpiryDate' => $settings['autoExpiryDate'] ?? null,
-                'expiryDate' => $settings['expiryDate'] ?? null,
-                'expiryDays' => $settings['expiryDays'] ?? null,
             ];
         }
 
-        // Privacy settings - use organized structure if exists, otherwise build from flat
+        // Privacy settings - exclude sensitive data
         if (isset($settings['privacy']) && is_array($settings['privacy'])) {
-            $organized['privacy'] = $settings['privacy'];
-            // Ensure collectionPasswordEnabled is set correctly
-            if (!isset($organized['privacy']['collectionPasswordEnabled'])) {
-                $organized['privacy']['collectionPasswordEnabled'] = !empty($organized['privacy']['password'] ?? $settings['password'] ?? null);
-            }
+            $organized['privacy'] = [
+                'collectionPasswordEnabled' => !empty($settings['privacy']['collectionPasswordEnabled'] ?? $settings['privacy']['password'] ?? null),
+                'showOnHomepage' => $settings['privacy']['showOnHomepage'] ?? false,
+                'clientExclusiveAccess' => $settings['privacy']['clientExclusiveAccess'] ?? false,
+                'allowClientsMarkPrivate' => $settings['privacy']['allowClientsMarkPrivate'] ?? false,
+                // Exclude: password, collectionPassword (actual password), clientOnlySets
+            ];
         } else {
             $organized['privacy'] = [
-                'collectionPasswordEnabled' => !empty($settings['password']),
-                'password' => $settings['password'] ?? null,
+                'collectionPasswordEnabled' => !empty($settings['password'] ?? null),
                 'showOnHomepage' => $settings['showOnHomepage'] ?? false,
                 'clientExclusiveAccess' => $settings['clientExclusiveAccess'] ?? false,
-                'clientPrivatePassword' => $settings['clientPrivatePassword'] ?? null,
                 'allowClientsMarkPrivate' => $settings['allowClientsMarkPrivate'] ?? false,
-                'clientOnlySets' => $settings['clientOnlySets'] ?? null,
             ];
         }
 
-        // Download settings - use organized structure if exists, otherwise build from flat
+        // Download settings - exclude sensitive data
         if (isset($settings['download']) && is_array($settings['download'])) {
-            $organized['download'] = $settings['download'];
-            // Ensure downloadPinEnabled is set correctly
-            if (!isset($organized['download']['downloadPinEnabled'])) {
-                $organized['download']['downloadPinEnabled'] = !empty($organized['download']['downloadPin'] ?? $settings['downloadPin'] ?? null);
-            }
+            $organized['download'] = [
+                'photoDownload' => $settings['download']['photoDownload'] ?? true,
+                'highResolution' => [
+                    'enabled' => $settings['download']['highResolution']['enabled'] ?? false,
+                    'size' => $settings['download']['highResolution']['size'] ?? '3600px',
+                ],
+                'webSize' => [
+                    'enabled' => $settings['download']['webSize']['enabled'] ?? false,
+                    'size' => $settings['download']['webSize']['size'] ?? '1024px',
+                ],
+                'videoDownload' => $settings['download']['videoDownload'] ?? false,
+                'downloadPinEnabled' => $settings['download']['downloadPinEnabled'] ?? false,
+                'limitDownloads' => $settings['download']['limitDownloads'] ?? false,
+                'downloadLimit' => $settings['download']['downloadLimit'] ?? 1,
+                'restrictToContacts' => $settings['download']['restrictToContacts'] ?? false,
+                // Exclude: downloadPin, allowedDownloadEmails, downloadableSets
+            ];
         } else {
             $organized['download'] = [
                 'photoDownload' => $settings['photoDownload'] ?? true,
@@ -120,17 +123,14 @@ class CollectionResource extends JsonResource
                     'size' => $settings['webSize'] ?? '1024px',
                 ],
                 'videoDownload' => $settings['videoDownload'] ?? false,
-                'downloadPinEnabled' => !empty($settings['downloadPin'] ?? null),
-                'downloadPin' => $settings['downloadPin'] ?? null,
+                'downloadPinEnabled' => $settings['downloadPinEnabled'] ?? false,
                 'limitDownloads' => $settings['limitDownloads'] ?? false,
                 'downloadLimit' => $settings['downloadLimit'] ?? 1,
                 'restrictToContacts' => $settings['restrictToContacts'] ?? false,
-                'allowedDownloadEmails' => $settings['allowedDownloadEmails'] ?? null,
-                'downloadableSets' => $settings['downloadableSets'] ?? null,
             ];
         }
 
-        // Favorite settings - use organized structure if exists, otherwise build from flat
+        // Favorite settings
         if (isset($settings['favorite']) && is_array($settings['favorite'])) {
             $organized['favorite'] = $settings['favorite'];
         } else {
@@ -189,20 +189,11 @@ class CollectionResource extends JsonResource
 
         return [
             'id' => $this->uuid,
-            'userId' => $this->user_uuid,
-            'folderId' => $this->folder_uuid,
-            'projectId' => $this->project_uuid,
-            'project' => $this->whenLoaded('project', function () {
-                return new ProjectResource($this->project);
-            }, null),
+            // Exclude: userId, folderId, projectId, project
             'presetId' => $this->preset_uuid,
-            'preset' => $this->whenLoaded('preset', function () {
-                return new PresetResource($this->preset);
-            }, null),
+            // Exclude: preset (full resource)
             'watermarkId' => $this->watermark_uuid,
-            'watermark' => $this->whenLoaded('watermark', function () {
-                return new WatermarkResource($this->watermark);
-            }, null),
+            // Exclude: watermark (full resource)
             'name' => $this->name,
             'description' => $this->description,
             'status' => $this->status?->value ?? $this->status,
@@ -211,9 +202,7 @@ class CollectionResource extends JsonResource
             'image' => $settings['image'] ?? null,
             'eventDate' => $settings['eventDate'] ?? null,
             'settings' => $settings,
-            'isStarred' => Auth::check() && $this->relationLoaded('starredByUsers')
-                ? $this->starredByUsers->isNotEmpty()
-                : false,
+            // Exclude: isStarred (requires auth)
             'mediaCount' => $this->media_count ?? ($this->relationLoaded('mediaSets') && $this->mediaSets->isNotEmpty()
                 ? $this->mediaSets->sum(fn ($set) => $set->media_count ?? 0)
                 : 0),
@@ -226,3 +215,4 @@ class CollectionResource extends JsonResource
         ];
     }
 }
+

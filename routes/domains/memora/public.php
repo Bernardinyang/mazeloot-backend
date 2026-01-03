@@ -4,8 +4,10 @@ use App\Domains\Memora\Controllers\V1\ClosureRequestController;
 use App\Domains\Memora\Controllers\V1\GuestProofingController;
 use App\Domains\Memora\Controllers\V1\GuestSelectionController;
 use App\Domains\Memora\Controllers\V1\ProofingApprovalRequestController;
+use App\Domains\Memora\Controllers\V1\PublicCollectionController;
 use App\Domains\Memora\Controllers\V1\PublicMediaController;
 use App\Domains\Memora\Controllers\V1\PublicMediaSetController;
+use App\Domains\Memora\Controllers\V1\PublicSettingsController;
 use App\Domains\Memora\Controllers\V1\PublicProofingController;
 use App\Domains\Memora\Controllers\V1\PublicProofingMediaSetController;
 use App\Domains\Memora\Controllers\V1\PublicSelectionController;
@@ -87,6 +89,35 @@ Route::prefix('public/approval-requests')->group(function () {
     Route::get('/{token}', [ProofingApprovalRequestController::class, 'showByToken']);
     Route::post('/{token}/approve', [ProofingApprovalRequestController::class, 'approve']);
     Route::post('/{token}/reject', [ProofingApprovalRequestController::class, 'reject']);
+});
+
+// Public Settings Routes (no authentication required)
+Route::prefix('public/settings')->group(function () {
+    Route::get('/', [PublicSettingsController::class, 'index']);
+});
+
+// Public Collection Routes (no authentication required for published collections)
+Route::prefix('public/collections')->group(function () {
+    // Check collection status (truly public - no authentication required)
+    Route::get('/{id}/status', [PublicCollectionController::class, 'checkStatus']);
+
+    // Verify password (truly public - no authentication required)
+    Route::post('/{id}/verify-password', [PublicCollectionController::class, 'verifyPassword']);
+
+    // Verify download PIN (truly public - no authentication required)
+    Route::post('/{id}/verify-download-pin', [PublicCollectionController::class, 'verifyDownloadPin']);
+
+    // Get collection (public - no authentication required for published collections)
+    Route::get('/{id}', [PublicCollectionController::class, 'show']);
+
+    // Get media sets for collection (public - no authentication required)
+    Route::get('/{id}/sets', [PublicCollectionController::class, 'getSets']);
+
+    // Get media for a specific set (public - no authentication required)
+    Route::get('/{id}/sets/{setId}/media', [PublicMediaController::class, 'getCollectionSetMedia']);
+
+    // Download media from collection (public - no authentication required)
+    Route::get('/{id}/media/{mediaId}/download', [PublicMediaController::class, 'downloadCollectionMedia']);
 });
 
 // Public Media Closure Requests (guest token required)

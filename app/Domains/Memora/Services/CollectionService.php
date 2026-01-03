@@ -142,11 +142,37 @@ class CollectionService
         // Privacy settings (use nested if exists, otherwise build from flat)
         if (isset($settings['privacy']) && is_array($settings['privacy'])) {
             $organized['privacy'] = $settings['privacy'];
+            // Merge flat keys into privacy structure
+            if (isset($settings['password'])) {
+                $organized['privacy']['password'] = $settings['password'];
+                $organized['privacy']['collectionPasswordEnabled'] = !empty($settings['password']);
+            }
+            if (isset($settings['showOnHomepage'])) {
+                $organized['privacy']['showOnHomepage'] = $settings['showOnHomepage'];
+            }
+            if (isset($settings['clientExclusiveAccess'])) {
+                $organized['privacy']['clientExclusiveAccess'] = $settings['clientExclusiveAccess'];
+            }
+            if (isset($settings['clientPrivatePassword'])) {
+                $organized['privacy']['clientPrivatePassword'] = $settings['clientPrivatePassword'];
+            }
+            if (isset($settings['allowClientsMarkPrivate'])) {
+                $organized['privacy']['allowClientsMarkPrivate'] = $settings['allowClientsMarkPrivate'];
+            }
+            if (isset($settings['clientOnlySets'])) {
+                $organized['privacy']['clientOnlySets'] = $settings['clientOnlySets'];
+            }
+            // Ensure collectionPasswordEnabled is set correctly
+            if (!isset($organized['privacy']['collectionPasswordEnabled'])) {
+                $organized['privacy']['collectionPasswordEnabled'] = !empty($organized['privacy']['password'] ?? $settings['password'] ?? null);
+            }
         } else {
             $organized['privacy'] = [
-                'collectionPassword' => ! empty($settings['password']),
+                'collectionPasswordEnabled' => !empty($settings['password']),
+                'password' => $settings['password'] ?? null, // Keep password in privacy.password
                 'showOnHomepage' => $settings['showOnHomepage'] ?? false,
                 'clientExclusiveAccess' => $settings['clientExclusiveAccess'] ?? false,
+                'clientPrivatePassword' => $settings['clientPrivatePassword'] ?? null,
                 'allowClientsMarkPrivate' => $settings['allowClientsMarkPrivate'] ?? false,
                 'clientOnlySets' => $settings['clientOnlySets'] ?? null,
             ];
