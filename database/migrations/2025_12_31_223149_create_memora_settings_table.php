@@ -23,6 +23,23 @@ return new class extends Migration
             $table->foreignUuid('branding_logo_uuid')->nullable()->constrained('user_files', 'uuid')->nullOnDelete();
             $table->foreignUuid('branding_favicon_uuid')->nullable()->constrained('user_files', 'uuid')->nullOnDelete();
             $table->boolean('branding_show_mazeloot_branding')->default(true);
+            $table->string('branding_name')->nullable();
+            $table->string('branding_support_email')->nullable();
+            $table->string('branding_support_phone')->nullable();
+            $table->string('branding_website')->nullable();
+            $table->string('branding_location')->nullable();
+            $table->string('branding_tagline')->nullable();
+            $table->text('branding_description')->nullable();
+            $table->string('branding_address_street')->nullable();
+            $table->string('branding_address_city')->nullable();
+            $table->string('branding_address_state')->nullable();
+            $table->string('branding_address_zip')->nullable();
+            $table->string('branding_address_country')->nullable();
+            $table->text('branding_business_hours')->nullable();
+            $table->string('branding_contact_name')->nullable();
+            $table->string('branding_tax_vat_id')->nullable();
+            $table->integer('branding_founded_year')->nullable();
+            $table->string('branding_industry')->nullable();
 
             // Preference fields
             $table->enum('preference_filename_display', ['show', 'hide'])->default('show');
@@ -41,6 +58,7 @@ return new class extends Migration
             $table->string('homepage_biography', 200)->nullable();
             $table->json('homepage_info')->nullable();
             $table->string('homepage_collection_sort_order')->nullable();
+            $table->boolean('homepage_slideshow_enabled')->default(false);
 
             // Email settings
             $table->string('email_from_name')->nullable();

@@ -103,7 +103,7 @@ class PublicCollectionController extends Controller
             $settings = $collection->settings ?? [];
             $hasPasswordProtection = ! empty($settings['privacy']['collectionPasswordEnabled'] ?? $settings['privacy']['password'] ?? $settings['password'] ?? false);
             $password = $settings['privacy']['password'] ?? $settings['password'] ?? null;
-            
+
             // Check if client is verified (clients don't need collection password)
             $isClientVerified = false;
             $token = $request->bearerToken() ?? $request->header('X-Guest-Token') ?? $request->query('guest_token');

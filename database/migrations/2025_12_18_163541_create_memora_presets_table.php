@@ -19,12 +19,17 @@ return new class extends Migration
             $table->foreignUuid('default_watermark_uuid')->nullable()->constrained('memora_watermarks', 'uuid')->nullOnDelete();
 
             $table->string('name');
+            $table->text('description')->nullable();
+            $table->string('category')->nullable();
             $table->boolean('is_selected')->default(false);
+            $table->integer('order')->default(0);
             $table->text('collection_tags')->nullable(); // Comma-separated tags
             $table->json('photo_sets')->nullable(); // Array of photo set names
             $table->boolean('email_registration')->default(false);
             $table->boolean('gallery_assist')->default(false);
             $table->boolean('slideshow')->default(true);
+            $table->string('slideshow_speed')->default('regular');
+            $table->boolean('slideshow_auto_loop')->default(true);
             $table->boolean('social_sharing')->default(true);
             $table->string('language', 10)->default('en');
 
@@ -39,7 +44,7 @@ return new class extends Migration
             $table->string('design_tab_style')->default('icon-text');
 
             // Privacy section fields
-            $table->string('privacy_collection_password')->nullable();
+            $table->boolean('privacy_collection_password')->default(false);
             $table->boolean('privacy_show_on_homepage')->default(true);
             $table->boolean('privacy_client_exclusive_access')->default(false);
             $table->boolean('privacy_allow_clients_mark_private')->default(false);

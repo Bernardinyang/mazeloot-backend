@@ -6,7 +6,6 @@ use App\Domains\Memora\Models\MemoraCollection;
 use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraSettings;
 use App\Domains\Memora\Models\MemoraSocialLink;
-use App\Domains\Memora\Resources\V1\MediaResource;
 use App\Domains\Memora\Resources\V1\PublicSettingsResource;
 use App\Http\Controllers\Controller;
 use App\Support\Responses\ApiResponse;
@@ -159,10 +158,12 @@ class PublicSettingsController extends Controller
                 ->filter(function ($collection) {
                     $settings = $collection->settings ?? [];
                     $showOnHomepage = $settings['privacy']['showOnHomepage'] ?? $settings['showOnHomepage'] ?? false;
+
                     return $showOnHomepage;
                 })
                 ->map(function ($collection) {
                     $settings = $collection->settings ?? [];
+
                     return [
                         'id' => $collection->uuid,
                         'uuid' => $collection->uuid,
@@ -269,7 +270,7 @@ class PublicSettingsController extends Controller
                 ->map(function ($media) {
                     $file = $media->file;
                     $collection = $media->mediaSet?->collection;
-                    
+
                     return [
                         'id' => $media->uuid,
                         'uuid' => $media->uuid,
@@ -280,7 +281,7 @@ class PublicSettingsController extends Controller
                         'collectionName' => $collection?->name ?? null,
                     ];
                 })
-                ->filter(fn($item) => $item['url'] !== null)
+                ->filter(fn ($item) => $item['url'] !== null)
                 ->values();
 
             return ApiResponse::success($featuredMedia);

@@ -1036,12 +1036,12 @@ class PublicMediaController extends Controller
             }
 
             // Get email from request (if provided)
-            $emailHeader = $request->header('X-Collection-Email') 
+            $emailHeader = $request->header('X-Collection-Email')
                 ?? $request->header('x-collection-email')
                 ?? $request->header('X-COLLECTION-EMAIL');
-            
+
             $email = $emailHeader && trim($emailHeader) !== '' ? strtolower(trim($emailHeader)) : null;
-            
+
             // Also try to get email from request body
             if (! $email) {
                 $emailFromBody = $request->input('email');

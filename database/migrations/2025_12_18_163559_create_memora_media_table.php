@@ -22,6 +22,8 @@ return new class extends Migration
             $table->foreignUuid('media_set_uuid')->constrained('memora_media_sets', 'uuid')->cascadeOnDelete(); // Media set this belongs to
             $table->foreignUuid('original_media_uuid')->nullable()->constrained('memora_media', 'uuid')->nullOnDelete(); // Original media UUID for revisions (self-referencing)
             $table->foreignUuid('user_file_uuid')->nullable()->constrained('user_files', 'uuid')->nullOnDelete(); // Reference to uploaded file
+            $table->foreignUuid('watermark_uuid')->nullable()->constrained('memora_watermarks', 'uuid')->nullOnDelete(); // Watermark applied to media
+            $table->foreignUuid('original_file_uuid')->nullable()->constrained('user_files', 'uuid')->nullOnDelete(); // Original file before watermark
 
             // Selection status
             $table->boolean('is_selected')->default(false); // Whether this media is selected in a selection
@@ -39,6 +41,13 @@ return new class extends Migration
             $table->timestamp('completed_at')->nullable(); // Timestamp when media was marked as completed
             $table->boolean('is_rejected')->default(false); // Whether this media item is rejected
             $table->timestamp('rejected_at')->nullable(); // Timestamp when media was rejected
+            $table->boolean('is_private')->default(false); // Whether this media is marked as private
+            $table->timestamp('marked_private_at')->nullable(); // Timestamp when media was marked as private
+            $table->string('marked_private_by_email')->nullable(); // Email of user who marked media as private
+
+            // Featured status
+            $table->boolean('is_featured')->default(false); // Whether this media is featured on homepage
+            $table->timestamp('featured_at')->nullable(); // Timestamp when media was featured
 
             // Ordering
             $table->integer('order')->default(0); // Display order within the media set

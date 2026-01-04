@@ -55,4 +55,3 @@ class MemoraCollectionShareLink extends Model
         return $this->belongsTo(\App\Models\User::class, 'user_uuid', 'uuid');
     }
 }
-

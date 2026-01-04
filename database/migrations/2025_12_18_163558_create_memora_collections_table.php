@@ -19,10 +19,13 @@ return new class extends Migration
             $table->foreignUuid('user_uuid')->constrained('users', 'uuid')->cascadeOnDelete();
             $table->foreignUuid('folder_uuid')->nullable()->constrained('memora_folders', 'uuid')->cascadeOnDelete();
             $table->foreignUuid('project_uuid')->nullable()->constrained('memora_projects', 'uuid')->cascadeOnDelete();
+            $table->foreignUuid('preset_uuid')->nullable()->constrained('memora_presets', 'uuid')->nullOnDelete();
+            $table->foreignUuid('watermark_uuid')->nullable()->constrained('memora_watermarks', 'uuid')->nullOnDelete();
             $table->string('name');
             $table->text('description')->nullable();
             $table->enum('status', ProjectStatusEnum::values())->default(ProjectStatusEnum::DRAFT->value);
             $table->string('color', 7)->default('#8B5CF6'); // Default purple color
+            $table->json('settings')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

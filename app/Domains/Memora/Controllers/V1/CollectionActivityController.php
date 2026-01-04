@@ -127,7 +127,7 @@ class CollectionActivityController extends Controller
                 })
                 ->first();
 
-            if (!$existingLink) {
+            if (! $existingLink) {
                 // Only create if this link doesn't exist yet
                 MemoraCollectionShareLink::create([
                     'collection_uuid' => $collectionId,
@@ -293,6 +293,7 @@ class CollectionActivityController extends Controller
                 })
                 ->map(function ($group, $linkId) {
                     $first = $group->first();
+
                     return [
                         'id' => $linkId,
                         'name' => $first->link_id ?? 'Untitled Link',
@@ -332,14 +333,14 @@ class CollectionActivityController extends Controller
             $activities = $downloads->map(function ($download) {
                 $media = $download->media;
                 $file = $media->file ?? null;
-                
+
                 $photoName = 'Unknown';
                 $mediaType = null;
                 if ($file) {
                     $photoName = $file->filename ?? 'Unknown';
                     $mediaType = $file->type?->value ?? $file->type;
                 }
-                
+
                 $photoThumbnail = null;
                 if ($file) {
                     $fileType = $file->type?->value ?? $file->type;
@@ -351,7 +352,7 @@ class CollectionActivityController extends Controller
                         $photoThumbnail = $media->thumbnail_url ?? $file->url ?? null;
                     }
                 }
-                
+
                 return [
                     'id' => $download->uuid,
                     'mediaId' => $media?->uuid ?? null,
@@ -395,14 +396,14 @@ class CollectionActivityController extends Controller
             $activities = $favourites->map(function ($favourite) {
                 $media = $favourite->media;
                 $file = $media->file ?? null;
-                
+
                 $photoName = 'Unknown';
                 $mediaType = null;
                 if ($file) {
                     $photoName = $file->filename ?? 'Unknown';
                     $mediaType = $file->type?->value ?? $file->type;
                 }
-                
+
                 $photoThumbnail = null;
                 if ($file) {
                     $fileType = $file->type?->value ?? $file->type;
@@ -414,7 +415,7 @@ class CollectionActivityController extends Controller
                         $photoThumbnail = $media->thumbnail_url ?? $file->url ?? null;
                     }
                 }
-                
+
                 return [
                     'id' => $favourite->uuid,
                     'mediaId' => $media?->uuid ?? null,
@@ -457,17 +458,17 @@ class CollectionActivityController extends Controller
             $results = $accesses->map(function ($access) {
                 $media = $access->media;
                 $file = $media->file ?? null;
-                
+
                 $photoName = 'Unknown';
                 $photoThumbnail = null;
                 $mediaType = null;
                 $isVideo = false;
-                
+
                 if ($file) {
                     $photoName = $file->filename ?? 'Unknown';
                     $mediaType = $file->type?->value ?? $file->type;
                     $isVideo = $mediaType === 'video';
-                    
+
                     $fileType = $file->type?->value ?? $file->type;
                     if ($fileType === 'image' && $file->metadata && isset($file->metadata['variants']['thumb'])) {
                         $photoThumbnail = $file->metadata['variants']['thumb'];
@@ -477,7 +478,7 @@ class CollectionActivityController extends Controller
                         $photoThumbnail = $media->thumbnail_url ?? $file->url ?? null;
                     }
                 }
-                
+
                 return [
                     'id' => $access->uuid,
                     'mediaId' => $media?->uuid ?? null,
@@ -505,4 +506,3 @@ class CollectionActivityController extends Controller
         }
     }
 }
-

@@ -22,6 +22,7 @@ return new class extends Migration
             $table->foreignUuid('project_uuid')->nullable()->constrained('memora_projects', 'uuid')->cascadeOnDelete(); // Project this media set belongs to (optional)
             $table->foreignUuid('selection_uuid')->nullable()->constrained('memora_selections', 'uuid')->cascadeOnDelete(); // Selection this media set belongs to (optional)
             $table->foreignUuid('proof_uuid')->nullable()->constrained('memora_proofing', 'uuid')->cascadeOnDelete(); // Proofing phase this media set belongs to (optional)
+            $table->foreignUuid('collection_uuid')->nullable()->constrained('memora_collections', 'uuid')->cascadeOnDelete(); // Collection this media set belongs to (optional)
 
             // Basic information
             $table->string('name'); // Name of the media set
