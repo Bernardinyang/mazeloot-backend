@@ -22,7 +22,7 @@ class UploadRequest extends FormRequest
      */
     public function rules(): array
     {
-        $maxSize = config('upload.max_size', 52428800); // 50MB default
+        $maxSize = config('upload.max_size', 262144000); // 250MB default
         $allowedTypes = config('upload.allowed_types', []);
 
         // Build File rule with size and type constraints
@@ -49,7 +49,7 @@ class UploadRequest extends FormRequest
      */
     public function messages(): array
     {
-        $maxSizeMB = number_format((config('upload.max_size', 52428800) / 1024 / 1024), 0);
+        $maxSizeMB = number_format((config('upload.max_size', 262144000) / 1024 / 1024), 0);
         $allowedTypes = config('upload.allowed_types', []);
         $allowedTypesStr = ! empty($allowedTypes) ? implode(', ', $allowedTypes) : 'image or video files';
 

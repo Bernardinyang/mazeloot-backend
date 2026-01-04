@@ -3,6 +3,8 @@
 namespace App\Domains\Memora\Controllers\V1;
 
 use App\Domains\Memora\Models\MemoraCollection;
+use App\Domains\Memora\Models\MemoraCollectionDownload;
+use App\Domains\Memora\Models\MemoraCollectionFavourite;
 use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraProofing;
 use App\Domains\Memora\Models\MemoraSelection;
@@ -424,7 +426,8 @@ class PublicMediaController extends Controller
 
             // Get media for the set
             $sortBy = $request->query('sort_by');
-            $media = $this->mediaService->getSetMedia($setUuid, $sortBy);
+            $userEmail = $request->header('X-Collection-Email') ? strtolower(trim($request->header('X-Collection-Email'))) : null;
+            $media = $this->mediaService->getSetMedia($setUuid, $sortBy, null, null, $id, $userEmail);
 
             return ApiResponse::success(MediaResource::collection($media));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -545,6 +548,38 @@ class PublicMediaController extends Controller
                 }
             }
 
+            // Check download limit (skip for owners)
+            if (! $isOwner) {
+                $limitDownloads = $downloadSettings['limitDownloads'] ?? false;
+                $downloadLimit = $downloadSettings['downloadLimit'] ?? null;
+
+                if ($limitDownloads && $downloadLimit !== null && $downloadLimit > 0) {
+                    $userEmail = $request->header('X-Collection-Email');
+                    $userUuid = auth()->check() ? auth()->user()->uuid : null;
+
+                    // If restrictToContacts is enabled, each email gets their own limit
+                    // Otherwise, the limit is shared across all visitors (global limit)
+                    if ($restrictToContacts && $userEmail) {
+                        // Per-email limit
+                        $downloadCount = MemoraCollectionDownload::where('collection_uuid', $collectionId)
+                            ->where('email', strtolower(trim($userEmail)))
+                            ->count();
+                    } else {
+                        // Global limit (shared across all visitors)
+                        $downloadCount = MemoraCollectionDownload::where('collection_uuid', $collectionId)
+                            ->count();
+                    }
+
+                    if ($downloadCount >= $downloadLimit) {
+                        $message = $restrictToContacts
+                            ? "Download limit reached. You have reached the maximum of {$downloadLimit} download(s) for this collection."
+                            : "Download limit reached. The collection has reached the maximum of {$downloadLimit} download(s).";
+
+                        return ApiResponse::error($message, 'DOWNLOAD_LIMIT_EXCEEDED', 403);
+                    }
+                }
+            }
+
             // Get media for download (public access - no ownership check)
             $media = MemoraMedia::where('uuid', $mediaId)
                 ->with('file')
@@ -586,13 +621,16 @@ class PublicMediaController extends Controller
                                 'video/mpeg' => 'mpeg',
                                 default => 'bin',
                             };
-                            $filename .= '.'.$extension;
-                        }
+                        $filename .= '.'.$extension;
+                    }
 
-                        return response($fileContents)
-                            ->header('Content-Type', $file->mime_type ?? 'application/octet-stream')
-                            ->header('Content-Disposition', 'attachment; filename="'.$filename.'"')
-                            ->header('Content-Length', strlen($fileContents));
+                    // Track download
+                    $this->trackDownload($request, $collectionId, $mediaId, $isOwner);
+
+                    return response($fileContents)
+                        ->header('Content-Type', $file->mime_type ?? 'application/octet-stream')
+                        ->header('Content-Disposition', 'attachment; filename="'.$filename.'"')
+                        ->header('Content-Length', strlen($fileContents));
                     } catch (\Exception $e) {
                         Log::error('Failed to download from cloud storage', [
                             'media_id' => $mediaId,
@@ -631,6 +669,9 @@ class PublicMediaController extends Controller
                     }
 
                     try {
+                        // Track download
+                        $this->trackDownload($request, $collectionId, $mediaId, $isOwner);
+
                         return \Illuminate\Support\Facades\Storage::disk($foundDisk)->download($filePath, $filename, [
                             'Content-Type' => $file->mime_type ?? 'application/octet-stream',
                         ]);
@@ -646,6 +687,9 @@ class PublicMediaController extends Controller
 
             // Fallback: redirect to file URL if available
             if ($fileUrl) {
+                // Track download
+                $this->trackDownload($request, $collectionId, $mediaId, $isOwner);
+
                 return redirect($fileUrl);
             }
 
@@ -660,6 +704,220 @@ class PublicMediaController extends Controller
             ]);
 
             return ApiResponse::error('Failed to download media', 'DOWNLOAD_FAILED', 500);
+        }
+    }
+
+    /**
+     * Track a download for limit enforcement
+     */
+    private function trackDownload(Request $request, string $collectionId, string $mediaId, bool $isOwner): void
+    {
+        // Don't track downloads for owners
+        if ($isOwner) {
+            return;
+        }
+
+        try {
+            $userEmail = $request->header('X-Collection-Email');
+            $userUuid = auth()->check() ? auth()->user()->uuid : null;
+            
+            // Determine download type (default to 'full' for now)
+            // Can be extended to support 'web', 'original', 'thumbnail' based on query params or headers
+            $downloadType = $request->query('type', 'full');
+
+            MemoraCollectionDownload::create([
+                'collection_uuid' => $collectionId,
+                'media_uuid' => $mediaId,
+                'email' => $userEmail ? strtolower(trim($userEmail)) : null,
+                'user_uuid' => $userUuid,
+                'download_type' => $downloadType,
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+        } catch (\Exception $e) {
+            // Log but don't fail the download if tracking fails
+            Log::warning('Failed to track download', [
+                'collection_id' => $collectionId,
+                'media_id' => $mediaId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Toggle favourite status for collection media (public endpoint - no authentication required)
+     */
+    public function toggleCollectionFavourite(Request $request, string $id, string $mediaId): JsonResponse
+    {
+        try {
+            // Verify collection exists and is published
+            $collection = MemoraCollection::query()
+                ->where('uuid', $id)
+                ->firstOrFail();
+
+            $status = $collection->status?->value ?? $collection->status;
+
+            // Allow access if collection is active (published)
+            if ($status !== 'active') {
+                return ApiResponse::error('Collection is not accessible', 'COLLECTION_NOT_ACCESSIBLE', 403);
+            }
+
+            $settings = $collection->settings ?? [];
+            $favoriteSettings = $settings['favorite'] ?? [];
+            $favoritePhotosEnabled = $favoriteSettings['photos'] ?? $settings['favoritePhotos'] ?? true;
+
+            // Check if favourites are enabled
+            if (! $favoritePhotosEnabled) {
+                return ApiResponse::error('Favourites are disabled for this collection', 'FAVOURITES_DISABLED', 403);
+            }
+
+            // Verify media belongs to collection
+            $media = MemoraMedia::findOrFail($mediaId);
+            $mediaSet = $media->mediaSet;
+            if (! $mediaSet || $mediaSet->collection_uuid !== $id) {
+                return ApiResponse::error('Media does not belong to this collection', 'MEDIA_NOT_IN_COLLECTION', 403);
+            }
+
+            // Get user info (if authenticated) or email
+            $userUuid = auth()->check() ? auth()->user()->uuid : null;
+            
+            // Try multiple header name variations (Laravel may normalize headers)
+            $emailHeader = $request->header('X-Collection-Email') 
+                ?? $request->header('x-collection-email')
+                ?? $request->header('X-COLLECTION-EMAIL');
+            
+            $email = $emailHeader && trim($emailHeader) !== '' ? strtolower(trim($emailHeader)) : null;
+            
+            // If authenticated and no email header, use user's email
+            if ($userUuid && !$email && auth()->check() && auth()->user()->email) {
+                $email = strtolower(trim(auth()->user()->email));
+            }
+            
+            // Also try to get email from request body as fallback (preferred method)
+            if (!$email) {
+                $emailFromBody = $request->input('email');
+                if ($emailFromBody && trim($emailFromBody) !== '') {
+                    $email = strtolower(trim($emailFromBody));
+                }
+            }
+
+            // Check if favourite already exists
+            $query = MemoraCollectionFavourite::where('collection_uuid', $id)
+                ->where('media_uuid', $mediaId);
+
+            if ($userUuid) {
+                $query->where('user_uuid', $userUuid);
+            } elseif ($email) {
+                $query->where('email', $email);
+            } else {
+                // Use IP address as fallback identifier
+                $ipAddress = $request->ip();
+                $query->where('ip_address', $ipAddress)
+                    ->whereNull('user_uuid')
+                    ->whereNull('email');
+            }
+
+            $existingFavourite = $query->first();
+
+            if ($existingFavourite) {
+                // Remove favourite
+                $existingFavourite->delete();
+
+                return ApiResponse::success([
+                    'favourited' => false,
+                ]);
+            } else {
+                // Check if notes are enabled
+                $favoriteNotesEnabled = $favoriteSettings['notes'] ?? $settings['favoriteNotes'] ?? false;
+                $note = null;
+
+                if ($favoriteNotesEnabled) {
+                    $request->validate([
+                        'note' => ['nullable', 'string', 'max:500'],
+                    ]);
+                    $note = $request->input('note');
+                    $note = $note ? trim($note) : null;
+                    $note = $note === '' ? null : $note;
+                } else {
+                    // Reject note if notes are disabled
+                    if ($request->has('note') && $request->input('note')) {
+                        return ApiResponse::error('Notes are disabled for this collection', 'NOTES_DISABLED', 403);
+                    }
+                }
+
+                // Log received values for debugging
+                Log::debug('Creating favourite', [
+                    'email' => $email,
+                    'user_uuid' => $userUuid,
+                    'note' => $note,
+                    'email_header' => $request->header('X-Collection-Email'),
+                    'email_from_body' => $request->input('email'),
+                    'all_request_data' => $request->all(),
+                    'note_input' => $request->input('note'),
+                ]);
+
+                // Ensure email is set (even if empty string, convert to null)
+                $emailToSave = $email && trim($email) !== '' ? strtolower(trim($email)) : null;
+                
+                // Create favourite
+                $favourite = MemoraCollectionFavourite::create([
+                    'collection_uuid' => $id,
+                    'media_uuid' => $mediaId,
+                    'email' => $emailToSave,
+                    'user_uuid' => $userUuid,
+                    'note' => $note,
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]);
+
+                // Verify what was saved
+                $favourite->refresh();
+                Log::debug('Favourite created', [
+                    'saved_email' => $favourite->email,
+                    'saved_note' => $favourite->note,
+                    'saved_user_uuid' => $favourite->user_uuid,
+                ]);
+
+                // Log activity
+                try {
+                    $activityLogService = app(\App\Services\ActivityLog\ActivityLogService::class);
+                    $activityLogService->log(
+                        'favourite',
+                        $media,
+                        'Favourited media in collection',
+                        [
+                            'collection_uuid' => $id,
+                            'media_uuid' => $mediaId,
+                            'email' => $email,
+                            'has_note' => ! empty($note),
+                        ],
+                        $userUuid ? \App\Models\User::find($userUuid) : null,
+                        $request
+                    );
+                } catch (\Exception $e) {
+                    // Don't fail if activity logging fails
+                    Log::warning('Failed to log favourite activity', [
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+
+                return ApiResponse::success([
+                    'favourited' => true,
+                    'note' => $note,
+                ], 201);
+            }
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return ApiResponse::error('Validation failed', 'VALIDATION_ERROR', 422, $e->errors());
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ApiResponse::error('Collection or media not found', 'NOT_FOUND', 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to toggle collection favourite', [
+                'collection_id' => $id,
+                'media_id' => $mediaId,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return ApiResponse::error('Failed to toggle favourite', 'FAVOURITE_FAILED', 500);
         }
     }
 }

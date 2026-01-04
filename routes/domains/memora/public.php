@@ -107,17 +107,22 @@ Route::prefix('public/collections')->group(function () {
     // Verify download PIN (truly public - no authentication required)
     Route::post('/{id}/verify-download-pin', [PublicCollectionController::class, 'verifyDownloadPin']);
 
-    // Get collection (public - no authentication required for published collections)
-    Route::get('/{id}', [PublicCollectionController::class, 'show']);
-
     // Get media sets for collection (public - no authentication required)
     Route::get('/{id}/sets', [PublicCollectionController::class, 'getSets']);
 
     // Get media for a specific set (public - no authentication required)
     Route::get('/{id}/sets/{setId}/media', [PublicMediaController::class, 'getCollectionSetMedia']);
 
+    // Toggle favourite for collection media (public - no authentication required)
+    // Must be defined before any other /{id}/media/{mediaId} routes to avoid conflicts
+    Route::post('/{id}/media/{mediaId}/favourite', [PublicMediaController::class, 'toggleCollectionFavourite']);
+
     // Download media from collection (public - no authentication required)
     Route::get('/{id}/media/{mediaId}/download', [PublicMediaController::class, 'downloadCollectionMedia']);
+
+    // Get collection (public - no authentication required for published collections)
+    // Must be last to avoid matching more specific routes
+    Route::get('/{id}', [PublicCollectionController::class, 'show']);
 });
 
 // Public Media Closure Requests (guest token required)

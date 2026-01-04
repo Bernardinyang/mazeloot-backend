@@ -64,7 +64,7 @@ return [
     |
     */
 
-    'max_size' => env('UPLOAD_MAX_SIZE', 52428800), // 50MB in bytes (default, can be overridden via env)
+    'max_size' => env('UPLOAD_MAX_SIZE', 262144000), // 250MB in bytes (default, can be overridden via env)
 
     'allowed_types' => [
         'image/jpeg',

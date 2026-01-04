@@ -13,7 +13,7 @@ class ImageUploadRequest extends FormRequest
 
     public function rules(): array
     {
-        $maxSize = config('upload.max_size', 10485760); // 10MB default
+        $maxSize = config('upload.max_size', 262144000); // 250MB default
         $fileRule = [
             'required',
             'mimes:jpeg,jpg,png,webp,svg',

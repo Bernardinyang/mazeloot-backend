@@ -573,7 +573,7 @@ class MediaService
         }]);
     }
 
-    public function getSetMedia(string $setUuid, ?string $sortBy = null, ?int $page = null, ?int $perPage = null)
+    public function getSetMedia(string $setUuid, ?string $sortBy = null, ?int $page = null, ?int $perPage = null, ?string $collectionUuid = null, ?string $userEmail = null)
     {
         // Load feedback with recursive replies (up to 20 levels deep)
         $query = MemoraMedia::where('media_set_uuid', $setUuid)
@@ -592,6 +592,20 @@ class MediaService
             $query->with(['starredByUsers' => function ($query) {
                 $query->where('user_uuid', Auth::user()->uuid);
             }]);
+        }
+
+        // Load collection favourites if collection UUID is provided (for public collections)
+        $favouriteMediaUuids = [];
+        if ($collectionUuid) {
+            $favouriteQuery = \App\Domains\Memora\Models\MemoraCollectionFavourite::where('collection_uuid', $collectionUuid);
+            
+            if (Auth::check()) {
+                $favouriteQuery->where('user_uuid', Auth::user()->uuid);
+            } elseif ($userEmail) {
+                $favouriteQuery->where('email', strtolower(trim($userEmail)));
+            }
+            
+            $favouriteMediaUuids = $favouriteQuery->pluck('media_uuid')->toArray();
         }
 
         // Apply sorting
@@ -615,6 +629,13 @@ class MediaService
                     $relationships[] = 'starredByUsers';
                 }
                 $paginator->getCollection()->load($relationships);
+            }
+
+            // Attach collection favourite status to media items
+            if ($collectionUuid && !empty($favouriteMediaUuids)) {
+                $paginator->getCollection()->each(function ($media) use ($favouriteMediaUuids) {
+                    $media->setAttribute('isCollectionFavourited', in_array($media->uuid, $favouriteMediaUuids));
+                });
             }
 
             // Transform items to resources
@@ -643,6 +664,13 @@ class MediaService
                 $relationships[] = 'starredByUsers';
             }
             $media->load($relationships);
+        }
+
+        // Attach collection favourite status to media items
+        if ($collectionUuid && !empty($favouriteMediaUuids)) {
+            $media->each(function ($item) use ($favouriteMediaUuids) {
+                $item->setAttribute('isCollectionFavourited', in_array($item->uuid, $favouriteMediaUuids));
+            });
         }
 
         return $media;

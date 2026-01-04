@@ -109,7 +109,8 @@ class PublicCollectionResource extends JsonResource
                 'limitDownloads' => $settings['download']['limitDownloads'] ?? false,
                 'downloadLimit' => $settings['download']['downloadLimit'] ?? 1,
                 'restrictToContacts' => $settings['download']['restrictToContacts'] ?? false,
-                // Exclude: downloadPin, allowedDownloadEmails, downloadableSets
+                'downloadableSets' => $settings['download']['downloadableSets'] ?? null,
+                // Exclude: downloadPin, allowedDownloadEmails
             ];
         } else {
             $organized['download'] = [
@@ -127,6 +128,7 @@ class PublicCollectionResource extends JsonResource
                 'limitDownloads' => $settings['limitDownloads'] ?? false,
                 'downloadLimit' => $settings['downloadLimit'] ?? 1,
                 'restrictToContacts' => $settings['restrictToContacts'] ?? false,
+                'downloadableSets' => $settings['downloadableSets'] ?? null,
             ];
         }
 

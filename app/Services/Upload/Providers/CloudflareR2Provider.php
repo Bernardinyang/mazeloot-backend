@@ -6,6 +6,7 @@ use App\Services\Upload\Contracts\UploadProviderInterface;
 use App\Services\Upload\DTOs\UploadResult;
 use App\Services\Upload\Exceptions\UploadException;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -49,23 +50,52 @@ class CloudflareR2Provider implements UploadProviderInterface
 
     public function upload(UploadedFile $file, array $options = []): UploadResult
     {
+        $path = $this->generatePath($file, $options['path'] ?? null);
+        $storedPath = null;
+        $lastError = null;
+
         try {
-            // R2 is S3-compatible, so we can use S3 driver
-            $path = $this->generatePath($file, $options['path'] ?? null);
-            $storedPath = Storage::disk($this->disk)->putFileAs(
-                dirname($path),
-                $file,
-                basename($path),
-                'public'
-            );
+            // Temporarily enable throwing to capture actual AWS errors
+            $originalThrow = config("filesystems.disks.{$this->disk}.throw", false);
+            config(["filesystems.disks.{$this->disk}.throw" => true]);
+            
+            try {
+                $storedPath = Storage::disk($this->disk)->putFileAs(
+                    dirname($path),
+                    $file,
+                    basename($path),
+                    'public'
+                );
+            } finally {
+                // Restore original throw setting
+                config(["filesystems.disks.{$this->disk}.throw" => $originalThrow]);
+            }
         } catch (\Exception $e) {
-            throw UploadException::providerError(
-                'Failed to upload file to R2: '.$e->getMessage()
-            );
+            $lastError = $e->getMessage();
+            Log::error('R2 upload exception', [
+                'error' => $lastError,
+                'path' => $path,
+                'file' => $file->getClientOriginalName(),
+                'size' => $file->getSize(),
+                'mime' => $file->getMimeType(),
+                'trace' => $e->getTraceAsString(),
+            ]);
         }
 
         if (! $storedPath) {
-            throw UploadException::providerError('Failed to store file to R2');
+            $errorMsg = $lastError 
+                ? "Failed to store file to R2: {$lastError}" 
+                : 'Failed to store file to R2. Check R2 configuration and permissions.';
+            
+            Log::error('R2 upload failed', [
+                'path' => $path,
+                'file' => $file->getClientOriginalName(),
+                'size' => $file->getSize(),
+                'mime' => $file->getMimeType(),
+                'error' => $lastError,
+            ]);
+            
+            throw UploadException::providerError($errorMsg);
         }
 
         try {

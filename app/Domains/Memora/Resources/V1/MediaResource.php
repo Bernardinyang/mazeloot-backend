@@ -84,9 +84,9 @@ class MediaResource extends JsonResource
             }, null),
             'order' => $this->order,
             'watermarkUuid' => $this->watermark_uuid,
-            'isStarred' => Auth::check() && $this->relationLoaded('starredByUsers')
+            'isStarred' => $this->getAttribute('isCollectionFavourited') ?? (Auth::check() && $this->relationLoaded('starredByUsers')
                 ? $this->starredByUsers->isNotEmpty()
-                : false,
+                : false),
             'createdAt' => $this->created_at->toIso8601String(),
             'updatedAt' => $this->updated_at->toIso8601String(),
         ];
