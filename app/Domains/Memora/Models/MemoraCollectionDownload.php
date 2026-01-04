@@ -37,4 +37,3 @@ class MemoraCollectionDownload extends Model
         return $this->belongsTo(MemoraMedia::class, 'media_uuid', 'uuid');
     }
 }
-

@@ -621,16 +621,16 @@ class PublicMediaController extends Controller
                                 'video/mpeg' => 'mpeg',
                                 default => 'bin',
                             };
-                        $filename .= '.'.$extension;
-                    }
+                            $filename .= '.'.$extension;
+                        }
 
-                    // Track download
-                    $this->trackDownload($request, $collectionId, $mediaId, $isOwner);
+                        // Track download
+                        $this->trackDownload($request, $collectionId, $mediaId, $isOwner);
 
-                    return response($fileContents)
-                        ->header('Content-Type', $file->mime_type ?? 'application/octet-stream')
-                        ->header('Content-Disposition', 'attachment; filename="'.$filename.'"')
-                        ->header('Content-Length', strlen($fileContents));
+                        return response($fileContents)
+                            ->header('Content-Type', $file->mime_type ?? 'application/octet-stream')
+                            ->header('Content-Disposition', 'attachment; filename="'.$filename.'"')
+                            ->header('Content-Length', strlen($fileContents));
                     } catch (\Exception $e) {
                         Log::error('Failed to download from cloud storage', [
                             'media_id' => $mediaId,
@@ -720,7 +720,7 @@ class PublicMediaController extends Controller
         try {
             $userEmail = $request->header('X-Collection-Email');
             $userUuid = auth()->check() ? auth()->user()->uuid : null;
-            
+
             // Determine download type (default to 'full' for now)
             // Can be extended to support 'web', 'original', 'thumbnail' based on query params or headers
             $downloadType = $request->query('type', 'full');
@@ -780,21 +780,21 @@ class PublicMediaController extends Controller
 
             // Get user info (if authenticated) or email
             $userUuid = auth()->check() ? auth()->user()->uuid : null;
-            
+
             // Try multiple header name variations (Laravel may normalize headers)
-            $emailHeader = $request->header('X-Collection-Email') 
+            $emailHeader = $request->header('X-Collection-Email')
                 ?? $request->header('x-collection-email')
                 ?? $request->header('X-COLLECTION-EMAIL');
-            
+
             $email = $emailHeader && trim($emailHeader) !== '' ? strtolower(trim($emailHeader)) : null;
-            
+
             // If authenticated and no email header, use user's email
-            if ($userUuid && !$email && auth()->check() && auth()->user()->email) {
+            if ($userUuid && ! $email && auth()->check() && auth()->user()->email) {
                 $email = strtolower(trim(auth()->user()->email));
             }
-            
+
             // Also try to get email from request body as fallback (preferred method)
-            if (!$email) {
+            if (! $email) {
                 $emailFromBody = $request->input('email');
                 if ($emailFromBody && trim($emailFromBody) !== '') {
                     $email = strtolower(trim($emailFromBody));
@@ -858,7 +858,7 @@ class PublicMediaController extends Controller
 
                 // Ensure email is set (even if empty string, convert to null)
                 $emailToSave = $email && trim($email) !== '' ? strtolower(trim($email)) : null;
-                
+
                 // Create favourite
                 $favourite = MemoraCollectionFavourite::create([
                     'collection_uuid' => $id,

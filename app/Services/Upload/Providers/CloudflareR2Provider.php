@@ -58,7 +58,7 @@ class CloudflareR2Provider implements UploadProviderInterface
             // Temporarily enable throwing to capture actual AWS errors
             $originalThrow = config("filesystems.disks.{$this->disk}.throw", false);
             config(["filesystems.disks.{$this->disk}.throw" => true]);
-            
+
             try {
                 $storedPath = Storage::disk($this->disk)->putFileAs(
                     dirname($path),
@@ -83,10 +83,10 @@ class CloudflareR2Provider implements UploadProviderInterface
         }
 
         if (! $storedPath) {
-            $errorMsg = $lastError 
-                ? "Failed to store file to R2: {$lastError}" 
+            $errorMsg = $lastError
+                ? "Failed to store file to R2: {$lastError}"
                 : 'Failed to store file to R2. Check R2 configuration and permissions.';
-            
+
             Log::error('R2 upload failed', [
                 'path' => $path,
                 'file' => $file->getClientOriginalName(),
@@ -94,7 +94,7 @@ class CloudflareR2Provider implements UploadProviderInterface
                 'mime' => $file->getMimeType(),
                 'error' => $lastError,
             ]);
-            
+
             throw UploadException::providerError($errorMsg);
         }
 

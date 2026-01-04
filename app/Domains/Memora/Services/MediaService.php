@@ -598,13 +598,13 @@ class MediaService
         $favouriteMediaUuids = [];
         if ($collectionUuid) {
             $favouriteQuery = \App\Domains\Memora\Models\MemoraCollectionFavourite::where('collection_uuid', $collectionUuid);
-            
+
             if (Auth::check()) {
                 $favouriteQuery->where('user_uuid', Auth::user()->uuid);
             } elseif ($userEmail) {
                 $favouriteQuery->where('email', strtolower(trim($userEmail)));
             }
-            
+
             $favouriteMediaUuids = $favouriteQuery->pluck('media_uuid')->toArray();
         }
 
@@ -632,7 +632,7 @@ class MediaService
             }
 
             // Attach collection favourite status to media items
-            if ($collectionUuid && !empty($favouriteMediaUuids)) {
+            if ($collectionUuid && ! empty($favouriteMediaUuids)) {
                 $paginator->getCollection()->each(function ($media) use ($favouriteMediaUuids) {
                     $media->setAttribute('isCollectionFavourited', in_array($media->uuid, $favouriteMediaUuids));
                 });
@@ -667,7 +667,7 @@ class MediaService
         }
 
         // Attach collection favourite status to media items
-        if ($collectionUuid && !empty($favouriteMediaUuids)) {
+        if ($collectionUuid && ! empty($favouriteMediaUuids)) {
             $media->each(function ($item) use ($favouriteMediaUuids) {
                 $item->setAttribute('isCollectionFavourited', in_array($item->uuid, $favouriteMediaUuids));
             });
