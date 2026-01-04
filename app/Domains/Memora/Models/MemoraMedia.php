@@ -55,6 +55,11 @@ class MemoraMedia extends Model
         'watermark_uuid',
         'original_file_uuid',
         'order',
+        'is_private',
+        'marked_private_at',
+        'marked_private_by_email',
+        'is_featured',
+        'featured_at',
     ];
 
     protected $casts = [
@@ -67,6 +72,10 @@ class MemoraMedia extends Model
         'is_ready_for_revision' => 'boolean',
         'is_revised' => 'boolean',
         'revision_todos' => 'array',
+        'is_private' => 'boolean',
+        'marked_private_at' => 'datetime',
+        'is_featured' => 'boolean',
+        'featured_at' => 'datetime',
     ];
 
     /**

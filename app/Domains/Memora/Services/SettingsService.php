@@ -218,6 +218,10 @@ class SettingsService
             $updateData['homepage_info'] = is_array($data['info']) ? $data['info'] : [];
         }
 
+        if (array_key_exists('slideshowEnabled', $data)) {
+            $updateData['homepage_slideshow_enabled'] = $data['slideshowEnabled'];
+        }
+
         $settings->update($updateData);
         $settings->refresh();
 

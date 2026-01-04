@@ -424,10 +424,21 @@ class PublicMediaController extends Controller
                 ->where('collection_uuid', $id)
                 ->firstOrFail();
 
+            // Check if client is verified
+            $isClientVerified = false;
+            $token = $request->bearerToken() ?? $request->header('X-Guest-Token') ?? $request->query('guest_token');
+            if ($token) {
+                $guestToken = GuestCollectionToken::where('token', $token)
+                    ->where('collection_uuid', $id)
+                    ->where('expires_at', '>', now())
+                    ->first();
+                $isClientVerified = $guestToken !== null;
+            }
+
             // Get media for the set
             $sortBy = $request->query('sort_by');
             $userEmail = $request->header('X-Collection-Email') ? strtolower(trim($request->header('X-Collection-Email'))) : null;
-            $media = $this->mediaService->getSetMedia($setUuid, $sortBy, null, null, $id, $userEmail);
+            $media = $this->mediaService->getSetMedia($setUuid, $sortBy, null, null, $id, $userEmail, $isClientVerified);
 
             return ApiResponse::success(MediaResource::collection($media));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -734,6 +745,29 @@ class PublicMediaController extends Controller
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
+
+            // Also log to activity log
+            try {
+                $media = MemoraMedia::find($mediaId);
+                $activityLogService = app(\App\Services\ActivityLog\ActivityLogService::class);
+                $activityLogService->log(
+                    'downloaded',
+                    $media,
+                    'Downloaded media from collection',
+                    [
+                        'collection_uuid' => $collectionId,
+                        'media_uuid' => $mediaId,
+                        'email' => $userEmail ? strtolower(trim($userEmail)) : null,
+                        'download_type' => $downloadType,
+                    ],
+                    $userUuid ? \App\Models\User::find($userUuid) : null,
+                    $request
+                );
+            } catch (\Exception $e) {
+                Log::warning('Failed to log download activity', [
+                    'error' => $e->getMessage(),
+                ]);
+            }
         } catch (\Exception $e) {
             // Log but don't fail the download if tracking fails
             Log::warning('Failed to track download', [
@@ -801,6 +835,16 @@ class PublicMediaController extends Controller
                 }
             }
 
+            // Email is required for favoriting (for both guests and clients)
+            if (! $userUuid && (! $email || trim($email) === '')) {
+                return ApiResponse::error('Email is required to favorite media', 'EMAIL_REQUIRED', 422);
+            }
+
+            // Validate email format if provided
+            if ($email && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                return ApiResponse::error('Invalid email format', 'INVALID_EMAIL', 422);
+            }
+
             // Check if favourite already exists
             $query = MemoraCollectionFavourite::where('collection_uuid', $id)
                 ->where('media_uuid', $mediaId);
@@ -822,6 +866,27 @@ class PublicMediaController extends Controller
             if ($existingFavourite) {
                 // Remove favourite
                 $existingFavourite->delete();
+
+                // Log unfavourite activity
+                try {
+                    $activityLogService = app(\App\Services\ActivityLog\ActivityLogService::class);
+                    $activityLogService->log(
+                        'unfavourited',
+                        $media,
+                        'Unfavourited media in collection',
+                        [
+                            'collection_uuid' => $id,
+                            'media_uuid' => $mediaId,
+                            'email' => $email,
+                        ],
+                        $userUuid ? \App\Models\User::find($userUuid) : null,
+                        $request
+                    );
+                } catch (\Exception $e) {
+                    Log::warning('Failed to log unfavourite activity', [
+                        'error' => $e->getMessage(),
+                    ]);
+                }
 
                 return ApiResponse::success([
                     'favourited' => false,
@@ -918,6 +983,136 @@ class PublicMediaController extends Controller
             ]);
 
             return ApiResponse::error('Failed to toggle favourite', 'FAVOURITE_FAILED', 500);
+        }
+    }
+
+    /**
+     * Toggle private status for collection media (public endpoint - requires client verification)
+     */
+    public function toggleMediaPrivate(Request $request, string $id, string $mediaId): JsonResponse
+    {
+        try {
+            // Verify collection exists and is published
+            $collection = MemoraCollection::query()
+                ->where('uuid', $id)
+                ->firstOrFail();
+
+            $status = $collection->status?->value ?? $collection->status;
+
+            // Allow access if collection is active (published)
+            if ($status !== 'active') {
+                return ApiResponse::error('Collection is not accessible', 'COLLECTION_NOT_ACCESSIBLE', 403);
+            }
+
+            $settings = $collection->settings ?? [];
+            $clientExclusiveAccess = $settings['privacy']['clientExclusiveAccess'] ?? $settings['clientExclusiveAccess'] ?? false;
+            $allowClientsMarkPrivate = $settings['privacy']['allowClientsMarkPrivate'] ?? $settings['allowClientsMarkPrivate'] ?? false;
+
+            if (! $clientExclusiveAccess || ! $allowClientsMarkPrivate) {
+                return ApiResponse::error('Marking photos private is not enabled for this collection', 'FEATURE_DISABLED', 403);
+            }
+
+            // Verify client password via token
+            $token = $request->bearerToken() ?? $request->header('X-Guest-Token') ?? $request->query('guest_token');
+            $isClientVerified = false;
+
+            if ($token) {
+                $guestToken = GuestCollectionToken::where('token', $token)
+                    ->where('collection_uuid', $id)
+                    ->where('expires_at', '>', now())
+                    ->first();
+                $isClientVerified = $guestToken !== null;
+            }
+
+            if (! $isClientVerified) {
+                return ApiResponse::error('Client verification required', 'CLIENT_VERIFICATION_REQUIRED', 401);
+            }
+
+            // Verify media belongs to collection
+            $media = MemoraMedia::findOrFail($mediaId);
+            $mediaSet = $media->mediaSet;
+            if (! $mediaSet || $mediaSet->collection_uuid !== $id) {
+                return ApiResponse::error('Media does not belong to this collection', 'MEDIA_NOT_IN_COLLECTION', 403);
+            }
+
+            // Get email from request (if provided)
+            $emailHeader = $request->header('X-Collection-Email') 
+                ?? $request->header('x-collection-email')
+                ?? $request->header('X-COLLECTION-EMAIL');
+            
+            $email = $emailHeader && trim($emailHeader) !== '' ? strtolower(trim($emailHeader)) : null;
+            
+            // Also try to get email from request body
+            if (! $email) {
+                $emailFromBody = $request->input('email');
+                if ($emailFromBody && trim($emailFromBody) !== '') {
+                    $email = strtolower(trim($emailFromBody));
+                }
+            }
+
+            // Email is required for marking media as private (for both guests and clients)
+            if (! $email || trim($email) === '') {
+                return ApiResponse::error('Email is required to mark media as private', 'EMAIL_REQUIRED', 422);
+            }
+
+            // Validate email format
+            if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                return ApiResponse::error('Invalid email format', 'INVALID_EMAIL', 422);
+            }
+
+            // Toggle private status
+            $isPrivate = ! $media->is_private;
+            $emailLower = strtolower(trim($email));
+
+            $media->update([
+                'is_private' => $isPrivate,
+                'marked_private_at' => $isPrivate ? now() : null,
+                'marked_private_by_email' => $isPrivate ? $email : null,
+            ]);
+
+            if ($isPrivate) {
+                // Media is now private - create/update tracking record for the email that marked it
+                $existingRecord = \App\Domains\Memora\Models\MemoraCollectionPrivatePhotoAccess::where('collection_uuid', $id)
+                    ->where('media_uuid', $mediaId)
+                    ->where('email', $emailLower)
+                    ->first();
+
+                if ($existingRecord) {
+                    // Update existing record
+                    $existingRecord->ip_address = $request->ip();
+                    $existingRecord->user_agent = $request->userAgent();
+                    $existingRecord->touch();
+                    $existingRecord->save();
+                } else {
+                    // Create new tracking record
+                    \App\Domains\Memora\Models\MemoraCollectionPrivatePhotoAccess::create([
+                        'collection_uuid' => $id,
+                        'media_uuid' => $mediaId,
+                        'email' => $emailLower,
+                        'user_uuid' => auth()->check() ? auth()->user()->uuid : null,
+                        'ip_address' => $request->ip(),
+                        'user_agent' => $request->userAgent(),
+                    ]);
+                }
+            } else {
+                // Media is no longer private - remove tracking record for this email
+                \App\Domains\Memora\Models\MemoraCollectionPrivatePhotoAccess::where('collection_uuid', $id)
+                    ->where('media_uuid', $mediaId)
+                    ->where('email', $emailLower)
+                    ->delete();
+            }
+
+            return ApiResponse::success(new MediaResource($media->fresh()));
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ApiResponse::error('Collection or media not found', 'NOT_FOUND', 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to toggle media private status', [
+                'collection_id' => $id,
+                'media_id' => $mediaId,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return ApiResponse::error('Failed to toggle private status', 'TOGGLE_FAILED', 500);
         }
     }
 }

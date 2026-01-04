@@ -72,6 +72,7 @@ class MemoraSettings extends Model
         'homepage_password',
         'homepage_biography',
         'homepage_info',
+        'homepage_slideshow_enabled',
         'email_from_name',
         'email_from_address',
         'email_reply_to',
@@ -82,6 +83,7 @@ class MemoraSettings extends Model
         'preference_raw_photo_support' => 'boolean',
         'preference_enable_cookie_banner' => 'boolean',
         'homepage_status' => 'boolean',
+        'homepage_slideshow_enabled' => 'boolean',
         'homepage_info' => 'array',
     ];
 

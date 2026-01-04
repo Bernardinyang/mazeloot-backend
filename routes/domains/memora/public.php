@@ -96,6 +96,14 @@ Route::prefix('public/settings')->group(function () {
     Route::get('/', [PublicSettingsController::class, 'index']);
 });
 
+// Public Homepage Routes (no authentication required)
+Route::prefix('public/homepage')->group(function () {
+    Route::post('/verify-password', [PublicSettingsController::class, 'verifyHomepagePassword']);
+    Route::get('/collections', [PublicSettingsController::class, 'getHomepageCollections']);
+    Route::get('/social-links', [PublicSettingsController::class, 'getSocialLinks']);
+    Route::get('/featured-media', [PublicSettingsController::class, 'getFeaturedMedia']);
+});
+
 // Public Collection Routes (no authentication required for published collections)
 Route::prefix('public/collections')->group(function () {
     // Check collection status (truly public - no authentication required)
@@ -107,6 +115,9 @@ Route::prefix('public/collections')->group(function () {
     // Verify download PIN (truly public - no authentication required)
     Route::post('/{id}/verify-download-pin', [PublicCollectionController::class, 'verifyDownloadPin']);
 
+    // Verify client password (truly public - no authentication required)
+    Route::post('/{id}/verify-client-password', [PublicCollectionController::class, 'verifyClientPassword']);
+
     // Get media sets for collection (public - no authentication required)
     Route::get('/{id}/sets', [PublicCollectionController::class, 'getSets']);
 
@@ -117,8 +128,16 @@ Route::prefix('public/collections')->group(function () {
     // Must be defined before any other /{id}/media/{mediaId} routes to avoid conflicts
     Route::post('/{id}/media/{mediaId}/favourite', [PublicMediaController::class, 'toggleCollectionFavourite']);
 
+    // Toggle private status for collection media (public - requires client verification)
+    Route::post('/{id}/media/{mediaId}/toggle-private', [PublicMediaController::class, 'toggleMediaPrivate']);
+
     // Download media from collection (public - no authentication required)
     Route::get('/{id}/media/{mediaId}/download', [PublicMediaController::class, 'downloadCollectionMedia']);
+
+    // Track activities (public - no authentication required)
+    Route::post('/{id}/track-email-registration', [\App\Domains\Memora\Controllers\V1\CollectionActivityController::class, 'trackEmailRegistration']);
+    Route::post('/{id}/track-share-link', [\App\Domains\Memora\Controllers\V1\CollectionActivityController::class, 'trackShareLinkClick']);
+    Route::post('/{id}/media/{mediaId}/track-private-access', [\App\Domains\Memora\Controllers\V1\CollectionActivityController::class, 'trackPrivatePhotoAccess']);
 
     // Get collection (public - no authentication required for published collections)
     // Must be last to avoid matching more specific routes

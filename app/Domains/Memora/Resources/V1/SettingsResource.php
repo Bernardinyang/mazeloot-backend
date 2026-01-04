@@ -51,6 +51,7 @@ class SettingsResource extends JsonResource
                 'password' => $this->homepage_password,
                 'biography' => $this->homepage_biography,
                 'info' => $this->homepage_info ?? [],
+                'slideshowEnabled' => $this->homepage_slideshow_enabled ?? false,
             ],
             'email' => [
                 'fromName' => $this->email_from_name ?? $this->branding_name,

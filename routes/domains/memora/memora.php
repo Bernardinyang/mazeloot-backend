@@ -97,6 +97,15 @@ Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
     Route::delete('/collections/{id}', [CollectionController::class, 'destroy']);
     Route::post('/collections/{id}/star', [CollectionController::class, 'toggleStar']);
 
+    // Collection Activities
+    Route::prefix('collections/{id}/activities')->group(function () {
+        Route::get('/email-registrations', [\App\Domains\Memora\Controllers\V1\CollectionActivityController::class, 'getEmailRegistrations']);
+        Route::get('/share-links', [\App\Domains\Memora\Controllers\V1\CollectionActivityController::class, 'getShareLinkActivities']);
+        Route::get('/downloads', [\App\Domains\Memora\Controllers\V1\CollectionActivityController::class, 'getDownloadActivities']);
+        Route::get('/favourites', [\App\Domains\Memora\Controllers\V1\CollectionActivityController::class, 'getFavouriteActivities']);
+        Route::get('/private-photos', [\App\Domains\Memora\Controllers\V1\CollectionActivityController::class, 'getPrivatePhotoActivities']);
+    });
+
     // Media Sets within collections (unified - works for both standalone and project-based)
     // For project-based: pass ?projectId=xxx as query parameter
     Route::prefix('collections/{collectionId}/sets')->group(function () {
@@ -126,7 +135,10 @@ Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
     Route::prefix('media')->group(function () {
         Route::get('/phase/{phaseType}/{phaseId}', [MediaController::class, 'getPhaseMedia']);
         Route::post('/move-between-phases', [MediaController::class, 'moveBetweenPhases']);
+        Route::get('/featured', [MediaController::class, 'getFeaturedMedia']);
+        Route::post('/{id}/toggle-featured', [MediaController::class, 'toggleFeatured']);
         Route::get('/{id}/revisions', [MediaController::class, 'getRevisions']);
+        Route::get('/{id}', [MediaController::class, 'show']);
     });
 
     // Settings

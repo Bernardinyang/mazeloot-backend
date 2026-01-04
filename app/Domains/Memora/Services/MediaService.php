@@ -573,7 +573,7 @@ class MediaService
         }]);
     }
 
-    public function getSetMedia(string $setUuid, ?string $sortBy = null, ?int $page = null, ?int $perPage = null, ?string $collectionUuid = null, ?string $userEmail = null)
+    public function getSetMedia(string $setUuid, ?string $sortBy = null, ?int $page = null, ?int $perPage = null, ?string $collectionUuid = null, ?string $userEmail = null, ?bool $isClientVerified = false)
     {
         // Load feedback with recursive replies (up to 20 levels deep)
         $query = MemoraMedia::where('media_set_uuid', $setUuid)
@@ -586,6 +586,11 @@ class MediaService
                 },
                 'file',
             ]);
+
+        // Filter private media: only show to verified clients
+        if (! $isClientVerified) {
+            $query->where('is_private', false);
+        }
 
         // Only load starredByUsers if user is authenticated
         if (Auth::check()) {
@@ -1108,6 +1113,65 @@ class MediaService
 
             // Reload relationships to ensure they're available
             $relationships = ['feedback.replies', 'file', 'mediaSet.selection', 'starredByUsers'];
+            $paginator->getCollection()->load($relationships);
+
+            // Transform items to resources
+            $data = \App\Domains\Memora\Resources\V1\MediaResource::collection($paginator->items());
+
+            // Format response with pagination metadata
+            return [
+                'data' => $data,
+                'pagination' => [
+                    'page' => $paginator->currentPage(),
+                    'limit' => $paginator->perPage(),
+                    'total' => $paginator->total(),
+                    'totalPages' => $paginator->lastPage(),
+                ],
+            ];
+        }
+
+        // Non-paginated response
+        $media = $query->get();
+
+        return \App\Domains\Memora\Resources\V1\MediaResource::collection($media);
+    }
+
+    /**
+     * Get all featured media for the authenticated user
+     */
+    public function getFeaturedMedia(?string $sortBy = null, ?int $page = null, ?int $perPage = null)
+    {
+        $user = Auth::user();
+
+        // Get all media featured by the user
+        $query = MemoraMedia::where('user_uuid', $user->uuid)
+            ->where('is_featured', true)
+            ->with(['feedback.replies', 'file', 'mediaSet.collection', 'starredByUsers' => function ($q) use ($user) {
+                $q->where('user_uuid', $user->uuid);
+            }]);
+
+        // Apply sorting
+        if ($sortBy) {
+            // Map featured_at sort to actual column
+            if (str_contains($sortBy, 'featured_at')) {
+                $direction = str_ends_with($sortBy, '-desc') ? 'desc' : 'asc';
+                $query->orderBy('featured_at', $direction);
+            } else {
+                $this->applyMediaSorting($query, $sortBy);
+            }
+        } else {
+            // Default sort: featured_at desc
+            $query->orderBy('featured_at', 'desc');
+        }
+
+        // If pagination is requested, use pagination service
+        if ($page !== null && $perPage !== null) {
+            $paginationService = app(\App\Services\Pagination\PaginationService::class);
+            $perPage = max(1, min(100, $perPage)); // Limit between 1 and 100
+            $paginator = $paginationService->paginate($query, $perPage, $page);
+
+            // Reload relationships to ensure they're available
+            $relationships = ['feedback.replies', 'file', 'mediaSet.collection', 'starredByUsers'];
             $paginator->getCollection()->load($relationships);
 
             // Transform items to resources

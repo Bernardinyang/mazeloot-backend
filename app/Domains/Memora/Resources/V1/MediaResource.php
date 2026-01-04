@@ -29,6 +29,9 @@ class MediaResource extends JsonResource
             'completedAt' => $this->completed_at?->toIso8601String(),
             'isRejected' => $this->is_rejected ?? false,
             'rejectedAt' => $this->rejected_at?->toIso8601String(),
+            'isPrivate' => $this->is_private ?? false,
+            'markedPrivateAt' => $this->marked_private_at?->toIso8601String(),
+            'markedPrivateByEmail' => $this->marked_private_by_email,
             'isReadyForRevision' => $this->is_ready_for_revision,
             'isRevised' => $this->is_revised ?? false,
             'revisionTodos' => $this->revision_todos ?? [],
@@ -87,6 +90,10 @@ class MediaResource extends JsonResource
             'isStarred' => $this->getAttribute('isCollectionFavourited') ?? (Auth::check() && $this->relationLoaded('starredByUsers')
                 ? $this->starredByUsers->isNotEmpty()
                 : false),
+            'isFeatured' => $this->is_featured ?? false,
+            'is_featured' => $this->is_featured ?? false,
+            'featuredAt' => $this->featured_at?->toIso8601String(),
+            'featured_at' => $this->featured_at?->toIso8601String(),
             'createdAt' => $this->created_at->toIso8601String(),
             'updatedAt' => $this->updated_at->toIso8601String(),
         ];

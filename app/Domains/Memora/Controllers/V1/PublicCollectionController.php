@@ -103,10 +103,20 @@ class PublicCollectionController extends Controller
             $settings = $collection->settings ?? [];
             $hasPasswordProtection = ! empty($settings['privacy']['collectionPasswordEnabled'] ?? $settings['privacy']['password'] ?? $settings['password'] ?? false);
             $password = $settings['privacy']['password'] ?? $settings['password'] ?? null;
+            
+            // Check if client is verified (clients don't need collection password)
+            $isClientVerified = false;
+            $token = $request->bearerToken() ?? $request->header('X-Guest-Token') ?? $request->query('guest_token');
+            if ($token) {
+                $clientToken = GuestCollectionToken::where('token', $token)
+                    ->where('collection_uuid', $id)
+                    ->where('expires_at', '>', now())
+                    ->first();
+                $isClientVerified = $clientToken !== null;
+            }
 
-            if ($hasPasswordProtection && $password && ! $isOwner) {
+            if ($hasPasswordProtection && $password && ! $isOwner && ! $isClientVerified) {
                 // Check for guest token first
-                $token = $request->bearerToken() ?? $request->header('X-Guest-Token') ?? $request->query('guest_token');
                 $guestToken = null;
 
                 if ($token) {
@@ -123,6 +133,42 @@ class PublicCollectionController extends Controller
                         return ApiResponse::error('Password required', 'PASSWORD_REQUIRED', 401);
                     }
                 }
+            }
+
+            // Use the isClientVerified we already determined above
+            if ($isOwner) {
+                // Owner always has access to all sets
+                $isClientVerified = true;
+            }
+
+            // Filter client-only sets from mediaSets if not verified client
+            if (! $isClientVerified) {
+                $clientOnlySets = $settings['privacy']['clientOnlySets'] ?? $settings['clientOnlySets'] ?? [];
+                if (! empty($clientOnlySets)) {
+                    $collection->load(['mediaSets' => function ($query) use ($clientOnlySets) {
+                        $query->whereNotIn('uuid', $clientOnlySets)
+                            ->withCount(['media' => function ($q) {
+                                $q->whereNull('deleted_at')->where('is_private', false);
+                            }])
+                            ->orderBy('order');
+                    }]);
+                } else {
+                    // Reload with private media filter
+                    $collection->load(['mediaSets' => function ($query) {
+                        $query->withCount(['media' => function ($q) {
+                            $q->whereNull('deleted_at')->where('is_private', false);
+                        }])
+                            ->orderBy('order');
+                    }]);
+                }
+            } else {
+                // Reload with all media (including private)
+                $collection->load(['mediaSets' => function ($query) {
+                    $query->withCount(['media' => function ($q) {
+                        $q->whereNull('deleted_at');
+                    }])
+                        ->orderBy('order');
+                }]);
             }
 
             // Use PublicCollectionResource to exclude sensitive data
@@ -243,6 +289,70 @@ class PublicCollectionController extends Controller
     }
 
     /**
+     * Verify client password for a collection (public endpoint - no authentication required)
+     */
+    public function verifyClientPassword(Request $request, string $id): JsonResponse
+    {
+        $request->validate([
+            'password' => ['required', 'string'],
+            'email' => ['nullable', 'string', 'email'],
+        ]);
+
+        try {
+            $collection = MemoraCollection::query()
+                ->where('uuid', $id)
+                ->firstOrFail();
+
+            $status = $collection->status?->value ?? $collection->status;
+
+            // Allow access if collection is active (published)
+            if ($status !== 'active') {
+                return ApiResponse::error('Collection is not accessible', 'COLLECTION_NOT_ACCESSIBLE', 403);
+            }
+
+            $settings = $collection->settings ?? [];
+            $clientExclusiveAccess = $settings['privacy']['clientExclusiveAccess'] ?? $settings['clientExclusiveAccess'] ?? false;
+
+            if (! $clientExclusiveAccess) {
+                return ApiResponse::error('Client exclusive access is not enabled for this collection', 'CLIENT_ACCESS_DISABLED', 403);
+            }
+
+            $clientPrivatePassword = $settings['privacy']['clientPrivatePassword'] ?? $settings['clientPrivatePassword'] ?? null;
+
+            if (! $clientPrivatePassword) {
+                return ApiResponse::error('Client password is not set for this collection', 'CLIENT_PASSWORD_NOT_SET', 403);
+            }
+
+            // Verify the password
+            $verified = $request->input('password') === $clientPrivatePassword;
+
+            if ($verified) {
+                // Generate guest token that expires in 30 minutes
+                $guestToken = GuestCollectionToken::create([
+                    'collection_uuid' => $id,
+                    'expires_at' => Carbon::now()->addMinutes(30),
+                ]);
+
+                return ApiResponse::success([
+                    'verified' => true,
+                    'token' => $guestToken->token,
+                ]);
+            }
+
+            return ApiResponse::success(['verified' => false]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ApiResponse::error('Collection not found', 'NOT_FOUND', 404);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to verify client password', [
+                'collection_id' => $id,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return ApiResponse::error('Failed to verify client password', 'VERIFY_FAILED', 500);
+        }
+    }
+
+    /**
      * Get all media sets for a collection (public endpoint)
      */
     public function getSets(Request $request, string $id): JsonResponse
@@ -259,11 +369,36 @@ class PublicCollectionController extends Controller
                 return ApiResponse::error('Collection is not accessible', 'COLLECTION_NOT_ACCESSIBLE', 403);
             }
 
+            // Check if client is verified
+            $isClientVerified = false;
+            $token = $request->bearerToken() ?? $request->header('X-Guest-Token') ?? $request->query('guest_token');
+            if ($token) {
+                $guestToken = GuestCollectionToken::where('token', $token)
+                    ->where('collection_uuid', $id)
+                    ->where('expires_at', '>', now())
+                    ->first();
+                $isClientVerified = $guestToken !== null;
+            }
+
+            // Get client-only sets from settings
+            $settings = $collection->settings ?? [];
+            $clientOnlySets = $settings['privacy']['clientOnlySets'] ?? $settings['clientOnlySets'] ?? [];
+
             // Get sets without user authentication check (public access)
-            $sets = \App\Domains\Memora\Models\MemoraMediaSet::where('collection_uuid', $id)
-                ->withCount(['media' => function ($query) {
-                    $query->whereNull('deleted_at');
-                }])
+            $setsQuery = \App\Domains\Memora\Models\MemoraMediaSet::where('collection_uuid', $id);
+
+            // Filter client-only sets: only show to verified clients
+            if (! $isClientVerified && ! empty($clientOnlySets)) {
+                $setsQuery->whereNotIn('uuid', $clientOnlySets);
+            }
+
+            $sets = $setsQuery->withCount(['media' => function ($query) use ($isClientVerified) {
+                $query->whereNull('deleted_at');
+                // Filter private media: only show to verified clients
+                if (! $isClientVerified) {
+                    $query->where('is_private', false);
+                }
+            }])
                 ->orderBy('order')
                 ->get();
 

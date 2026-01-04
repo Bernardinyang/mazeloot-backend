@@ -19,6 +19,7 @@ class UpdateHomepageSettingsRequest extends FormRequest
             'biography' => ['nullable', 'string', 'max:200'],
             'info' => ['nullable', 'array'],
             'info.*' => ['nullable', 'string'],
+            'slideshowEnabled' => ['nullable', 'boolean'],
         ];
     }
 

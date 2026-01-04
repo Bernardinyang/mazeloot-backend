@@ -40,6 +40,22 @@ class MediaController extends Controller
         return ApiResponse::success($revisions);
     }
 
+    /**
+     * Get a single media item by UUID
+     */
+    public function show(string $id): JsonResponse
+    {
+        $media = MemoraMedia::where('uuid', $id)
+            ->with(['file', 'mediaSet', 'starredByUsers' => function ($query) {
+                if (Auth::check()) {
+                    $query->where('user_uuid', Auth::user()->uuid);
+                }
+            }])
+            ->firstOrFail();
+
+        return ApiResponse::success(new MediaResource($media));
+    }
+
     public function markCompleted(Request $request, string $id): JsonResponse
     {
         $request->validate([
@@ -608,6 +624,26 @@ class MediaController extends Controller
     }
 
     /**
+     * Get all featured media for the authenticated user
+     */
+    public function getFeaturedMedia(Request $request): JsonResponse
+    {
+        $sortBy = $request->query('sort_by');
+        $page = $request->has('page') ? max(1, (int) $request->query('page', 1)) : null;
+        $perPage = $request->has('per_page') ? max(1, min(100, (int) $request->query('per_page', 10))) : null;
+
+        $result = $this->mediaService->getFeaturedMedia($sortBy, $page, $perPage);
+
+        // If paginated, result is already formatted with data and pagination
+        // If not paginated, wrap in MediaResource collection
+        if (is_array($result) && isset($result['data']) && isset($result['pagination'])) {
+            return ApiResponse::success($result);
+        }
+
+        return ApiResponse::success($result);
+    }
+
+    /**
      * Download original image file by media UUID
      */
     public function download(string $mediaUuid): StreamedResponse|Response|JsonResponse|RedirectResponse
@@ -1022,6 +1058,41 @@ class MediaController extends Controller
             ]);
 
             return ApiResponse::error('Failed to serve file: '.$e->getMessage(), 'SERVE_ERROR', 500);
+        }
+    }
+
+    /**
+     * Toggle featured status for media
+     */
+    public function toggleFeatured(string $id): JsonResponse
+    {
+        try {
+            $userId = Auth::id();
+            if (! $userId) {
+                return ApiResponse::error('Unauthorized', 'UNAUTHORIZED', 401);
+            }
+
+            $media = MemoraMedia::where('uuid', $id)
+                ->where('user_uuid', Auth::user()->uuid)
+                ->firstOrFail();
+
+            $isFeatured = ! $media->is_featured;
+
+            $media->update([
+                'is_featured' => $isFeatured,
+                'featured_at' => $isFeatured ? now() : null,
+            ]);
+
+            return ApiResponse::success(new MediaResource($media->fresh()));
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ApiResponse::error('Media not found', 'NOT_FOUND', 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to toggle featured status', [
+                'media_id' => $id,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return ApiResponse::error('Failed to toggle featured status', 'TOGGLE_FAILED', 500);
         }
     }
 }
