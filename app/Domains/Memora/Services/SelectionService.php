@@ -524,7 +524,7 @@ class SelectionService
 
         // Get cover URL from the media's file
         // For videos, use the actual video URL (file.url)
-        // For images, use thumbnail variant if available, otherwise file URL
+        // For images, use original/best quality URL
         $coverUrl = null;
         if ($media->file) {
             $file = $media->file;
@@ -534,11 +534,23 @@ class SelectionService
                 // For videos, use the actual video URL
                 $coverUrl = $file->url ?? null;
             } else {
-                // For images, check for thumbnail variant first
-                if ($file->metadata && isset($file->metadata['variants']['thumb'])) {
-                    $coverUrl = $file->metadata['variants']['thumb'];
+                // For images, use original/best quality URL
+                $metadata = $file->metadata;
+                if (is_string($metadata)) {
+                    $metadata = json_decode($metadata, true);
+                }
+                
+                // Priority: original variant > large variant > file URL
+                if ($metadata && is_array($metadata) && isset($metadata['variants']) && is_array($metadata['variants'])) {
+                    if (isset($metadata['variants']['original'])) {
+                        $coverUrl = $metadata['variants']['original'];
+                    } elseif (isset($metadata['variants']['large'])) {
+                        $coverUrl = $metadata['variants']['large'];
+                    } else {
+                        $coverUrl = $file->url ?? null;
+                    }
                 } else {
-                    // Fallback to file URL
+                    // Fallback to file URL (which should be the original)
                     $coverUrl = $file->url ?? null;
                 }
             }

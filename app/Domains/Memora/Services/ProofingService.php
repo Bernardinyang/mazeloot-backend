@@ -1031,17 +1031,17 @@ class ProofingService
                     $metadata = json_decode($metadata, true);
                 }
 
-                // Safely access variants
+                // Priority: original variant > large variant > file URL (use best quality)
                 if ($metadata && is_array($metadata) && isset($metadata['variants']) && is_array($metadata['variants'])) {
-                    if (isset($metadata['variants']['thumb'])) {
-                        $coverUrl = $metadata['variants']['thumb'];
+                    if (isset($metadata['variants']['original'])) {
+                        $coverUrl = $metadata['variants']['original'];
                     } elseif (isset($metadata['variants']['large'])) {
                         $coverUrl = $metadata['variants']['large'];
+                    } else {
+                        $coverUrl = $file->url ?? null;
                     }
-                }
-
-                // Fallback to file URL if no variant found
-                if (! $coverUrl) {
+                } else {
+                    // Fallback to file URL (which should be the original)
                     $coverUrl = $file->url ?? null;
                 }
             }
