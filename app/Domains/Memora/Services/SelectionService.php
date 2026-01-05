@@ -539,7 +539,7 @@ class SelectionService
                 if (is_string($metadata)) {
                     $metadata = json_decode($metadata, true);
                 }
-                
+
                 // Priority: original variant > large variant > file URL
                 if ($metadata && is_array($metadata) && isset($metadata['variants']) && is_array($metadata['variants'])) {
                     if (isset($metadata['variants']['original'])) {
