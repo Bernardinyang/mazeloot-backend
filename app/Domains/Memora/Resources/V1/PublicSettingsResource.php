@@ -24,8 +24,8 @@ class PublicSettingsResource extends JsonResource
         return [
             'branding' => [
                 // Only include public branding information
-                'logoUrl' => $this->whenLoaded('logo', fn () => $this->logo?->url),
-                'faviconUrl' => $this->whenLoaded('favicon', fn () => $this->favicon?->url),
+                'logoUrl' => $this->whenLoaded('logo', fn () => $this->logo?->url ?? asset('logos/mazelootPrimaryLogo.svg'), asset('logos/mazelootPrimaryLogo.svg')),
+                'faviconUrl' => $this->whenLoaded('favicon', fn () => $this->favicon?->url ?? asset('logos/mazeloofFaviconPrimaryLogo.svg'), asset('logos/mazeloofFaviconPrimaryLogo.svg')),
                 'name' => $this->branding_name,
                 'website' => $this->branding_website,
                 'location' => $this->branding_location,

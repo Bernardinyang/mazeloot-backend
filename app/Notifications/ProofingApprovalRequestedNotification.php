@@ -4,9 +4,9 @@ namespace App\Notifications;
 
 use App\Domains\Memora\Models\MemoraProofingApprovalRequest;
 use App\Domains\Memora\Services\ProofingApprovalRequestService;
+use App\Support\Mail\MailMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class ProofingApprovalRequestedNotification extends Notification implements ShouldQueue
@@ -43,7 +43,7 @@ class ProofingApprovalRequestedNotification extends Notification implements Shou
         $media = $this->approvalRequest->media;
         $maxRevisions = $proofing->max_revisions ?? 5;
 
-        return (new MailMessage)
+        return MailMessage::withLogo()
             ->subject('Approval Request for '.$proofing->name.' - Revision Limit Exceeded')
             ->line('An approval request has been submitted for a media item in your proofing.')
             ->line('**Proofing:** '.$proofing->name)

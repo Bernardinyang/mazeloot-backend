@@ -2,9 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Support\Mail\MailMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class PasswordResetNotification extends Notification implements ShouldQueue
@@ -35,7 +35,7 @@ class PasswordResetNotification extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        return MailMessage::withLogo()
             ->subject('Reset Your Password')
             ->line('You are receiving this email because we received a password reset request for your account.')
             ->line('Your password reset code is: **'.$this->code.'**')

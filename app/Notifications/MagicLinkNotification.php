@@ -2,9 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Support\Mail\MailMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class MagicLinkNotification extends Notification implements ShouldQueue
@@ -35,7 +35,7 @@ class MagicLinkNotification extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        return MailMessage::withLogo()
             ->subject('Your Magic Link to Sign In')
             ->line('Click the button below to sign in to your account. This link will expire in 15 minutes.')
             ->action('Sign In', $this->magicLink)

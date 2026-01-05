@@ -2,9 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Support\Mail\MailMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class EmailVerificationNotification extends Notification implements ShouldQueue
@@ -35,7 +35,7 @@ class EmailVerificationNotification extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        return MailMessage::withLogo()
             ->subject('Verify Your Email Address')
             ->line('Thank you for registering with '.config('app.name').'.')
             ->line('Your verification code is: **'.$this->code.'**')

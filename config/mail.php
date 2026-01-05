@@ -115,4 +115,16 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Mazeloot'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Email Template
+    |--------------------------------------------------------------------------
+    |
+    | Choose which email template to use for notifications.
+    | Options: 'default', 'minimal'
+    |
+    */
+
+    'template' => env('MAIL_TEMPLATE', 'default'),
+
 ];

@@ -52,8 +52,8 @@ class PublicSettingsController extends Controller
                 // Return empty settings if none exist
                 return ApiResponse::success([
                     'branding' => [
-                        'logoUrl' => null,
-                        'faviconUrl' => null,
+                        'logoUrl' => asset('logos/mazelootPrimaryLogo.svg'),
+                        'faviconUrl' => asset('logos/mazeloofFaviconPrimaryLogo.svg'),
                         'name' => null,
                         'website' => null,
                         'location' => null,

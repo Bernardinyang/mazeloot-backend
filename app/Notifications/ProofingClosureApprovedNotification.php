@@ -4,9 +4,9 @@ namespace App\Notifications;
 
 use App\Domains\Memora\Models\MemoraClosureRequest;
 use App\Domains\Memora\Services\ClosureRequestService;
+use App\Support\Mail\MailMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class ProofingClosureApprovedNotification extends Notification implements ShouldQueue
@@ -42,7 +42,7 @@ class ProofingClosureApprovedNotification extends Notification implements Should
         $proofing = $this->closureRequest->proofing;
         $media = $this->closureRequest->media;
 
-        return (new MailMessage)
+        return MailMessage::withLogo()
             ->subject('Closure Request Approved - '.$proofing->name)
             ->line('Your closure request has been approved by the client.')
             ->line('**Proofing:** '.$proofing->name)

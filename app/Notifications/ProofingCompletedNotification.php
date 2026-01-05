@@ -2,8 +2,8 @@
 
 namespace App\Notifications;
 
+use App\Support\Mail\MailMessage;
 use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class ProofingCompletedNotification extends Notification
@@ -33,7 +33,7 @@ class ProofingCompletedNotification extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        return MailMessage::withLogo()
             ->line('The introduction to the notification.')
             ->action('Notification Action', url('/'))
             ->line('Thank you for using our application!');

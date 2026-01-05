@@ -4,9 +4,9 @@ namespace App\Notifications;
 
 use App\Domains\Memora\Models\MemoraClosureRequest;
 use App\Domains\Memora\Services\ClosureRequestService;
+use App\Support\Mail\MailMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class ProofingClosureRejectedNotification extends Notification implements ShouldQueue
@@ -43,7 +43,7 @@ class ProofingClosureRejectedNotification extends Notification implements Should
         $proofing = $this->closureRequest->proofing;
         $media = $this->closureRequest->media;
 
-        $mail = (new MailMessage)
+        $mail = MailMessage::withLogo()
             ->subject('Closure Request Rejected - '.$proofing->name)
             ->line('Your closure request has been rejected by the client.')
             ->line('**Proofing:** '.$proofing->name)

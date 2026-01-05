@@ -4,9 +4,9 @@ namespace App\Notifications;
 
 use App\Domains\Memora\Models\MemoraProofingApprovalRequest;
 use App\Domains\Memora\Services\ProofingApprovalRequestService;
+use App\Support\Mail\MailMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class ProofingApprovalRejectedNotification extends Notification implements ShouldQueue
@@ -42,7 +42,7 @@ class ProofingApprovalRejectedNotification extends Notification implements Shoul
         $proofing = $this->approvalRequest->proofing;
         $media = $this->approvalRequest->media;
 
-        $mail = (new MailMessage)
+        $mail = MailMessage::withLogo()
             ->subject('Approval Request Rejected - '.$proofing->name)
             ->line('Your approval request has been rejected by the client.')
             ->line('**Proofing:** '.$proofing->name)
