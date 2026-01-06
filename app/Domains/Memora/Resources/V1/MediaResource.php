@@ -41,8 +41,13 @@ class MediaResource extends JsonResource
                 $file = $this->file;
                 $fileType = $file->type?->value ?? $file->type;
 
-                if ($fileType === 'image' && $file->metadata && isset($file->metadata['variants']['large'])) {
-                    return $file->metadata['variants']['large'];
+                // Use medium variant instead of large to hide full quality
+                if ($fileType === 'image' && $file->metadata && isset($file->metadata['variants']['medium'])) {
+                    return $file->metadata['variants']['medium'];
+                }
+                // Fallback to thumb if medium not available
+                if ($fileType === 'image' && $file->metadata && isset($file->metadata['variants']['thumb'])) {
+                    return $file->metadata['variants']['thumb'];
                 }
 
                 return $file->url ?? null;

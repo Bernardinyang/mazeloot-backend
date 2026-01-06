@@ -341,6 +341,36 @@ class MediaController extends Controller
     }
 
     /**
+     * Delete media directly (without selection/set context)
+     */
+    public function deleteDirect(string $mediaId): JsonResponse
+    {
+        $userId = Auth::id();
+        if (! $userId) {
+            return ApiResponse::error('Unauthorized', 'UNAUTHORIZED', 401);
+        }
+
+        try {
+            $deleted = $this->mediaService->delete($mediaId, $userId);
+
+            if ($deleted) {
+                return ApiResponse::success([
+                    'message' => 'Media deleted successfully',
+                ]);
+            }
+
+            return ApiResponse::error('Failed to delete media', 'DELETE_FAILED', 500);
+        } catch (\Exception $e) {
+            Log::error('Failed to delete media', [
+                'media_id' => $mediaId,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return ApiResponse::error('Failed to delete media: '.$e->getMessage(), 'DELETE_FAILED', 500);
+        }
+    }
+
+    /**
      * Rename media by updating the UserFile's filename
      */
     public function rename(RenameMediaRequest $request, string $selectionId, string $setUuid, string $mediaId): JsonResponse
@@ -581,7 +611,7 @@ class MediaController extends Controller
     }
 
     /**
-     * Toggle star status for a media item
+     * Toggle star status for a media item (with selection/set context)
      */
     public function toggleStar(string $selectionId, string $setUuid, string $mediaId): JsonResponse
     {
@@ -604,6 +634,27 @@ class MediaController extends Controller
     }
 
     /**
+     * Toggle star status for a media item (direct, without selection/set context)
+     */
+    public function toggleStarDirect(string $mediaId): JsonResponse
+    {
+        try {
+            $result = $this->mediaService->toggleStar($mediaId);
+
+            return ApiResponse::success($result);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ApiResponse::error('Media not found', 'MEDIA_NOT_FOUND', 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to toggle star for media', [
+                'media_id' => $mediaId,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return ApiResponse::error('Failed to toggle star', 'STAR_FAILED', 500);
+        }
+    }
+
+    /**
      * Get all starred media for the authenticated user
      */
     public function getStarredMedia(Request $request): JsonResponse
@@ -613,6 +664,26 @@ class MediaController extends Controller
         $perPage = $request->has('per_page') ? max(1, min(100, (int) $request->query('per_page', 10))) : null;
 
         $result = $this->mediaService->getStarredMedia($sortBy, $page, $perPage);
+
+        // If paginated, result is already formatted with data and pagination
+        // If not paginated, wrap in MediaResource collection
+        if (is_array($result) && isset($result['data']) && isset($result['pagination'])) {
+            return ApiResponse::success($result);
+        }
+
+        return ApiResponse::success($result);
+    }
+
+    /**
+     * Get all media for the authenticated user
+     */
+    public function getUserMedia(Request $request): JsonResponse
+    {
+        $sortBy = $request->query('sort_by');
+        $page = $request->has('page') ? max(1, (int) $request->query('page', 1)) : null;
+        $perPage = $request->has('per_page') ? max(1, min(100, (int) $request->query('per_page', 10))) : null;
+
+        $result = $this->mediaService->getUserMedia($sortBy, $page, $perPage);
 
         // If paginated, result is already formatted with data and pagination
         // If not paginated, wrap in MediaResource collection

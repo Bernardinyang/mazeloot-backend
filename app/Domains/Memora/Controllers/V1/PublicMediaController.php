@@ -424,6 +424,17 @@ class PublicMediaController extends Controller
                 ->where('collection_uuid', $id)
                 ->firstOrFail();
 
+            // Check if authenticated user is owner
+            $isOwner = false;
+            if (auth()->check()) {
+                $userUuid = auth()->user()->uuid;
+                $isOwner = $collection->user_uuid === $userUuid;
+            }
+
+            // Check if preview mode and owner
+            $isPreviewMode = $request->query('preview') === 'true';
+            $showPrivateMedia = $isOwner && $isPreviewMode;
+
             // Check if client is verified
             $isClientVerified = false;
             $token = $request->bearerToken() ?? $request->header('X-Guest-Token') ?? $request->query('guest_token');
@@ -433,6 +444,11 @@ class PublicMediaController extends Controller
                     ->where('expires_at', '>', now())
                     ->first();
                 $isClientVerified = $guestToken !== null;
+            }
+
+            // If owner in preview mode, treat as client verified to show private media
+            if ($showPrivateMedia) {
+                $isClientVerified = true;
             }
 
             // Get media for the set

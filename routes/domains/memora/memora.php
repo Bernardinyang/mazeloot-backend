@@ -136,7 +136,10 @@ Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
         Route::get('/phase/{phaseType}/{phaseId}', [MediaController::class, 'getPhaseMedia']);
         Route::post('/move-between-phases', [MediaController::class, 'moveBetweenPhases']);
         Route::get('/featured', [MediaController::class, 'getFeaturedMedia']);
+        Route::get('/user', [MediaController::class, 'getUserMedia']);
         Route::post('/{id}/toggle-featured', [MediaController::class, 'toggleFeatured']);
+        Route::post('/{id}/toggle-star', [MediaController::class, 'toggleStarDirect']);
+        Route::delete('/{id}', [MediaController::class, 'deleteDirect']);
         Route::get('/{id}/revisions', [MediaController::class, 'getRevisions']);
         Route::get('/{id}', [MediaController::class, 'show']);
     });

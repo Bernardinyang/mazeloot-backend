@@ -587,8 +587,9 @@ class MediaService
                 'file',
             ]);
 
-        // Filter private media: only show to verified clients
-        if (! $isClientVerified) {
+        // Filter private media: only show to authenticated users (Photos view) or verified clients
+        // Public views should not see private media
+        if (! Auth::check() && ! $isClientVerified) {
             $query->where('is_private', false);
         }
 
@@ -807,7 +808,7 @@ class MediaService
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
-        $media = MemoraMedia::where('uuid', $mediaId)->firstOrFail();
+        $media = MemoraMedia::withTrashed()->with('file')->where('uuid', $mediaId)->firstOrFail();
 
         // Verify user owns the phase (proofing, selection, or collection) that contains this media
         $mediaSet = $media->mediaSet;
@@ -846,7 +847,47 @@ class MediaService
             }
         }
 
-        // Delete the media record
+        // Delete files from storage if media has a file
+        if ($media->file) {
+            try {
+                $pathsToDelete = [];
+                if ($media->file->path) {
+                    $pathsToDelete[] = $media->file->path;
+                }
+                if ($media->file->metadata && isset($media->file->metadata['variants'])) {
+                    foreach ($media->file->metadata['variants'] as $variantPath) {
+                        if ($variantPath && ! in_array($variantPath, $pathsToDelete)) {
+                            $pathsToDelete[] = $variantPath;
+                        }
+                    }
+                }
+
+                if (! empty($pathsToDelete)) {
+                    $this->uploadService->deleteFiles($pathsToDelete[0], count($pathsToDelete) > 1 ? array_slice($pathsToDelete, 1) : null);
+                }
+
+                // Check if UserFile is used by other media records
+                $otherMediaCount = \App\Domains\Memora\Models\MemoraMedia::where('user_file_uuid', $media->file->uuid)
+                    ->where('uuid', '!=', $mediaId)
+                    ->count();
+                if ($otherMediaCount === 0) {
+                    $media->file->delete();
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning('Failed to delete media files from storage', [
+                    'media_uuid' => $mediaId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Check if media is already soft-deleted and permanent deletion is allowed
+        $allowPermanentDeletion = env('ALLOW_PERMANENT_MEDIA_DELETION', false);
+        if ($media->trashed() && $allowPermanentDeletion) {
+            return $media->forceDelete();
+        }
+
+        // Delete the media record (soft delete)
         // Note: We don't delete the user_file record as it may be used elsewhere
         // The user_file will remain in the database for potential recovery
         return $media->delete();
@@ -1033,16 +1074,49 @@ class MediaService
     /**
      * Get media by UUID for download
      * Returns the media with file relationship loaded
+     * Verifies user owns the media (directly or through phase ownership)
      */
     public function getMediaForDownload(string $mediaUuid): MemoraMedia
     {
+        $userId = Auth::id();
+        if (! $userId) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
         $media = MemoraMedia::where('uuid', $mediaUuid)
             ->with('file')
             ->firstOrFail();
 
-        // Verify the user owns this media
-        if ($media->user_uuid !== Auth::user()->uuid) {
-            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Media not found');
+        // Verify user owns the phase (proofing, selection, or collection) that contains this media
+        $mediaSet = $media->mediaSet;
+        if ($mediaSet) {
+            // Check ownership based on phase type
+            $isAuthorized = false;
+            if ($mediaSet->proof_uuid) {
+                $proofing = $mediaSet->proofing;
+                if ($proofing && $proofing->user_uuid === $userId) {
+                    $isAuthorized = true;
+                }
+            } elseif ($mediaSet->selection_uuid) {
+                $selection = $mediaSet->selection;
+                if ($selection && $selection->user_uuid === $userId) {
+                    $isAuthorized = true;
+                }
+            } elseif ($mediaSet->collection_uuid) {
+                $collection = $mediaSet->collection;
+                if ($collection && $collection->user_uuid === $userId) {
+                    $isAuthorized = true;
+                }
+            }
+
+            if (! $isAuthorized) {
+                throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Media not found');
+            }
+        } else {
+            // Fallback: verify user owns the media directly
+            if ($media->user_uuid !== $userId) {
+                throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Media not found');
+            }
         }
 
         // Ensure file relationship is loaded
@@ -1113,6 +1187,72 @@ class MediaService
 
             // Reload relationships to ensure they're available
             $relationships = ['feedback.replies', 'file', 'mediaSet.selection', 'starredByUsers'];
+            $paginator->getCollection()->load($relationships);
+
+            // Transform items to resources
+            $data = \App\Domains\Memora\Resources\V1\MediaResource::collection($paginator->items());
+
+            // Format response with pagination metadata
+            return [
+                'data' => $data,
+                'pagination' => [
+                    'page' => $paginator->currentPage(),
+                    'limit' => $paginator->perPage(),
+                    'total' => $paginator->total(),
+                    'totalPages' => $paginator->lastPage(),
+                ],
+            ];
+        }
+
+        // Non-paginated response
+        $media = $query->get();
+
+        return \App\Domains\Memora\Resources\V1\MediaResource::collection($media);
+    }
+
+    /**
+     * Get all media for the authenticated user
+     */
+    public function getUserMedia(?string $sortBy = null, ?int $page = null, ?int $perPage = null)
+    {
+        $user = Auth::user();
+
+        // Get all media owned by the user
+        $query = MemoraMedia::where('user_uuid', $user->uuid)
+            ->with([
+                'feedback.replies',
+                'file',
+                'mediaSet.selection',
+                'mediaSet.proofing',
+                'mediaSet.collection',
+                'starredByUsers' => function ($q) use ($user) {
+                    $q->where('user_uuid', $user->uuid);
+                },
+            ]);
+
+        // Apply sorting
+        if ($sortBy) {
+            $this->applyMediaSorting($query, $sortBy);
+        } else {
+            // Default sort: created_at desc
+            $query->orderBy('created_at', 'desc');
+        }
+
+        // If pagination is requested, use pagination service
+        if ($page !== null && $perPage !== null) {
+            $paginationService = app(\App\Services\Pagination\PaginationService::class);
+            $perPage = max(1, min(100, $perPage)); // Limit between 1 and 100
+            $paginator = $paginationService->paginate($query, $perPage, $page);
+
+            // Reload relationships to ensure they're available
+            $relationships = [
+                'feedback.replies',
+                'file',
+                'mediaSet.selection',
+                'mediaSet.proofing',
+                'mediaSet.collection',
+                'starredByUsers',
+            ];
             $paginator->getCollection()->load($relationships);
 
             // Transform items to resources

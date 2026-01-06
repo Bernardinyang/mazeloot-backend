@@ -135,6 +135,10 @@ class PublicCollectionController extends Controller
                 }
             }
 
+            // Check if preview mode and owner
+            $isPreviewMode = $request->query('preview') === 'true';
+            $showPrivateMedia = $isOwner && $isPreviewMode;
+
             // Use the isClientVerified we already determined above
             if ($isOwner) {
                 // Owner always has access to all sets
@@ -145,24 +149,30 @@ class PublicCollectionController extends Controller
             if (! $isClientVerified) {
                 $clientOnlySets = $settings['privacy']['clientOnlySets'] ?? $settings['clientOnlySets'] ?? [];
                 if (! empty($clientOnlySets)) {
-                    $collection->load(['mediaSets' => function ($query) use ($clientOnlySets) {
+                    $collection->load(['mediaSets' => function ($query) use ($clientOnlySets, $showPrivateMedia) {
                         $query->whereNotIn('uuid', $clientOnlySets)
-                            ->withCount(['media' => function ($q) {
-                                $q->whereNull('deleted_at')->where('is_private', false);
+                            ->withCount(['media' => function ($q) use ($showPrivateMedia) {
+                                $q->whereNull('deleted_at');
+                                if (! $showPrivateMedia) {
+                                    $q->where('is_private', false);
+                                }
                             }])
                             ->orderBy('order');
                     }]);
                 } else {
-                    // Reload with private media filter
-                    $collection->load(['mediaSets' => function ($query) {
-                        $query->withCount(['media' => function ($q) {
-                            $q->whereNull('deleted_at')->where('is_private', false);
+                    // Reload with private media filter (unless owner in preview mode)
+                    $collection->load(['mediaSets' => function ($query) use ($showPrivateMedia) {
+                        $query->withCount(['media' => function ($q) use ($showPrivateMedia) {
+                            $q->whereNull('deleted_at');
+                            if (! $showPrivateMedia) {
+                                $q->where('is_private', false);
+                            }
                         }])
                             ->orderBy('order');
                     }]);
                 }
             } else {
-                // Reload with all media (including private)
+                // Reload with all media (including private) for verified clients or owner in preview
                 $collection->load(['mediaSets' => function ($query) {
                     $query->withCount(['media' => function ($q) {
                         $q->whereNull('deleted_at');
@@ -394,7 +404,7 @@ class PublicCollectionController extends Controller
 
             $sets = $setsQuery->withCount(['media' => function ($query) use ($isClientVerified) {
                 $query->whereNull('deleted_at');
-                // Filter private media: only show to verified clients
+                // Filter private media: only show to verified clients (public views don't show private media)
                 if (! $isClientVerified) {
                     $query->where('is_private', false);
                 }
