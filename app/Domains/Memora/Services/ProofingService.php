@@ -393,8 +393,18 @@ class ProofingService
         if (isset($data['cover_photo_url'])) {
             $updateData['cover_photo_url'] = $data['cover_photo_url'];
         }
-        if (isset($data['cover_focal_point'])) {
-            $updateData['cover_focal_point'] = $data['cover_focal_point'];
+
+        // Handle cover_focal_point update (support both snake_case and camelCase)
+        if (array_key_exists('cover_focal_point', $data) || array_key_exists('coverFocalPoint', $data)) {
+            $focalPoint = $data['cover_focal_point'] ?? $data['coverFocalPoint'] ?? null;
+            if ($focalPoint !== null && is_array($focalPoint) && isset($focalPoint['x'], $focalPoint['y'])) {
+                $updateData['cover_focal_point'] = [
+                    'x' => (float) $focalPoint['x'],
+                    'y' => (float) $focalPoint['y'],
+                ];
+            } else {
+                $updateData['cover_focal_point'] = null;
+            }
         }
 
         // Handle allowedEmails (camelCase) or allowed_emails (snake_case)

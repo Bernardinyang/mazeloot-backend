@@ -28,6 +28,7 @@ class UpdateProofingRequest extends FormRequest
             'password' => ['sometimes', 'nullable', 'string', 'max:255'],
             'cover_photo_url' => ['sometimes', 'nullable', 'string', 'max:500'],
             'cover_focal_point' => ['sometimes', 'nullable', 'array'],
+            'coverFocalPoint' => ['sometimes', 'nullable', 'array'], // Frontend alias
         ];
     }
 }

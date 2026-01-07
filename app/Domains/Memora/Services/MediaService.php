@@ -397,6 +397,9 @@ class MediaService
             'created_by' => $createdBy,
         ]);
 
+        // Refresh to ensure relationships are loaded
+        $feedback->refresh();
+
         // Dispatch event for real-time updates
         \App\Domains\Memora\Events\MediaFeedbackCreated::dispatch($feedback);
 
@@ -457,6 +460,9 @@ class MediaService
         $feedback->update([
             'content' => $data['content'],
         ]);
+
+        // Refresh to ensure relationships are loaded
+        $feedback->refresh();
 
         // Dispatch event for real-time updates
         \App\Domains\Memora\Events\MediaFeedbackUpdated::dispatch($feedback);

@@ -301,6 +301,19 @@ class SelectionService
             $updateData['cover_photo_url'] = $data['cover_photo_url'];
         }
 
+        // Handle cover_focal_point update (support both snake_case and camelCase)
+        if (array_key_exists('cover_focal_point', $data) || array_key_exists('coverFocalPoint', $data)) {
+            $focalPoint = $data['cover_focal_point'] ?? $data['coverFocalPoint'] ?? null;
+            if ($focalPoint !== null && is_array($focalPoint) && isset($focalPoint['x'], $focalPoint['y'])) {
+                $updateData['cover_focal_point'] = [
+                    'x' => (float) $focalPoint['x'],
+                    'y' => (float) $focalPoint['y'],
+                ];
+            } else {
+                $updateData['cover_focal_point'] = null;
+            }
+        }
+
         // Handle password update - store in plain text if provided, or set to null if empty string
         if (array_key_exists('password', $data)) {
             if (! empty($data['password'])) {

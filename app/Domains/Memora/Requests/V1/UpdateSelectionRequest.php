@@ -21,6 +21,8 @@ class UpdateSelectionRequest extends FormRequest
             'status' => ['sometimes', Rule::enum(SelectionStatusEnum::class)],
             'color' => ['sometimes', 'string', 'max:7'],
             'cover_photo_url' => ['nullable', 'string', 'url'],
+            'cover_focal_point' => ['sometimes', 'nullable', 'array'],
+            'coverFocalPoint' => ['sometimes', 'nullable', 'array'], // Frontend alias
             'password' => ['nullable', 'string', 'min:4', 'max:255'],
             'allowed_emails' => ['nullable', 'array'],
             'allowed_emails.*' => ['email', 'max:255'],
