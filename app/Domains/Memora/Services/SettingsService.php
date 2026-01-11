@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 class SettingsService
 {
     protected UploadService $uploadService;
+
     protected NotificationService $notificationService;
 
     public function __construct(

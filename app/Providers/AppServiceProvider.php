@@ -27,16 +27,16 @@ class AppServiceProvider extends ServiceProvider
     {
         // Register UserPolicy
         Gate::policy(User::class, UserPolicy::class);
-        
+
         // Load broadcast channels
         require base_path('routes/channels.php');
-        
+
         // Override database session handler to use user_uuid instead of user_id
         Session::extend('database', function ($app) {
             $connection = $app['db']->connection($app['config']['session.connection']);
             $table = $app['config']['session.table'];
             $minutes = $app['config']['session.lifetime'];
-            
+
             return new DatabaseSessionHandler($connection, $table, $minutes, $app);
         });
     }

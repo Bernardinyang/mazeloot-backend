@@ -61,18 +61,19 @@ class ProofingResource extends JsonResource
                 'fontStyle' => 'normal',
             ],
         ];
-        
+
         if (isset($settings['design']) && is_array($settings['design'])) {
             $design = $settings['design'];
             // Ensure typography always has defaults
-            if (!isset($design['typography']) || empty($design['typography'])) {
+            if (! isset($design['typography']) || empty($design['typography'])) {
                 $design['typography'] = $defaults['typography'];
             } else {
                 $design['typography'] = array_merge($defaults['typography'], $design['typography']);
             }
+
             return $design;
         }
-        
+
         return $defaults;
     }
 
@@ -87,11 +88,11 @@ class ProofingResource extends JsonResource
             'fontFamily' => 'sans',
             'fontStyle' => 'normal',
         ];
-        
-        if (isset($settings['design']['typography']) && is_array($settings['design']['typography']) && !empty($settings['design']['typography'])) {
+
+        if (isset($settings['design']['typography']) && is_array($settings['design']['typography']) && ! empty($settings['design']['typography'])) {
             return array_merge($defaults, $settings['design']['typography']);
         }
-        
+
         return $defaults;
     }
 
@@ -102,6 +103,7 @@ class ProofingResource extends JsonResource
     {
         try {
             $storageService = app(UserStorageService::class);
+
             return $storageService->getPhaseStorageUsed($this->uuid, 'proofing');
         } catch (\Exception $e) {
             return 0;

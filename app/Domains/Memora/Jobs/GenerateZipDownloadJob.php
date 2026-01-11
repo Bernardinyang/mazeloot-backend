@@ -5,7 +5,6 @@ namespace App\Domains\Memora\Jobs;
 use App\Domains\Memora\Models\MemoraCollection;
 use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraMediaSet;
-use App\Services\Notification\NotificationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -21,7 +20,9 @@ class GenerateZipDownloadJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $tries = 3;
+
     public $backoff = 60;
+
     public $timeout = 600; // 10 minutes for large uploads to cloud storage
 
     public function __construct(
@@ -45,6 +46,7 @@ class GenerateZipDownloadJob implements ShouldQueue
         $name = trim($name, ' .');
         // Replace multiple spaces with single space
         $name = preg_replace('/\s+/', ' ', $name);
+
         // Limit length to avoid issues
         return mb_substr($name, 0, 255);
     }
@@ -53,10 +55,10 @@ class GenerateZipDownloadJob implements ShouldQueue
     {
         try {
             $collection = MemoraCollection::where('uuid', $this->collectionId)->firstOrFail();
-            
+
             // Create downloads directory if it doesn't exist
             $downloadsDir = storage_path('app/downloads');
-            if (!is_dir($downloadsDir)) {
+            if (! is_dir($downloadsDir)) {
                 mkdir($downloadsDir, 0755, true);
             }
 
@@ -67,16 +69,16 @@ class GenerateZipDownloadJob implements ShouldQueue
             if ($this->destination !== 'device') {
                 $cloudService = \App\Services\CloudStorage\CloudStorageFactory::make($this->destination);
                 $supportsZip = $cloudService->supportsZipUpload();
-                
+
                 // Get OAuth token early if needed for non-ZIP uploads
-                if (!$supportsZip) {
+                if (! $supportsZip) {
                     $tokenKey = "cloud_token_{$this->destination}_{$this->token}";
                     $tokenData = \Illuminate\Support\Facades\Cache::get($tokenKey);
-                    
-                    if (!$tokenData || !isset($tokenData['access_token'])) {
+
+                    if (! $tokenData || ! isset($tokenData['access_token'])) {
                         $collectionTokenKey = "cloud_token_{$this->destination}_{$this->collectionId}";
                         $tokenData = \Illuminate\Support\Facades\Cache::get($collectionTokenKey);
-                        
+
                         if ($tokenData && isset($tokenData['access_token'])) {
                             \Illuminate\Support\Facades\Cache::put($tokenKey, $tokenData, now()->addHours(24));
                         }
@@ -87,24 +89,28 @@ class GenerateZipDownloadJob implements ShouldQueue
             // Collect all media files organized by set
             $mediaFiles = [];
             $mediaCount = 0;
-            
+
             // Get all media from selected sets, organized by set
             foreach ($this->setIds as $setId) {
                 $set = MemoraMediaSet::where('uuid', $setId)
                     ->where('collection_uuid', $this->collectionId)
                     ->first();
-                
-                if (!$set) continue;
-                
+
+                if (! $set) {
+                    continue;
+                }
+
                 $setName = $this->sanitizeFolderName($set->name);
-                
+
                 $mediaItems = MemoraMedia::whereHas('mediaSet', function ($query) use ($setId) {
                     $query->where('uuid', $setId)->where('collection_uuid', $this->collectionId);
                 })->with('file')->get();
 
                 foreach ($mediaItems as $media) {
                     $file = $media->file;
-                    if (!$file) continue;
+                    if (! $file) {
+                        continue;
+                    }
 
                     $filePath = $file->path;
                     $fileUrl = $file->url;
@@ -129,14 +135,14 @@ class GenerateZipDownloadJob implements ShouldQueue
                             $fileContent = file_get_contents($downloadUrl);
                             if ($fileContent) {
                                 $filename = $file->filename ?? ($media->title ?? "photo-{$mediaCount}.jpg");
-                                
+
                                 // Detect MIME type from content
                                 $finfo = finfo_open(FILEINFO_MIME_TYPE);
                                 $mimeType = finfo_buffer($finfo, $fileContent);
                                 finfo_close($finfo);
-                                
+
                                 // Fallback to extension-based MIME type
-                                if (!$mimeType || $mimeType === 'application/octet-stream') {
+                                if (! $mimeType || $mimeType === 'application/octet-stream') {
                                     $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
                                     $mimeTypes = [
                                         'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg',
@@ -147,7 +153,7 @@ class GenerateZipDownloadJob implements ShouldQueue
                                     ];
                                     $mimeType = $mimeTypes[$extension] ?? 'application/octet-stream';
                                 }
-                                
+
                                 // Store file data for cloud upload (if needed)
                                 $mediaFiles[] = [
                                     'path' => $downloadUrl,
@@ -159,7 +165,7 @@ class GenerateZipDownloadJob implements ShouldQueue
                                 $mediaCount++;
                             }
                         } catch (\Exception $e) {
-                            Log::warning("Failed to download file", [
+                            Log::warning('Failed to download file', [
                                 'media_id' => $media->uuid,
                                 'error' => $e->getMessage(),
                             ]);
@@ -177,20 +183,20 @@ class GenerateZipDownloadJob implements ShouldQueue
             $zipPath = null;
             $fullZipPath = null;
             $fileSize = 0;
-            
+
             if ($supportsZip) {
                 $zipFileName = "{$collection->name}-photo-download-{$this->token}.zip";
                 $zipPath = "downloads/{$zipFileName}";
                 $fullZipPath = storage_path("app/{$zipPath}");
 
-                $zip = new ZipArchive();
+                $zip = new ZipArchive;
                 if ($zip->open($fullZipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
                     throw new \Exception('Failed to create ZIP file');
                 }
 
                 // Add files to ZIP
                 foreach ($mediaFiles as $file) {
-                    $filePathInZip = $file['folder'] . '/' . $file['name'];
+                    $filePathInZip = $file['folder'].'/'.$file['name'];
                     $zip->addFromString($filePathInZip, $file['content']);
                 }
 
@@ -209,24 +215,24 @@ class GenerateZipDownloadJob implements ShouldQueue
             if ($this->destination !== 'device' && $cloudService) {
                 try {
                     // Get OAuth token if not already retrieved
-                    if (!$tokenData || !isset($tokenData['access_token'])) {
+                    if (! $tokenData || ! isset($tokenData['access_token'])) {
                         $tokenKey = "cloud_token_{$this->destination}_{$this->token}";
                         $tokenData = \Illuminate\Support\Facades\Cache::get($tokenKey);
-                        
-                        if (!$tokenData || !isset($tokenData['access_token'])) {
+
+                        if (! $tokenData || ! isset($tokenData['access_token'])) {
                             $collectionTokenKey = "cloud_token_{$this->destination}_{$this->collectionId}";
                             $tokenData = \Illuminate\Support\Facades\Cache::get($collectionTokenKey);
-                            
+
                             if ($tokenData && isset($tokenData['access_token'])) {
                                 \Illuminate\Support\Facades\Cache::put($tokenKey, $tokenData, now()->addHours(24));
                             }
                         }
                     }
-                    
-                    if (!$tokenData || !isset($tokenData['access_token'])) {
+
+                    if (! $tokenData || ! isset($tokenData['access_token'])) {
                         throw new \Exception('No OAuth token found for cloud storage');
                     }
-                    
+
                     if ($supportsZip && $fullZipPath) {
                         // Upload ZIP file for services that support it
                         $cloudUploadUrl = $this->uploadToCloudStorage($fullZipPath, $zipFileName, $this->destination, $collection->name);
@@ -234,7 +240,7 @@ class GenerateZipDownloadJob implements ShouldQueue
                         // Upload individual files organized by folders/sets for services that don't support ZIP
                         $cloudUploadUrl = $cloudService->uploadFiles($mediaFiles, $tokenData['access_token'], $collection->name);
                     }
-                    
+
                     // Log successful upload with URL for tracking
                     if ($cloudUploadUrl) {
                         Log::info('Cloud storage upload completed successfully', [
@@ -251,22 +257,22 @@ class GenerateZipDownloadJob implements ShouldQueue
                         'supports_zip' => $supportsZip,
                         'error' => $errorMessage,
                     ]);
-                    
+
                     // Store error message for frontend to display
                     $cloudUploadError = $errorMessage;
-                    
+
                     // Check if it's an API activation error
                     if (str_contains($errorMessage, 'not activated') || str_contains($errorMessage, 'code": 16')) {
                         $cloudUploadError = 'Google Photos API is not enabled. Please enable the Google Photos Library API in Google Cloud Console.';
                     }
-                    
+
                     // Continue with device download as fallback
                 }
             }
 
             // Generate download filename
             $downloadFilename = $zipFileName ?? ($supportsZip ? "{$collection->name}-download-{$this->token}.zip" : "{$collection->name}-download-{$this->token}");
-            
+
             // Update cache with completed status
             \Illuminate\Support\Facades\Cache::put("zip_download_{$this->token}", [
                 'token' => $this->token,
@@ -282,7 +288,7 @@ class GenerateZipDownloadJob implements ShouldQueue
                 'cloud_upload_error' => $cloudUploadError,
                 'created_at' => now(),
             ], now()->addHours(24));
-            
+
             // Clean up ZIP file if it was created and cloud upload succeeded
             if ($supportsZip && $fullZipPath && $cloudUploadUrl && file_exists($fullZipPath)) {
                 // Keep ZIP for device downloads, only delete if cloud-only and successful
@@ -334,10 +340,10 @@ class GenerateZipDownloadJob implements ShouldQueue
             $tokenData = \Illuminate\Support\Facades\Cache::get($tokenKey);
 
             // If not found, try to get by collection_id (for OAuth flows where token was stored before download token was generated)
-            if (!$tokenData || !isset($tokenData['access_token'])) {
+            if (! $tokenData || ! isset($tokenData['access_token'])) {
                 $collectionTokenKey = "cloud_token_{$destination}_{$this->collectionId}";
                 $tokenData = \Illuminate\Support\Facades\Cache::get($collectionTokenKey);
-                
+
                 // If found by collection_id, move it to use download token as key for future lookups
                 if ($tokenData && isset($tokenData['access_token'])) {
                     \Illuminate\Support\Facades\Cache::put($tokenKey, $tokenData, now()->addHours(24));
@@ -349,12 +355,13 @@ class GenerateZipDownloadJob implements ShouldQueue
                 }
             }
 
-            if (!$tokenData || !isset($tokenData['access_token'])) {
+            if (! $tokenData || ! isset($tokenData['access_token'])) {
                 Log::warning('No OAuth token found for cloud storage', [
                     'destination' => $destination,
                     'token' => $this->token,
                     'collection_id' => $this->collectionId,
                 ]);
+
                 return null;
             }
 
@@ -365,7 +372,7 @@ class GenerateZipDownloadJob implements ShouldQueue
             if (isset($tokenData['created_at'])) {
                 $createdAt = \Carbon\Carbon::parse($tokenData['created_at']);
                 $expiresIn = $tokenData['expires_in'] ?? 3600;
-                
+
                 if ($createdAt->addSeconds($expiresIn)->isPast() && isset($tokenData['refresh_token'])) {
                     try {
                         $refreshed = $cloudService->refreshToken($tokenData['refresh_token']);
@@ -373,7 +380,7 @@ class GenerateZipDownloadJob implements ShouldQueue
                         $tokenData['refresh_token'] = $refreshed['refresh_token'] ?? $tokenData['refresh_token'];
                         $tokenData['expires_in'] = $refreshed['expires_in'] ?? 3600;
                         $tokenData['created_at'] = now();
-                        
+
                         \Illuminate\Support\Facades\Cache::put($tokenKey, $tokenData, now()->addHours(24));
                         $accessToken = $tokenData['access_token'];
                     } catch (\Exception $e) {
@@ -394,7 +401,7 @@ class GenerateZipDownloadJob implements ShouldQueue
             } catch (\Exception $e) {
                 // Collection name not available, use null
             }
-            
+
             $folderName = $destination === 'googledrive' ? $collectionName : null;
             $url = $cloudService->uploadFile($filePath, $fileName, $accessToken, $folderName);
 
@@ -411,6 +418,7 @@ class GenerateZipDownloadJob implements ShouldQueue
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return null;
         }
     }

@@ -237,6 +237,7 @@ class CollectionResource extends JsonResource
     {
         try {
             $storageService = app(\App\Services\Storage\UserStorageService::class);
+
             return $storageService->getPhaseStorageUsed($this->uuid, 'collection');
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Failed to get collection storage used', [
@@ -244,6 +245,7 @@ class CollectionResource extends JsonResource
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return 0;
         }
     }

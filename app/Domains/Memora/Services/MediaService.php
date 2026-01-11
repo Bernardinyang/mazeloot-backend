@@ -13,7 +13,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class MediaService
 {
@@ -602,12 +601,12 @@ class MediaService
             if ($userEmail) {
                 // Show public media OR private media marked by this user's email
                 $emailLower = strtolower(trim($userEmail));
-                $query->where(function($q) use ($emailLower) {
+                $query->where(function ($q) use ($emailLower) {
                     $q->where('is_private', false)
-                      ->orWhere(function($subQ) use ($emailLower) {
-                          $subQ->where('is_private', true)
-                               ->where('marked_private_by_email', $emailLower);
-                      });
+                        ->orWhere(function ($subQ) use ($emailLower) {
+                            $subQ->where('is_private', true)
+                                ->where('marked_private_by_email', $emailLower);
+                        });
                 });
             } else {
                 // No email provided - hide all private media
@@ -793,7 +792,7 @@ class MediaService
             $collection = MemoraCollection::query()
                 ->where('uuid', $set->collection_uuid)
                 ->first();
-            
+
             if ($collection && $collection->watermark_uuid) {
                 try {
                     $this->applyWatermark($media->uuid, $collection->watermark_uuid);
@@ -1593,9 +1592,9 @@ class MediaService
                 $watermarkType = $watermark->type instanceof \App\Domains\Memora\Enums\WatermarkTypeEnum
                     ? $watermark->type
                     : \App\Domains\Memora\Enums\WatermarkTypeEnum::from($watermark->type ?? 'text');
-                
+
                 $usePreviewStyle = $previewStyle && $watermarkType === \App\Domains\Memora\Enums\WatermarkTypeEnum::TEXT;
-                
+
                 $watermarkedPath = $usePreviewStyle
                     ? $this->applyWatermarkInPreviewStyle($tempPath, $watermark, $mediaWidth, $mediaHeight)
                     : $this->applyWatermarkToImage($tempPath, $watermark, $mediaWidth, $mediaHeight);
@@ -1818,10 +1817,11 @@ class MediaService
 
     /**
      * Apply watermark to image file
-     * @param string $imagePath Path to the image file
-     * @param \App\Domains\Memora\Models\MemoraWatermark $watermark Watermark to apply
-     * @param int|null $mediaWidth Optional: pre-calculated media width (if null, will be calculated from file)
-     * @param int|null $mediaHeight Optional: pre-calculated media height (if null, will be calculated from file)
+     *
+     * @param  string  $imagePath  Path to the image file
+     * @param  \App\Domains\Memora\Models\MemoraWatermark  $watermark  Watermark to apply
+     * @param  int|null  $mediaWidth  Optional: pre-calculated media width (if null, will be calculated from file)
+     * @param  int|null  $mediaHeight  Optional: pre-calculated media height (if null, will be calculated from file)
      */
     protected function applyWatermarkToImage(string $imagePath, \App\Domains\Memora\Models\MemoraWatermark $watermark, ?int $mediaWidth = null, ?int $mediaHeight = null): string
     {
@@ -2028,7 +2028,7 @@ class MediaService
             $borderRgb = $this->hexToRgb($watermark->border_color);
             $borderColorRes = imagecolorallocatealpha($textImage, $borderRgb['r'], $borderRgb['g'], $borderRgb['b'], $bgAlpha);
             $borderWidth = $watermark->border_width;
-            
+
             if ($borderRadius > 0) {
                 // Draw rounded border
                 for ($i = 0; $i < $borderWidth; $i++) {
@@ -2037,7 +2037,7 @@ class MediaService
                     $w = (int) $totalWidth - 1 - ($i * 2);
                     $h = (int) $totalHeight - 1 - ($i * 2);
                     $r = max(0, $borderRadius - $i);
-                    
+
                     // Simplified rounded rectangle border
                     if ($r > 0) {
                         // Top and bottom edges
@@ -2094,7 +2094,7 @@ class MediaService
             imagesavealpha($gdTextCanvas, true);
             $transparentGd = imagecolorallocatealpha($gdTextCanvas, 0, 0, 0, 127);
             imagefill($gdTextCanvas, 0, 0, $transparentGd);
-            
+
             imagealphablending($gdTextCanvas, true);
             $textColorBase = imagecolorallocate($gdTextCanvas, $fontRgb['r'], $fontRgb['g'], $fontRgb['b']);
             // Center text in canvas with very generous padding
@@ -2106,7 +2106,7 @@ class MediaService
             $gdFontSize = 5; // Largest built-in font (13px)
             $gdBaseSize = 13;
             $scaleFactor = $fontSize / $gdBaseSize;
-            
+
             $gdTextWidth = (int) (strlen($text) * 6 * $scaleFactor * $renderScale);
             $gdTextHeight = (int) ($gdBaseSize * $scaleFactor * $renderScale);
             $gdTextCanvas = imagecreatetruecolor($gdTextWidth, $gdTextHeight);
@@ -2508,10 +2508,11 @@ class MediaService
     /**
      * Apply watermark in preview style (full-width background, centered text)
      * Similar to preview variant but using watermark's text and settings
-     * @param string $imagePath Path to the image file
-     * @param \App\Domains\Memora\Models\MemoraWatermark $watermark Watermark to apply
-     * @param int|null $mediaWidth Optional: pre-calculated media width (if null, will be calculated from file)
-     * @param int|null $mediaHeight Optional: pre-calculated media height (if null, will be calculated from file)
+     *
+     * @param  string  $imagePath  Path to the image file
+     * @param  \App\Domains\Memora\Models\MemoraWatermark  $watermark  Watermark to apply
+     * @param  int|null  $mediaWidth  Optional: pre-calculated media width (if null, will be calculated from file)
+     * @param  int|null  $mediaHeight  Optional: pre-calculated media height (if null, will be calculated from file)
      */
     protected function applyWatermarkInPreviewStyle(string $imagePath, \App\Domains\Memora\Models\MemoraWatermark $watermark, ?int $mediaWidth = null, ?int $mediaHeight = null): string
     {
@@ -2519,7 +2520,7 @@ class MediaService
         $watermarkType = $watermark->type instanceof \App\Domains\Memora\Enums\WatermarkTypeEnum
             ? $watermark->type
             : \App\Domains\Memora\Enums\WatermarkTypeEnum::from($watermark->type ?? 'text');
-            
+
         if ($watermarkType !== \App\Domains\Memora\Enums\WatermarkTypeEnum::TEXT) {
             throw new \RuntimeException('Preview style watermark only supports text watermarks');
         }
@@ -2575,7 +2576,7 @@ class MediaService
         }
 
         $minDimension = min($imageWidth, $imageHeight);
-        
+
         // Find font - use watermark's font_family if specified
         $fontFamily = $watermark->font_family;
         if ($fontFamily) {
@@ -2591,15 +2592,15 @@ class MediaService
         } elseif ($fontFamily) {
             \Log::warning('Font not found (standard)', ['font_family' => $fontFamily]);
         }
-        
+
         // Calculate font sizes - use watermark scale or default
         $scalePercent = ($watermark->scale ?? 50) / 100;
         $baseFontSize = max((int) ($minDimension * 0.06 * $scalePercent), 30);
-        
+
         // Calculate actual text widths and scale if needed
         $maxAvailableWidth = $imageWidth * 0.9;
         $maxTextWidth = 0;
-        
+
         if ($fontPath && function_exists('imagettfbbox')) {
             foreach ($lines as $line) {
                 $bbox = imagettfbbox($baseFontSize, 0, $fontPath, $line);
@@ -2612,21 +2613,21 @@ class MediaService
                 $maxTextWidth = max($maxTextWidth, $textWidth);
             }
         }
-        
+
         // Scale down if needed
         if ($maxTextWidth > $maxAvailableWidth) {
             $scaleFactor = $maxAvailableWidth / $maxTextWidth;
             $baseFontSize = (int) ($baseFontSize * $scaleFactor);
             $maxTextWidth = $maxAvailableWidth;
         }
-        
+
         // Calculate total height - use watermark's line_height if available
         $lineHeight = $watermark->line_height ?? 1.2;
         $lineSpacing = (int) ($baseFontSize * ($lineHeight - 1));
         $totalHeight = (count($lines) * $baseFontSize) + ((count($lines) - 1) * $lineSpacing);
         // Use watermark's padding if available, otherwise calculate from font size
         $padding = $watermark->padding ?? (int) ($baseFontSize * 0.4);
-        
+
         $textWidth = (int) ($maxTextWidth + ($padding * 2));
         $textHeight = (int) ($totalHeight + ($padding * 2));
 
@@ -2642,12 +2643,12 @@ class MediaService
         $opacity = ($watermark->opacity ?? 80) / 100;
         $bgAlpha = (int) ((1 - $opacity) * 127);
         $borderRadius = $watermark->border_radius ?? 0;
-        
+
         $bgColor = $watermark->background_color ?? null;
         if ($bgColor) {
             $bgRgb = $this->hexToRgb($bgColor);
             $bgColorRes = imagecolorallocatealpha($watermarkCanvas, $bgRgb['r'], $bgRgb['g'], $bgRgb['b'], $bgAlpha);
-            
+
             if ($borderRadius > 0) {
                 // Draw rounded rectangle (simplified)
                 imagefilledrectangle($watermarkCanvas, $borderRadius, 0, $textWidth - $borderRadius - 1, $textHeight - 1, $bgColorRes);
@@ -2662,7 +2663,7 @@ class MediaService
             $borderRgb = $this->hexToRgb($watermark->border_color);
             $borderColorRes = imagecolorallocatealpha($watermarkCanvas, $borderRgb['r'], $borderRgb['g'], $borderRgb['b'], $bgAlpha);
             $borderWidth = $watermark->border_width;
-            
+
             if ($borderRadius > 0) {
                 // Draw rounded border
                 for ($i = 0; $i < $borderWidth; $i++) {
@@ -2671,7 +2672,7 @@ class MediaService
                     $w = $textWidth - 1 - ($i * 2);
                     $h = $textHeight - 1 - ($i * 2);
                     $r = max(0, $borderRadius - $i);
-                    
+
                     // Simplified rounded rectangle border
                     if ($r > 0) {
                         // Top and bottom edges
@@ -2706,24 +2707,24 @@ class MediaService
             if ($fontPath && function_exists('imagettftext')) {
                 $renderScale = 3;
                 $renderSize = $baseFontSize * $renderScale;
-                
+
                 $bbox = imagettfbbox($renderSize, 0, $fontPath, $line);
                 $textWidthActual = abs($bbox[4] - $bbox[0]);
                 $textHeightActual = abs($bbox[7] - $bbox[1]);
-                
+
                 $lineRenderCanvas = imagecreatetruecolor($textWidthActual + 20, $textHeightActual + 20);
                 imagealphablending($lineRenderCanvas, false);
                 imagesavealpha($lineRenderCanvas, true);
                 $transparentLine = imagecolorallocatealpha($lineRenderCanvas, 0, 0, 0, 127);
                 imagefill($lineRenderCanvas, 0, 0, $transparentLine);
-                
+
                 imagealphablending($lineRenderCanvas, true);
                 $textColor = imagecolorallocate($lineRenderCanvas, $fontRgb['r'], $fontRgb['g'], $fontRgb['b']);
                 $x = 10;
                 $y = 10 + $textHeightActual;
-                
+
                 imagettftext($lineRenderCanvas, $renderSize, 0, $x, $y, $textColor, $fontPath, $line);
-                
+
                 $finalWidth = (int) ($textWidthActual / $renderScale);
                 $finalHeight = (int) ($textHeightActual / $renderScale);
                 $lineCanvas = imagecreatetruecolor($finalWidth, $finalHeight);
@@ -2731,7 +2732,7 @@ class MediaService
                 imagesavealpha($lineCanvas, true);
                 $transparentFinal = imagecolorallocatealpha($lineCanvas, 0, 0, 0, 127);
                 imagefill($lineCanvas, 0, 0, $transparentFinal);
-                
+
                 imagealphablending($lineCanvas, true);
                 imagecopyresampled(
                     $lineCanvas, $lineRenderCanvas,
@@ -2740,11 +2741,11 @@ class MediaService
                     $textWidthActual, $textHeightActual
                 );
                 imagedestroy($lineRenderCanvas);
-                
+
                 $xOffset = (int) (($textWidth - $finalWidth) / 2);
                 imagecopy($watermarkCanvas, $lineCanvas, $xOffset, $yOffset, 0, 0, $finalWidth, $finalHeight);
                 imagedestroy($lineCanvas);
-                
+
                 $yOffset += $finalHeight + $lineSpacing;
             } else {
                 // Fallback to GD font
@@ -2759,7 +2760,7 @@ class MediaService
                 $renderWidth = $lineWidth * $renderScale;
                 $renderHeight = $baseFontSize * $renderScale;
                 $renderCanvas = imagecreatetruecolor($renderWidth, $renderHeight);
-                
+
                 $gdFontSize = 5;
                 $gdBaseSize = 13;
                 $baseWidth = strlen($line) * 6;
@@ -2787,7 +2788,7 @@ class MediaService
         $position = $watermark->position instanceof \App\Domains\Memora\Enums\WatermarkPositionEnum
             ? $watermark->position->value
             : ($watermark->position ?? 'center');
-        
+
         // Calculate top-left coordinates from center position
         $pos = $this->getWatermarkPosition($position, $imageWidth, $imageHeight, $textWidth, $textHeight);
         // getWatermarkPosition returns center coordinates, convert to top-left
@@ -2824,17 +2825,17 @@ class MediaService
             $fontFamily = trim($fontFamilyParts[0]);
             // Remove surrounding quotes if present (handle both single and double quotes)
             $fontFamily = trim($fontFamily, " \t\n\r\0\x0B'\"");
-            
+
             // Normalize font family name - handle various formats
             $fontName = str_replace([' ', '-', '_'], '', $fontFamily);
             $fontNameLower = strtolower($fontName);
-            
+
             \Log::debug('Font extraction', [
                 'original' => $originalFontFamily,
                 'extracted' => $fontFamily,
                 'normalized' => $fontNameLower,
             ]);
-            
+
             $bundledFonts = [
                 // Display & Bold
                 'bebasneue' => 'BebasNeue-Regular.ttf',
@@ -2905,7 +2906,7 @@ class MediaService
                 'indieflower' => 'IndieFlower-Regular.ttf',
                 'indie' => 'IndieFlower-Regular.ttf',
             ];
-            
+
             if (isset($bundledFonts[$fontNameLower])) {
                 $fontPath = resource_path('fonts/'.$bundledFonts[$fontNameLower]);
                 if (file_exists($fontPath) && is_readable($fontPath)) {
@@ -2914,6 +2915,7 @@ class MediaService
                         'file' => $bundledFonts[$fontNameLower],
                         'path' => $fontPath,
                     ]);
+
                     return $fontPath;
                 } else {
                     \Log::warning('Font file not found', [
@@ -2929,7 +2931,7 @@ class MediaService
                     'available_keys' => array_keys($bundledFonts),
                 ]);
             }
-            
+
             // Try multiple direct filename formats
             $directFormats = [
                 str_replace(' ', '', ucwords(strtolower($fontFamily))).'-Regular.ttf',
@@ -2938,21 +2940,21 @@ class MediaService
                 str_replace(' ', '', $fontFamily).'-Regular.ttf',
                 $fontFamily.'-Regular.ttf',
             ];
-            
+
             foreach ($directFormats as $directName) {
                 $directPath = resource_path('fonts/'.$directName);
                 if (file_exists($directPath) && is_readable($directPath)) {
                     return $directPath;
                 }
             }
-            
+
             // Try common system font paths for the specified font
             $fontVariants = [
                 $fontFamily,
                 str_replace(' ', '', $fontFamily),
                 str_replace(' ', '-', $fontFamily),
             ];
-            
+
             $systemPaths = [
                 '/System/Library/Fonts/Supplemental/',
                 '/Library/Fonts/',
@@ -2961,7 +2963,7 @@ class MediaService
                 '/usr/share/fonts/truetype/liberation/',
                 'C:/Windows/Fonts/',
             ];
-            
+
             foreach ($fontVariants as $variant) {
                 foreach ($systemPaths as $basePath) {
                     $paths = [
@@ -2971,7 +2973,7 @@ class MediaService
                         $basePath.ucfirst($variant).'.ttf',
                         $basePath.ucfirst($variant).'-Regular.ttf',
                     ];
-                    
+
                     foreach ($paths as $path) {
                         if (file_exists($path) && is_readable($path)) {
                             return $path;
@@ -3033,9 +3035,9 @@ class MediaService
                 $watermarkType = $watermark->type instanceof \App\Domains\Memora\Enums\WatermarkTypeEnum
                     ? $watermark->type
                     : \App\Domains\Memora\Enums\WatermarkTypeEnum::from($watermark->type ?? 'text');
-                
+
                 $usePreviewStyle = $previewStyle && $watermarkType === \App\Domains\Memora\Enums\WatermarkTypeEnum::TEXT;
-                
+
                 $watermarkedThumbnailPath = $usePreviewStyle
                     ? $this->applyWatermarkInPreviewStyle($thumbnailPath, $watermark)
                     : $this->applyWatermarkToImage($thumbnailPath, $watermark);
@@ -3132,7 +3134,7 @@ class MediaService
                     ]);
                 }
             }
-            
+
             // Refresh media to return updated model
             $media->refresh();
 
@@ -3229,7 +3231,7 @@ class MediaService
             $position = $watermark->position instanceof \App\Domains\Memora\Enums\WatermarkPositionEnum
                 ? $watermark->position->value
                 : ($watermark->position ?? 'center');
-            
+
             $padding = 20;
             $x = (int) (($videoWidth - $scaledWidth) / 2);
             $y = (int) (($videoHeight - $scaledHeight) / 2);

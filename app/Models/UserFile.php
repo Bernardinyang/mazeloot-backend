@@ -78,7 +78,7 @@ class UserFile extends Model
                     'metadata' => $model->metadata,
                     'size' => $model->size,
                 ]);
-                
+
                 if ($totalSize > 0) {
                     $storageService->decrementStorage($model->user_uuid, $totalSize);
                 }

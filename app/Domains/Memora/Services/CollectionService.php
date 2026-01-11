@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 class CollectionService
 {
     protected PaginationService $paginationService;
+
     protected NotificationService $notificationService;
 
     public function __construct(
@@ -90,19 +91,19 @@ class CollectionService
             $parts = explode('-', $sortBy);
             $field = $parts[0] ?? 'created';
             $direction = strtoupper($parts[1] ?? 'desc');
-            
+
             // Validate direction - only use first two parts, ignore any additional parts
-            if (!in_array($direction, ['ASC', 'DESC'])) {
+            if (! in_array($direction, ['ASC', 'DESC'])) {
                 $direction = 'DESC';
             }
-            
+
             // Map frontend field names to database columns
             $fieldMap = [
                 'created' => 'created_at',
                 'name' => 'name',
                 'status' => 'status',
             ];
-            
+
             $dbField = $fieldMap[$field] ?? 'created_at';
             $query->orderBy($dbField, $direction);
         } else {
@@ -1004,7 +1005,7 @@ class CollectionService
             // Duplicate media items (only non-deleted media)
             if ($originalSet->relationLoaded('media') && $originalSet->media) {
                 foreach ($originalSet->media as $originalMedia) {
-                    if (!$originalMedia->deleted_at) {
+                    if (! $originalMedia->deleted_at) {
                         MemoraMedia::create([
                             'user_uuid' => $user->uuid,
                             'media_set_uuid' => $newSetUuid,

@@ -87,7 +87,7 @@ class ImageUploadController extends Controller
             ?? '';
 
         $totalSizeWithVariants = $uploadResult['meta']['total_size_with_variants'] ?? $uploadResult['meta']['size'];
-        
+
         $userFile = UserFile::query()->create([
             'user_uuid' => $userUuid,
             'url' => $primaryUrl,

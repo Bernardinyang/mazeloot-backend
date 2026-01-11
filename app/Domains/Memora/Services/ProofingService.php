@@ -888,7 +888,7 @@ class ProofingService
     /**
      * Delete a proofing phase and all its sets and media
      */
-public function delete(?string $projectId, string $id): bool
+    public function delete(?string $projectId, string $id): bool
     {
         $user = Auth::user();
         if (! $user) {

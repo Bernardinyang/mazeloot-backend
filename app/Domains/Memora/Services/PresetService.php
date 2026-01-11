@@ -18,6 +18,7 @@ class PresetService
     {
         $this->notificationService = $notificationService;
     }
+
     /**
      * Get all presets for the authenticated user
      */

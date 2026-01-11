@@ -394,9 +394,9 @@ class CollectionActivityController extends Controller
             $emailHeader = $request->header('X-Collection-Email')
                 ?? $request->header('x-collection-email')
                 ?? $request->header('X-COLLECTION-EMAIL');
-            
+
             $email = $emailHeader && trim($emailHeader) !== '' ? strtolower(trim($emailHeader)) : null;
-            
+
             // Also try to get email from request body
             if (! $email) {
                 $emailFromBody = $request->input('email');
@@ -413,14 +413,14 @@ class CollectionActivityController extends Controller
                 // But if email is provided and user is not the owner, filter by email
                 $userUuid = auth()->user()->uuid;
                 $collectionOwnerUuid = $collection->user_uuid ?? $collection->userId;
-                
+
                 if ($userUuid !== $collectionOwnerUuid) {
                     // Authenticated user but not owner - filter by their email
                     $userEmail = auth()->user()->email;
                     if ($userEmail) {
-                        $query->where(function($q) use ($userEmail, $userUuid) {
+                        $query->where(function ($q) use ($userEmail, $userUuid) {
                             $q->where('email', strtolower(trim($userEmail)))
-                              ->orWhere('user_uuid', $userUuid);
+                                ->orWhere('user_uuid', $userUuid);
                         });
                     } else {
                         $query->where('user_uuid', $userUuid);
@@ -495,9 +495,9 @@ class CollectionActivityController extends Controller
             $emailHeader = $request->header('X-Collection-Email')
                 ?? $request->header('x-collection-email')
                 ?? $request->header('X-COLLECTION-EMAIL');
-            
+
             $email = $emailHeader && trim($emailHeader) !== '' ? strtolower(trim($emailHeader)) : null;
-            
+
             // Also try to get email from request body
             if (! $email) {
                 $emailFromBody = $request->input('email');
@@ -514,14 +514,14 @@ class CollectionActivityController extends Controller
                 // But if email is provided and user is not the owner, filter by email
                 $userUuid = auth()->user()->uuid;
                 $collectionOwnerUuid = $collection->user_uuid ?? $collection->userId;
-                
+
                 if ($userUuid !== $collectionOwnerUuid) {
                     // Authenticated user but not owner - filter by their email
                     $userEmail = auth()->user()->email;
                     if ($userEmail) {
-                        $query->where(function($q) use ($userEmail, $userUuid) {
+                        $query->where(function ($q) use ($userEmail, $userUuid) {
                             $q->where('email', strtolower(trim($userEmail)))
-                              ->orWhere('user_uuid', $userUuid);
+                                ->orWhere('user_uuid', $userUuid);
                         });
                     } else {
                         $query->where('user_uuid', $userUuid);

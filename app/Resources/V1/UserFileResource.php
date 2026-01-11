@@ -26,7 +26,7 @@ class UserFileResource extends JsonResource
                 $isPublicSelection = true;
             }
         }
-        
+
         // Check if media has a watermark - if so, ignore preview variant
         $hasMediaWatermark = ! empty($request->attributes->get('media_watermark_uuid'));
 
@@ -38,7 +38,7 @@ class UserFileResource extends JsonResource
             if ($isPublicSelection && ! $hasMediaWatermark) {
                 $allowedVariants[] = 'preview';
             }
-            
+
             $previewVariants = array_filter($variants, function ($key) use ($allowedVariants) {
                 return in_array($key, $allowedVariants);
             }, ARRAY_FILTER_USE_KEY);
@@ -47,10 +47,10 @@ class UserFileResource extends JsonResource
                 $previewVariants = null;
             }
         }
-        
+
         // Determine display URL
         $displayUrl = $this->url;
-        
+
         if ($fileType === 'image') {
             // For public selection, use preview variant if available and no watermark exists
             if ($isPublicSelection && ! $hasMediaWatermark && $variants && isset($variants['preview'])) {

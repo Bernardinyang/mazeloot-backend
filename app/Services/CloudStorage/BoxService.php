@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 class BoxService implements CloudStorageServiceInterface
 {
     private string $clientId;
+
     private string $clientSecret;
 
     public function __construct()
@@ -25,7 +26,7 @@ class BoxService implements CloudStorageServiceInterface
             'state' => $state,
         ];
 
-        return 'https://account.box.com/api/oauth2/authorize?' . http_build_query($params);
+        return 'https://account.box.com/api/oauth2/authorize?'.http_build_query($params);
     }
 
     public function exchangeCodeForToken(string $code, string $redirectUri): array
@@ -37,7 +38,7 @@ class BoxService implements CloudStorageServiceInterface
                 'redirect_uri' => $redirectUri,
             ]);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             Log::error('Box token exchange failed', [
                 'response' => $response->body(),
             ]);
@@ -55,7 +56,7 @@ class BoxService implements CloudStorageServiceInterface
                 'refresh_token' => $refreshToken,
             ]);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             throw new \Exception('Failed to refresh token');
         }
 
@@ -108,7 +109,7 @@ class BoxService implements CloudStorageServiceInterface
             ->attach('file', $fileContents, $fileName)
             ->post('https://upload.box.com/api/2.0/files/content');
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             Log::error('Box upload failed', [
                 'response' => $response->body(),
             ]);
@@ -183,7 +184,7 @@ class BoxService implements CloudStorageServiceInterface
 
         foreach ($files as $file) {
             $folder = $file['folder'] ?? 'Uncategorized';
-            
+
             // Create set folder if needed
             static $lastFolder = null;
             if ($lastFolder !== $folder) {
@@ -212,7 +213,7 @@ class BoxService implements CloudStorageServiceInterface
 
                 if ($response->successful()) {
                     $fileData = $response->json()['entries'][0] ?? null;
-                    if ($fileData && !$firstFileUrl) {
+                    if ($fileData && ! $firstFileUrl) {
                         $shareResponse = Http::withToken($accessToken)
                             ->put("https://api.box.com/2.0/files/{$fileData['id']}", [
                                 'shared_link' => ['access' => 'open'],

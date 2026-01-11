@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 class DropboxService implements CloudStorageServiceInterface
 {
     private string $clientId;
+
     private string $clientSecret;
 
     public function __construct()
@@ -26,7 +27,7 @@ class DropboxService implements CloudStorageServiceInterface
             'state' => $state,
         ];
 
-        return 'https://www.dropbox.com/oauth2/authorize?' . http_build_query($params);
+        return 'https://www.dropbox.com/oauth2/authorize?'.http_build_query($params);
     }
 
     public function exchangeCodeForToken(string $code, string $redirectUri): array
@@ -38,7 +39,7 @@ class DropboxService implements CloudStorageServiceInterface
                 'redirect_uri' => $redirectUri,
             ]);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             Log::error('Dropbox token exchange failed', [
                 'response' => $response->body(),
             ]);
@@ -56,7 +57,7 @@ class DropboxService implements CloudStorageServiceInterface
                 'grant_type' => 'refresh_token',
             ]);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             throw new \Exception('Failed to refresh token');
         }
 
@@ -66,7 +67,7 @@ class DropboxService implements CloudStorageServiceInterface
     public function uploadFile(string $filePath, string $fileName, string $accessToken, ?string $folderName = null): string
     {
         $fileContents = file_get_contents($filePath);
-        $path = '/Mazeloot/' . $fileName;
+        $path = '/Mazeloot/'.$fileName;
 
         // Upload file
         $response = Http::withToken($accessToken)
@@ -81,7 +82,7 @@ class DropboxService implements CloudStorageServiceInterface
             ->withBody($fileContents)
             ->post('https://content.dropboxapi.com/2/files/upload');
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             Log::error('Dropbox upload failed', [
                 'response' => $response->body(),
             ]);
@@ -97,14 +98,14 @@ class DropboxService implements CloudStorageServiceInterface
                 ],
             ]);
 
-        if (!$createLinkResponse->successful()) {
+        if (! $createLinkResponse->successful()) {
             // Try to get existing link
             $listResponse = Http::withToken($accessToken)
                 ->post('https://api.dropboxapi.com/2/sharing/list_shared_links', [
                     'path' => $path,
                 ]);
 
-            if ($listResponse->successful() && !empty($listResponse->json()['links'])) {
+            if ($listResponse->successful() && ! empty($listResponse->json()['links'])) {
                 return $listResponse->json()['links'][0]['url'];
             }
 
@@ -121,12 +122,12 @@ class DropboxService implements CloudStorageServiceInterface
 
     public function uploadFiles(array $files, string $accessToken, string $albumName = 'Collection'): string
     {
-        $basePath = '/Mazeloot/' . $albumName;
+        $basePath = '/Mazeloot/'.$albumName;
         $firstFileUrl = null;
 
         foreach ($files as $file) {
             $folder = $file['folder'] ?? 'Uncategorized';
-            $path = $basePath . '/' . $folder . '/' . $file['name'];
+            $path = $basePath.'/'.$folder.'/'.$file['name'];
 
             try {
                 $fileContent = $file['content'] ?? file_get_contents($file['path']);
@@ -145,7 +146,7 @@ class DropboxService implements CloudStorageServiceInterface
 
                 if ($response->successful()) {
                     // Create shared link for first file
-                    if (!$firstFileUrl) {
+                    if (! $firstFileUrl) {
                         $linkResponse = Http::withToken($accessToken)
                             ->post('https://api.dropboxapi.com/2/sharing/create_shared_link_with_settings', [
                                 'path' => $basePath,

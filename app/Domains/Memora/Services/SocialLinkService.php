@@ -16,6 +16,7 @@ class SocialLinkService
     {
         $this->notificationService = $notificationService;
     }
+
     /**
      * Get all social links for the authenticated user
      */

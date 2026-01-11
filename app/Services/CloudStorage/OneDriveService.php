@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 class OneDriveService implements CloudStorageServiceInterface
 {
     private string $clientId;
+
     private string $clientSecret;
 
     public function __construct()
@@ -32,7 +33,7 @@ class OneDriveService implements CloudStorageServiceInterface
             'state' => $state,
         ];
 
-        return 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize?' . http_build_query($params);
+        return 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize?'.http_build_query($params);
     }
 
     public function exchangeCodeForToken(string $code, string $redirectUri): array
@@ -45,7 +46,7 @@ class OneDriveService implements CloudStorageServiceInterface
             'redirect_uri' => $redirectUri,
         ]);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             Log::error('OneDrive token exchange failed', [
                 'response' => $response->body(),
             ]);
@@ -64,7 +65,7 @@ class OneDriveService implements CloudStorageServiceInterface
             'grant_type' => 'refresh_token',
         ]);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             throw new \Exception('Failed to refresh token');
         }
 
@@ -81,7 +82,7 @@ class OneDriveService implements CloudStorageServiceInterface
             $response = Http::withToken($accessToken)
                 ->put("https://graph.microsoft.com/v1.0/me/drive/root:/Mazeloot/{$fileName}:/content", $fileContents);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 Log::error('OneDrive upload failed', [
                     'response' => $response->body(),
                 ]);
@@ -99,7 +100,7 @@ class OneDriveService implements CloudStorageServiceInterface
                     ],
                 ]);
 
-            if (!$sessionResponse->successful()) {
+            if (! $sessionResponse->successful()) {
                 throw new \Exception('Failed to create upload session');
             }
 
@@ -118,7 +119,7 @@ class OneDriveService implements CloudStorageServiceInterface
                     'Content-Range' => "bytes {$offset}-{$rangeEnd}/{$fileSize}",
                 ])->put($uploadUrl, $chunk);
 
-                if (!$chunkResponse->successful()) {
+                if (! $chunkResponse->successful()) {
                     throw new \Exception('Failed to upload chunk');
                 }
 
@@ -160,12 +161,12 @@ class OneDriveService implements CloudStorageServiceInterface
 
     public function uploadFiles(array $files, string $accessToken, string $albumName = 'Collection'): string
     {
-        $basePath = 'Mazeloot/' . $albumName;
+        $basePath = 'Mazeloot/'.$albumName;
         $firstFileUrl = null;
 
         foreach ($files as $file) {
             $folder = $file['folder'] ?? 'Uncategorized';
-            $filePath = $basePath . '/' . $folder . '/' . $file['name'];
+            $filePath = $basePath.'/'.$folder.'/'.$file['name'];
 
             try {
                 $fileContent = $file['content'] ?? file_get_contents($file['path']);
@@ -177,7 +178,7 @@ class OneDriveService implements CloudStorageServiceInterface
 
                     if ($response->successful()) {
                         $fileData = $response->json();
-                        if (!$firstFileUrl) {
+                        if (! $firstFileUrl) {
                             $shareResponse = Http::withToken($accessToken)
                                 ->post("https://graph.microsoft.com/v1.0/me/drive/items/{$fileData['id']}/createLink", [
                                     'type' => 'view',

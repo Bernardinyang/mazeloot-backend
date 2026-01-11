@@ -21,7 +21,6 @@ class NotificationService
      * @param  string|null  $description  Optional description
      * @param  string|null  $actionUrl  Optional action URL
      * @param  array|null  $metadata  Optional metadata
-     * @return Notification
      */
     public function create(
         string $userUuid,
@@ -56,7 +55,6 @@ class NotificationService
      * @param  string|null  $product  Filter by product
      * @param  bool|null  $unread  Filter by read status (true = unread only, false = read only, null = all)
      * @param  int|null  $limit  Limit results
-     * @return Collection
      */
     public function getForUser(?string $product = null, ?bool $unread = null, ?int $limit = null): Collection
     {
@@ -87,8 +85,6 @@ class NotificationService
 
     /**
      * Get unread count by product for the authenticated user.
-     *
-     * @return array
      */
     public function getUnreadCounts(): array
     {
@@ -116,7 +112,6 @@ class NotificationService
      * Mark a notification as read.
      *
      * @param  string  $notificationUuid  Notification UUID
-     * @return bool
      */
     public function markAsRead(string $notificationUuid): bool
     {
@@ -135,7 +130,7 @@ class NotificationService
      * Mark all notifications as read for the authenticated user.
      *
      * @param  string|null  $product  Filter by product
-     * @return int  Number of notifications marked as read
+     * @return int Number of notifications marked as read
      */
     public function markAllAsRead(?string $product = null): int
     {
@@ -157,7 +152,6 @@ class NotificationService
      * Delete a notification.
      *
      * @param  string  $notificationUuid  Notification UUID
-     * @return bool
      */
     public function delete(string $notificationUuid): bool
     {

@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 class AdobeService implements CloudStorageServiceInterface
 {
     private string $clientId;
+
     private string $clientSecret;
 
     public function __construct()
@@ -33,7 +34,7 @@ class AdobeService implements CloudStorageServiceInterface
             'state' => $state,
         ];
 
-        return 'https://ims-na1.adobelogin.com/ims/authorize/v2?' . http_build_query($params);
+        return 'https://ims-na1.adobelogin.com/ims/authorize/v2?'.http_build_query($params);
     }
 
     public function exchangeCodeForToken(string $code, string $redirectUri): array
@@ -46,7 +47,7 @@ class AdobeService implements CloudStorageServiceInterface
             'redirect_uri' => $redirectUri,
         ]);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             Log::error('Adobe token exchange failed', [
                 'response' => $response->body(),
             ]);
@@ -65,7 +66,7 @@ class AdobeService implements CloudStorageServiceInterface
             'refresh_token' => $refreshToken,
         ]);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             throw new \Exception('Failed to refresh token');
         }
 
@@ -89,7 +90,7 @@ class AdobeService implements CloudStorageServiceInterface
             ])
             ->put("https://cc-api-storage.adobe.io/files/{$fileName}", $fileContents);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             Log::error('Adobe upload failed', [
                 'response' => $response->body(),
             ]);
@@ -123,7 +124,7 @@ class AdobeService implements CloudStorageServiceInterface
             try {
                 $fileContent = $file['content'] ?? file_get_contents($file['path']);
                 $folder = $file['folder'] ?? 'Uncategorized';
-                $filePath = $albumName . '/' . $folder . '/' . $file['name'];
+                $filePath = $albumName.'/'.$folder.'/'.$file['name'];
 
                 $response = Http::withToken($accessToken)
                     ->withHeaders([
@@ -132,7 +133,7 @@ class AdobeService implements CloudStorageServiceInterface
                     ])
                     ->put("https://cc-api-storage.adobe.io/files/{$filePath}", $fileContent);
 
-                if ($response->successful() && !$firstFileUrl) {
+                if ($response->successful() && ! $firstFileUrl) {
                     $fileResponse = Http::withToken($accessToken)
                         ->withHeaders(['x-api-key' => $this->clientId])
                         ->get("https://cc-api-storage.adobe.io/files/{$filePath}");

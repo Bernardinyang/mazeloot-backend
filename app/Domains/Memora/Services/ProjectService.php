@@ -377,7 +377,7 @@ class ProjectService
                     ]);
                 }
             }
-            
+
             // Update proofing phase if it exists (regardless of status)
             $project->load('proofing');
             $proofing = $project->proofing;
@@ -393,11 +393,11 @@ class ProjectService
                     ]);
                 }
             }
-            
+
             // Update all collections under this project (regardless of status)
             $collectionService = app(\App\Domains\Memora\Services\CollectionService::class);
             $allCollections = \App\Domains\Memora\Models\MemoraCollection::where('project_uuid', $project->uuid)->get();
-            
+
             foreach ($allCollections as $collection) {
                 try {
                     $collectionService->update($project->uuid, $collection->uuid, ['color' => $newColor]);

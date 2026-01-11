@@ -26,11 +26,11 @@ class ZipDownloadReadyNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $projectId = $this->collection->project_uuid ?? 'standalone';
-        $downloadUrl = config('app.frontend_url', config('app.url')) . "/p/{$projectId}/collection/download?token={$this->token}&collectionId={$this->collection->uuid}";
-        
+        $downloadUrl = config('app.frontend_url', config('app.url'))."/p/{$projectId}/collection/download?token={$this->token}&collectionId={$this->collection->uuid}";
+
         return MailMessage::withLogo()
             ->subject('Your Photos Are Ready to Download')
-            ->line('Your photos from **' . $this->collection->name . '** are ready to download!')
+            ->line('Your photos from **'.$this->collection->name.'** are ready to download!')
             ->line('Click the link below to download your ZIP file:')
             ->action('Download Photos', $downloadUrl)
             ->line('The download link will be available for 24 hours.')

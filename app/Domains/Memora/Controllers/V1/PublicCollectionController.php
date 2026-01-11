@@ -438,7 +438,7 @@ class PublicCollectionController extends Controller
             }
 
             $collection = MemoraCollection::where('uuid', $id)->firstOrFail();
-            
+
             $status = $collection->status?->value ?? $collection->status;
             if ($status !== 'active') {
                 return ApiResponse::error('Collection is not accessible', 'COLLECTION_NOT_ACCESSIBLE', 403);
@@ -446,8 +446,8 @@ class PublicCollectionController extends Controller
 
             $settings = $collection->settings ?? [];
             $downloadSettings = $settings['download'] ?? [];
-            
-            if (!($downloadSettings['photoDownload'] ?? true)) {
+
+            if (! ($downloadSettings['photoDownload'] ?? true)) {
                 return ApiResponse::error('Downloads are disabled for this collection', 'DOWNLOADS_DISABLED', 403);
             }
 
@@ -462,17 +462,17 @@ class PublicCollectionController extends Controller
             $userEmail = $request->header('X-Collection-Email');
             $downloaderEmail = $userEmail;
             $destination = $validated['destination'] ?? 'device';
-            
+
             // If cloud storage is selected, check if OAuth token exists and copy it to use download token
             if ($destination !== 'device') {
                 $collectionTokenKey = "cloud_token_{$destination}_{$id}";
                 $collectionTokenData = \Illuminate\Support\Facades\Cache::get($collectionTokenKey);
-                
+
                 if ($collectionTokenData && isset($collectionTokenData['access_token'])) {
                     // Copy token to use download token as key
                     $downloadTokenKey = "cloud_token_{$destination}_{$token}";
                     \Illuminate\Support\Facades\Cache::put($downloadTokenKey, $collectionTokenData, now()->addHours(24));
-                    
+
                     \Illuminate\Support\Facades\Log::info('OAuth token copied from collection_id to download token', [
                         'destination' => $destination,
                         'collection_id' => $id,
@@ -480,7 +480,7 @@ class PublicCollectionController extends Controller
                     ]);
                 }
             }
-            
+
             // Store ZIP task in session/cache (in production, use database/redis)
             $zipTask = [
                 'token' => $token,
@@ -492,20 +492,20 @@ class PublicCollectionController extends Controller
                 'status' => 'processing',
                 'created_at' => now(),
             ];
-            
+
             \Illuminate\Support\Facades\Cache::put("zip_download_{$token}", $zipTask, now()->addHours(24));
-            
+
             // Dispatch job to generate ZIP
             \App\Domains\Memora\Jobs\GenerateZipDownloadJob::dispatch(
-                $token, 
-                $id, 
-                $validated['setIds'], 
-                $validated['size'] ?? '3600px', 
+                $token,
+                $id,
+                $validated['setIds'],
+                $validated['size'] ?? '3600px',
                 $userEmail,
                 $destination,
                 $downloaderEmail
             );
-            
+
             return ApiResponse::success([
                 'token' => $token,
                 'status' => 'processing',
@@ -515,6 +515,7 @@ class PublicCollectionController extends Controller
                 'collection_id' => $id,
                 'error' => $e->getMessage(),
             ]);
+
             return ApiResponse::error('Failed to initiate download', 'INITIATE_FAILED', 500);
         }
     }
@@ -532,8 +533,8 @@ class PublicCollectionController extends Controller
             }
 
             $zipTask = \Illuminate\Support\Facades\Cache::get("zip_download_{$token}");
-            
-            if (!$zipTask) {
+
+            if (! $zipTask) {
                 return ApiResponse::error('Download not found', 'NOT_FOUND', 404);
             }
 
@@ -576,20 +577,22 @@ class PublicCollectionController extends Controller
             }
 
             $zipTask = \Illuminate\Support\Facades\Cache::get("zip_download_{$token}");
-            
-            if (!$zipTask) {
+
+            if (! $zipTask) {
                 \Illuminate\Support\Facades\Log::warning('ZIP download task not found', [
                     'token' => $token,
                     'collection_id' => $id,
                 ]);
+
                 return ApiResponse::error('Download not found', 'NOT_FOUND', 404);
             }
-            
+
             if ($zipTask['status'] !== 'completed') {
                 \Illuminate\Support\Facades\Log::info('ZIP download not ready', [
                     'token' => $token,
                     'status' => $zipTask['status'] ?? 'unknown',
                 ]);
+
                 return ApiResponse::error('Download not ready', 'NOT_READY', 404);
             }
 
@@ -599,6 +602,7 @@ class PublicCollectionController extends Controller
                     'expected_id' => $id,
                     'cache_id' => $zipTask['collection_id'] ?? null,
                 ]);
+
                 return ApiResponse::error('Invalid token', 'INVALID_TOKEN', 403);
             }
 
@@ -611,7 +615,7 @@ class PublicCollectionController extends Controller
 
             // file_path is stored as "downloads/filename.zip" in the job
             $filePath = storage_path("app/{$zipTask['file_path']}");
-            
+
             \Illuminate\Support\Facades\Log::info('Attempting ZIP download', [
                 'token' => $token,
                 'file_path' => $filePath,
@@ -619,8 +623,8 @@ class PublicCollectionController extends Controller
                 'filename' => $zipTask['filename'] ?? null,
                 'file_exists' => file_exists($filePath),
             ]);
-            
-            if (!file_exists($filePath)) {
+
+            if (! file_exists($filePath)) {
                 \Illuminate\Support\Facades\Log::error('ZIP file not found', [
                     'expected_path' => $filePath,
                     'file_path_from_cache' => $zipTask['file_path'] ?? null,
@@ -629,11 +633,12 @@ class PublicCollectionController extends Controller
                     'downloads_dir' => storage_path('app/downloads'),
                     'downloads_dir_exists' => is_dir(storage_path('app/downloads')),
                 ]);
+
                 return ApiResponse::error('File not found', 'FILE_NOT_FOUND', 404);
             }
 
             $filename = $zipTask['filename'] ?? 'download.zip';
-            
+
             // Send notification to collection owner that collection has been downloaded
             // Only send if not the owner downloading their own collection
             try {
@@ -644,28 +649,28 @@ class PublicCollectionController extends Controller
                         $userUuid = auth()->user()->uuid;
                         $isOwner = $collection->user_uuid === $userUuid;
                     }
-                    
+
                     // Don't notify if owner is downloading their own collection
-                    if (!$isOwner) {
+                    if (! $isOwner) {
                         $owner = \App\Models\User::where('uuid', $collection->user_uuid)->first();
                         if ($owner) {
                             $downloaderEmail = $zipTask['downloader_email'] ?? null;
                             $mediaCount = $zipTask['media_count'] ?? 0;
                             $size = $zipTask['resolution'] ?? '3600px';
-                            
+
                             $owner->notify(new \App\Notifications\CollectionDownloadedNotification(
                                 $collection,
                                 $downloaderEmail ?? '',
                                 $mediaCount,
                                 $size
                             ));
-                            
+
                             // Create in-app notification
                             $notificationService = app(\App\Services\Notification\NotificationService::class);
                             $projectId = $collection->project_uuid ?? 'standalone';
-                            $collectionUrl = config('app.frontend_url', config('app.url')) . "/p/{$projectId}/collection?collectionId={$collection->uuid}";
-                            
-                            $downloaderInfo = $downloaderEmail ? "by **{$downloaderEmail}**" : "by a visitor";
+                            $collectionUrl = config('app.frontend_url', config('app.url'))."/p/{$projectId}/collection?collectionId={$collection->uuid}";
+
+                            $downloaderInfo = $downloaderEmail ? "by **{$downloaderEmail}**" : 'by a visitor';
                             $notificationService->create(
                                 $collection->user_uuid,
                                 'memora',
@@ -691,7 +696,7 @@ class PublicCollectionController extends Controller
                     'error' => $e->getMessage(),
                 ]);
             }
-            
+
             return response()->download($filePath, $filename, [
                 'Content-Type' => 'application/zip',
             ]);
@@ -704,7 +709,8 @@ class PublicCollectionController extends Controller
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
             ]);
-            return ApiResponse::error('Download failed: ' . $e->getMessage(), 'DOWNLOAD_FAILED', 500);
+
+            return ApiResponse::error('Download failed: '.$e->getMessage(), 'DOWNLOAD_FAILED', 500);
         }
     }
 
@@ -716,7 +722,7 @@ class PublicCollectionController extends Controller
     {
         try {
             $collection = MemoraCollection::where('uuid', $id)->firstOrFail();
-            
+
             $isOwner = false;
             if (auth()->check()) {
                 $userUuid = auth()->user()->uuid;
@@ -724,14 +730,14 @@ class PublicCollectionController extends Controller
             }
 
             $status = $collection->status?->value ?? $collection->status;
-            
+
             // Allow access if collection is active (published) or if owner viewing draft
             if ($status !== 'active' && ! ($status === 'draft' && $isOwner)) {
                 return ApiResponse::error('Collection is not accessible', 'COLLECTION_NOT_ACCESSIBLE', 403);
             }
 
             $settings = $collection->settings ?? [];
-            
+
             // Check password protection
             $hasPasswordProtection = ! empty($settings['privacy']['collectionPasswordEnabled'] ?? $settings['privacy']['password'] ?? $settings['password'] ?? false);
             $password = $settings['privacy']['password'] ?? $settings['password'] ?? null;
@@ -740,7 +746,7 @@ class PublicCollectionController extends Controller
             $isClientVerified = false;
             $token = $request->bearerToken() ?? $request->header('X-Guest-Token') ?? $request->query('guest_token');
             $guestToken = null;
-            
+
             if ($token) {
                 $guestToken = GuestCollectionToken::where('token', $token)
                     ->where('collection_uuid', $id)
@@ -764,7 +770,7 @@ class PublicCollectionController extends Controller
 
             // Check download settings
             $downloadSettings = $settings['download'] ?? [];
-            
+
             // Check if downloads are enabled
             if (! ($downloadSettings['photoDownload'] ?? true)) {
                 return ApiResponse::error('Downloads are disabled for this collection', 'DOWNLOADS_DISABLED', 403);
@@ -783,7 +789,7 @@ class PublicCollectionController extends Controller
             // Check email restrictions
             $restrictToContacts = $downloadSettings['restrictToContacts'] ?? false;
             $allowedEmails = $downloadSettings['allowedDownloadEmails'] ?? null;
-            
+
             if ($restrictToContacts && is_array($allowedEmails) && count($allowedEmails) > 0 && ! $isOwner) {
                 $userEmail = $request->header('X-Collection-Email');
                 if (! $userEmail || ! in_array(strtolower($userEmail), array_map('strtolower', $allowedEmails))) {
@@ -799,6 +805,7 @@ class PublicCollectionController extends Controller
                 'collection_id' => $id,
                 'exception' => $e->getMessage(),
             ]);
+
             return ApiResponse::error('Failed to validate access', 'VALIDATION_FAILED', 500);
         }
     }

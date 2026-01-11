@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 class GoogleDriveService implements CloudStorageServiceInterface
 {
     private string $clientId;
+
     private string $clientSecret;
 
     public function __construct()
@@ -32,7 +33,7 @@ class GoogleDriveService implements CloudStorageServiceInterface
             'state' => $state,
         ];
 
-        return 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query($params);
+        return 'https://accounts.google.com/o/oauth2/v2/auth?'.http_build_query($params);
     }
 
     public function exchangeCodeForToken(string $code, string $redirectUri): array
@@ -45,7 +46,7 @@ class GoogleDriveService implements CloudStorageServiceInterface
             'redirect_uri' => $redirectUri,
         ]);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             Log::error('Google Drive token exchange failed', [
                 'response' => $response->body(),
             ]);
@@ -64,21 +65,21 @@ class GoogleDriveService implements CloudStorageServiceInterface
             'grant_type' => 'refresh_token',
         ]);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             throw new \Exception('Failed to refresh token');
         }
 
         return $response->json();
     }
 
-    public function uploadFile(string $filePath, string $fileName, string $accessToken, string $folderName = null): string
+    public function uploadFile(string $filePath, string $fileName, string $accessToken, ?string $folderName = null): string
     {
         $fileSize = filesize($filePath);
         $mimeType = mime_content_type($filePath) ?: 'application/zip';
         $fileContents = file_get_contents($filePath);
 
         $folderId = null;
-        
+
         // Create folder if folderName is provided
         if ($folderName) {
             $folderMetadata = [
@@ -108,50 +109,50 @@ class GoogleDriveService implements CloudStorageServiceInterface
         $metadata = [
             'name' => $fileName,
         ];
-        
+
         if ($folderId) {
             $metadata['parents'] = [$folderId];
         }
 
         // Build multipart body manually for Google Drive API
-        $boundary = '----WebKitFormBoundary' . uniqid();
+        $boundary = '----WebKitFormBoundary'.uniqid();
         $delimiter = "\r\n--{$boundary}\r\n";
         $closeDelimiter = "\r\n--{$boundary}--\r\n";
 
         $body = '';
         $body .= $delimiter;
-        $body .= 'Content-Type: application/json; charset=UTF-8' . "\r\n\r\n";
+        $body .= 'Content-Type: application/json; charset=UTF-8'."\r\n\r\n";
         $body .= json_encode($metadata);
         $body .= $delimiter;
-        $body .= 'Content-Type: ' . $mimeType . "\r\n";
-        $body .= 'Content-Transfer-Encoding: binary' . "\r\n\r\n";
+        $body .= 'Content-Type: '.$mimeType."\r\n";
+        $body .= 'Content-Transfer-Encoding: binary'."\r\n\r\n";
         $body .= $fileContents;
         $body .= $closeDelimiter;
 
         // Upload file using multipart upload
         $response = Http::withToken($accessToken)
             ->withHeaders([
-                'Content-Type' => 'multipart/related; boundary=' . $boundary,
+                'Content-Type' => 'multipart/related; boundary='.$boundary,
             ])
             ->withBody($body)
             ->post('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart');
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             Log::error('Google Drive upload failed', [
                 'response' => $response->body(),
                 'status' => $response->status(),
             ]);
-            throw new \Exception('Failed to upload file to Google Drive: ' . $response->body());
+            throw new \Exception('Failed to upload file to Google Drive: '.$response->body());
         }
 
         $fileData = $response->json();
-        
-        if (!isset($fileData['id'])) {
+
+        if (! isset($fileData['id'])) {
             throw new \Exception('Failed to get file ID from Google Drive response');
         }
 
         $fileId = $fileData['id'];
-        
+
         // Make file shareable (non-blocking - if it fails, still return the file URL)
         try {
             Http::withToken($accessToken)
@@ -191,15 +192,17 @@ class GoogleDriveService implements CloudStorageServiceInterface
                 'file_id' => $fileId,
                 'file_name' => $fileName,
             ]);
+
             return $folderUrl;
         }
-        
+
         $fileUrl = "https://drive.google.com/file/d/{$fileId}/view";
         Log::info('Google Drive upload completed', [
             'file_id' => $fileId,
             'file_url' => $fileUrl,
             'file_name' => $fileName,
         ]);
+
         return $fileUrl;
     }
 
@@ -231,7 +234,7 @@ class GoogleDriveService implements CloudStorageServiceInterface
 
         foreach ($files as $file) {
             $folder = $file['folder'] ?? 'Uncategorized';
-            
+
             // Create set folder if needed (if folder changed)
             static $lastFolder = null;
             if ($lastFolder !== $folder) {
@@ -257,7 +260,7 @@ class GoogleDriveService implements CloudStorageServiceInterface
             try {
                 $fileContent = $file['content'] ?? file_get_contents($file['path']);
                 $path = $file['path'] ?? '';
-                
+
                 // Detect MIME type
                 $mimeType = 'application/octet-stream';
                 if ($path && file_exists($path)) {
@@ -283,30 +286,30 @@ class GoogleDriveService implements CloudStorageServiceInterface
                 }
 
                 // Build multipart body for Google Drive API
-                $boundary = '----WebKitFormBoundary' . uniqid();
+                $boundary = '----WebKitFormBoundary'.uniqid();
                 $delimiter = "\r\n--{$boundary}\r\n";
                 $closeDelimiter = "\r\n--{$boundary}--\r\n";
 
                 $body = '';
                 $body .= $delimiter;
-                $body .= 'Content-Type: application/json; charset=UTF-8' . "\r\n\r\n";
+                $body .= 'Content-Type: application/json; charset=UTF-8'."\r\n\r\n";
                 $body .= json_encode($metadata);
                 $body .= $delimiter;
-                $body .= 'Content-Type: ' . $mimeType . "\r\n";
-                $body .= 'Content-Transfer-Encoding: binary' . "\r\n\r\n";
+                $body .= 'Content-Type: '.$mimeType."\r\n";
+                $body .= 'Content-Transfer-Encoding: binary'."\r\n\r\n";
                 $body .= $fileContent;
                 $body .= $closeDelimiter;
 
                 $response = Http::withToken($accessToken)
                     ->withHeaders([
-                        'Content-Type' => 'multipart/related; boundary=' . $boundary,
+                        'Content-Type' => 'multipart/related; boundary='.$boundary,
                     ])
                     ->withBody($body)
                     ->post('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart');
 
                 if ($response->successful()) {
                     $fileData = $response->json();
-                    if (!$firstFileUrl && isset($fileData['id'])) {
+                    if (! $firstFileUrl && isset($fileData['id'])) {
                         $firstFileUrl = "https://drive.google.com/file/d/{$fileData['id']}/view";
                     }
                 } else {
@@ -332,13 +335,13 @@ class GoogleDriveService implements CloudStorageServiceInterface
         } else {
             $finalUrl = 'https://drive.google.com';
         }
-        
+
         Log::info('Google Drive multi-file upload completed', [
             'folder_id' => $folderId,
             'final_url' => $finalUrl,
             'files_count' => count($files),
         ]);
-        
+
         return $finalUrl;
     }
 

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 class WatermarkService
 {
     protected ImageUploadService $imageUploadService;
+
     protected NotificationService $notificationService;
 
     public function __construct(

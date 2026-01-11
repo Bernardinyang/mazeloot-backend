@@ -27,15 +27,15 @@ class CollectionDownloadedNotification extends Notification implements ShouldQue
     public function toMail(object $notifiable): MailMessage
     {
         $projectId = $this->collection->project_uuid ?? 'standalone';
-        $collectionUrl = config('app.frontend_url', config('app.url')) . "/p/{$projectId}/collection?collectionId={$this->collection->uuid}";
-        
-        $downloaderInfo = $this->downloaderEmail ? "by **{$this->downloaderEmail}**" : "by a visitor";
-        
+        $collectionUrl = config('app.frontend_url', config('app.url'))."/p/{$projectId}/collection?collectionId={$this->collection->uuid}";
+
+        $downloaderInfo = $this->downloaderEmail ? "by **{$this->downloaderEmail}**" : 'by a visitor';
+
         return MailMessage::withLogo()
-            ->subject('Collection Downloaded: ' . $this->collection->name)
+            ->subject('Collection Downloaded: '.$this->collection->name)
             ->line("Your collection **{$this->collection->name}** has been downloaded {$downloaderInfo}.")
-            ->line("**Download Details:**")
-            ->line("- **Media Count:** {$this->mediaCount} " . ($this->mediaCount === 1 ? 'photo' : 'photos'))
+            ->line('**Download Details:**')
+            ->line("- **Media Count:** {$this->mediaCount} ".($this->mediaCount === 1 ? 'photo' : 'photos'))
             ->line("- **Download Size:** {$this->downloadSize}")
             ->action('View Collection', $collectionUrl)
             ->line('Thank you for using our application!');

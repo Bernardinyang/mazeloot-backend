@@ -20,7 +20,7 @@ class ApplyWatermarkRequest extends FormRequest
     public function rules(): array
     {
         $userId = auth()->id();
-        
+
         return [
             'watermarkUuid' => [
                 'required',

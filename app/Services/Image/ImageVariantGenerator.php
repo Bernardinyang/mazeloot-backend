@@ -107,24 +107,24 @@ class ImageVariantGenerator
             // Watermark text - three lines
             $lines = ['FOR', 'PREVIEW', 'ONLY'];
             $minDimension = min($imageWidth, $imageHeight);
-            
+
             // Find a system TTF font for smooth rendering
             $fontPath = $this->findSystemFont();
-            
+
             // Calculate initial font sizes: PREVIEW is larger and bolder
             $previewFontSize = max((int) ($minDimension * 0.08), 60); // Larger for PREVIEW
             $otherFontSize = max((int) ($minDimension * 0.05), 35); // Smaller for FOR and ONLY
-            
+
             // Calculate actual text widths and scale if needed to fit image width
             $maxAvailableWidth = $imageWidth * 0.9; // 90% of image width for padding
             $maxTextWidth = 0;
-            
+
             if ($fontPath && function_exists('imagettfbbox')) {
                 // Get actual text widths using TTF
                 $previewBbox = imagettfbbox($previewFontSize, 0, $fontPath, 'PREVIEW');
                 $previewTextWidth = abs($previewBbox[4] - $previewBbox[0]);
                 $maxTextWidth = max($maxTextWidth, $previewTextWidth);
-                
+
                 foreach (['FOR', 'ONLY'] as $line) {
                     $bbox = imagettfbbox($otherFontSize, 0, $fontPath, $line);
                     $textWidth = abs($bbox[4] - $bbox[0]);
@@ -135,18 +135,18 @@ class ImageVariantGenerator
                 $previewTextWidth = strlen('PREVIEW') * ($previewFontSize * 0.6);
                 $maxTextWidth = max($previewTextWidth, strlen('FOR') * ($otherFontSize * 0.6), strlen('ONLY') * ($otherFontSize * 0.6));
             }
-            
+
             // Scale down font sizes if text exceeds available width
             if ($maxTextWidth > $maxAvailableWidth) {
                 $scaleFactor = $maxAvailableWidth / $maxTextWidth;
                 $previewFontSize = (int) ($previewFontSize * $scaleFactor);
                 $otherFontSize = (int) ($otherFontSize * $scaleFactor);
             }
-            
+
             // Line height spacing
             $lineSpacing = (int) ($previewFontSize * 0.3);
             $totalHeight = ($otherFontSize * 2) + $previewFontSize + ($lineSpacing * 2);
-            
+
             // Use full image width for watermark background
             $padding = (int) ($previewFontSize * 0.4);
             $textWidth = $imageWidth; // Full width
@@ -163,40 +163,40 @@ class ImageVariantGenerator
             imagealphablending($watermarkCanvas, true);
             $bgColor = imagecolorallocatealpha($watermarkCanvas, 0, 0, 0, 100); // Darker background
             imagefilledrectangle($watermarkCanvas, 0, 0, $textWidth - 1, $textHeight - 1, $bgColor);
-            
+
             // Draw each line of text
             $yOffset = $padding;
             foreach ($lines as $index => $line) {
                 $isPreview = $line === 'PREVIEW';
                 $currentFontSize = $isPreview ? $previewFontSize : $otherFontSize;
-                
+
                 // Use TTF font if available for smooth rendering
                 if ($fontPath && function_exists('imagettftext')) {
                     // Render at higher resolution for smoother text
                     $renderScale = 3;
                     $renderSize = $currentFontSize * $renderScale;
-                    
+
                     // Get text bounding box to calculate dimensions
                     $bbox = imagettfbbox($renderSize, 0, $fontPath, $line);
                     $textWidthActual = abs($bbox[4] - $bbox[0]);
                     $textHeightActual = abs($bbox[7] - $bbox[1]);
-                    
+
                     // Create line canvas at render scale
                     $lineRenderCanvas = imagecreatetruecolor($textWidthActual + 20, $textHeightActual + 20);
                     imagealphablending($lineRenderCanvas, false);
                     imagesavealpha($lineRenderCanvas, true);
                     $transparentLine = imagecolorallocatealpha($lineRenderCanvas, 0, 0, 0, 127);
                     imagefill($lineRenderCanvas, 0, 0, $transparentLine);
-                    
+
                     // Draw text using TTF at render scale
                     imagealphablending($lineRenderCanvas, true);
                     $textColor = imagecolorallocate($lineRenderCanvas, 255, 255, 255);
                     $angle = 0;
                     $x = 10; // Padding
                     $y = 10 + $textHeightActual; // Baseline
-                    
+
                     imagettftext($lineRenderCanvas, $renderSize, $angle, $x, $y, $textColor, $fontPath, $line);
-                    
+
                     // Scale down to final size with smooth interpolation
                     $finalWidth = (int) ($textWidthActual / $renderScale);
                     $finalHeight = (int) ($textHeightActual / $renderScale);
@@ -205,7 +205,7 @@ class ImageVariantGenerator
                     imagesavealpha($lineCanvas, true);
                     $transparentFinal = imagecolorallocatealpha($lineCanvas, 0, 0, 0, 127);
                     imagefill($lineCanvas, 0, 0, $transparentFinal);
-                    
+
                     imagealphablending($lineCanvas, true);
                     imagecopyresampled(
                         $lineCanvas, $lineRenderCanvas,
@@ -215,14 +215,14 @@ class ImageVariantGenerator
                         $textWidthActual, $textHeightActual
                     );
                     imagedestroy($lineRenderCanvas);
-                    
+
                     // Center the line horizontally
                     $xOffset = (int) (($textWidth - $finalWidth) / 2);
-                    
+
                     // Copy line to watermark canvas
                     imagecopy($watermarkCanvas, $lineCanvas, $xOffset, $yOffset, 0, 0, $finalWidth, $finalHeight);
                     imagedestroy($lineCanvas);
-                    
+
                     // Move to next line
                     $yOffset += $finalHeight + ($isPreview ? $lineSpacing : ($lineSpacing * 0.7));
                 } else {
@@ -239,7 +239,7 @@ class ImageVariantGenerator
                     $renderWidth = $lineWidth * $renderScale;
                     $renderHeight = $currentFontSize * $renderScale;
                     $renderCanvas = imagecreatetruecolor($renderWidth, $renderHeight);
-                    
+
                     $gdFontSize = 5;
                     $gdBaseSize = 13;
                     $baseWidth = strlen($line) * 6;
@@ -258,7 +258,7 @@ class ImageVariantGenerator
 
                     // Center the line horizontally
                     $xOffset = (int) (($textWidth - $lineWidth) / 2);
-                    
+
                     // Copy line to watermark canvas
                     imagecopy($watermarkCanvas, $lineCanvas, $xOffset, $yOffset, 0, 0, $lineWidth, $currentFontSize);
                     imagedestroy($lineCanvas);

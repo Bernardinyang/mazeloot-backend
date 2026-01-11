@@ -27,6 +27,7 @@ class MediaResource extends JsonResource
                 if ($this->watermark_uuid) {
                     $request->attributes->set('media_watermark_uuid', $this->watermark_uuid);
                 }
+
                 return new UserFileResource($this->file);
             }, null),
             'isCompleted' => $this->is_completed,

@@ -10,6 +10,7 @@ class QuotaService
     public function __construct(
         protected UserStorageService $storageService
     ) {}
+
     /**
      * Check if upload quota allows the file size
      *
@@ -67,8 +68,6 @@ class QuotaService
     /**
      * Get used quota
      *
-     * @param  string|null  $domain
-     * @param  int|null  $userId
      * @return int Used quota in bytes
      */
     protected function getUsedQuota(?string $domain = null, ?int $userId = null): int

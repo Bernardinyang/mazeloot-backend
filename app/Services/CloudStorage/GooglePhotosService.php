@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 class GooglePhotosService implements CloudStorageServiceInterface
 {
     private string $clientId;
+
     private string $clientSecret;
 
     public function __construct()
@@ -33,7 +34,7 @@ class GooglePhotosService implements CloudStorageServiceInterface
             'state' => $state,
         ];
 
-        return 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query($params);
+        return 'https://accounts.google.com/o/oauth2/v2/auth?'.http_build_query($params);
     }
 
     public function exchangeCodeForToken(string $code, string $redirectUri): array
@@ -46,7 +47,7 @@ class GooglePhotosService implements CloudStorageServiceInterface
             'redirect_uri' => $redirectUri,
         ]);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             Log::error('Google Photos token exchange failed', [
                 'response' => $response->body(),
             ]);
@@ -65,7 +66,7 @@ class GooglePhotosService implements CloudStorageServiceInterface
             'grant_type' => 'refresh_token',
         ]);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             throw new \Exception('Failed to refresh token');
         }
 
@@ -82,7 +83,7 @@ class GooglePhotosService implements CloudStorageServiceInterface
             ->withBody($fileContents, $mimeType)
             ->post('https://photoslibrary.googleapis.com/v1/uploads');
 
-        if (!$uploadResponse->successful()) {
+        if (! $uploadResponse->successful()) {
             Log::error('Google Photos upload failed', [
                 'response' => $uploadResponse->body(),
             ]);
@@ -104,18 +105,18 @@ class GooglePhotosService implements CloudStorageServiceInterface
                 ],
             ]);
 
-        if (!$createResponse->successful()) {
+        if (! $createResponse->successful()) {
             Log::error('Google Photos batchCreate failed', [
                 'status' => $createResponse->status(),
                 'response' => $createResponse->body(),
             ]);
-            throw new \Exception('Failed to create media item in Google Photos: ' . $createResponse->body());
+            throw new \Exception('Failed to create media item in Google Photos: '.$createResponse->body());
         }
 
         $responseData = $createResponse->json();
-        
+
         // Check if newMediaItemResults exists and has items
-        if (!isset($responseData['newMediaItemResults']) || empty($responseData['newMediaItemResults'])) {
+        if (! isset($responseData['newMediaItemResults']) || empty($responseData['newMediaItemResults'])) {
             Log::error('Google Photos batchCreate returned no results', [
                 'response' => $responseData,
             ]);
@@ -123,39 +124,39 @@ class GooglePhotosService implements CloudStorageServiceInterface
         }
 
         $result = $responseData['newMediaItemResults'][0];
-        
+
         // Check status - Google Photos returns status.code and status.message
         if (isset($result['status'])) {
             $statusCode = $result['status']['code'] ?? null;
             $statusMessage = $result['status']['message'] ?? 'Unknown error';
-            
+
             if ($statusCode !== 'OK' && $statusCode !== null) {
                 Log::error('Google Photos batchCreate returned error status', [
                     'status' => $result['status'],
                     'result' => $result,
                     'full_response' => $responseData,
                 ]);
-                throw new \Exception('Failed to create media item in Google Photos: ' . $statusMessage);
+                throw new \Exception('Failed to create media item in Google Photos: '.$statusMessage);
             }
         }
 
         // Check if mediaItem exists
-        if (!isset($result['mediaItem'])) {
+        if (! isset($result['mediaItem'])) {
             Log::error('Google Photos batchCreate missing mediaItem', [
                 'result' => $result,
                 'full_response' => $responseData,
             ]);
-            
+
             // Try to extract more detailed error
             $errorDetails = [];
             if (isset($result['status'])) {
-                $errorDetails[] = 'Status: ' . json_encode($result['status']);
+                $errorDetails[] = 'Status: '.json_encode($result['status']);
             }
-            throw new \Exception('Google Photos API response missing mediaItem. ' . implode(' ', $errorDetails));
+            throw new \Exception('Google Photos API response missing mediaItem. '.implode(' ', $errorDetails));
         }
 
         $mediaItem = $result['mediaItem'];
-        
+
         // Return productUrl or baseUrl, fallback to Google Photos home
         return $mediaItem['productUrl'] ?? $mediaItem['baseUrl'] ?? 'https://photos.google.com';
     }
@@ -169,24 +170,24 @@ class GooglePhotosService implements CloudStorageServiceInterface
     {
         // Step 1: Check if album already exists, if not create it
         $albumId = null;
-        
+
         // List existing albums to find matching name
         $pageToken = null;
         $foundAlbum = null;
-        
+
         do {
             $params = [];
             if ($pageToken) {
                 $params['pageToken'] = $pageToken;
             }
-            
+
             $listResponse = Http::withToken($accessToken)
                 ->get('https://photoslibrary.googleapis.com/v1/albums', $params);
-            
+
             if ($listResponse->successful()) {
                 $listData = $listResponse->json();
                 $albums = $listData['albums'] ?? [];
-                
+
                 // Search for album with matching title
                 foreach ($albums as $album) {
                     if (isset($album['title']) && $album['title'] === $albumName) {
@@ -194,10 +195,10 @@ class GooglePhotosService implements CloudStorageServiceInterface
                         break;
                     }
                 }
-                
+
                 // Get next page token
                 $pageToken = $listData['nextPageToken'] ?? null;
-                
+
                 // Stop if we found the album
                 if ($foundAlbum) {
                     break;
@@ -206,7 +207,7 @@ class GooglePhotosService implements CloudStorageServiceInterface
                 $responseBody = $listResponse->json();
                 $errorCode = $responseBody['error']['code'] ?? null;
                 $errorMessage = $responseBody['error']['message'] ?? '';
-                
+
                 // If it's a scope/permission issue, skip listing and create new album
                 if ($errorCode === 403 && str_contains($errorMessage, 'insufficient authentication scopes')) {
                     Log::info('Cannot list Google Photos albums - insufficient scope, will create new album', [
@@ -214,14 +215,14 @@ class GooglePhotosService implements CloudStorageServiceInterface
                     ]);
                     break; // Exit loop, will create new album below
                 }
-                
+
                 Log::warning('Failed to list Google Photos albums', [
                     'response' => $listResponse->body(),
                 ]);
                 break;
             }
-        } while ($pageToken && !$foundAlbum);
-        
+        } while ($pageToken && ! $foundAlbum);
+
         // Use existing album or create new one
         if ($foundAlbum) {
             $albumId = $foundAlbum['id'];
@@ -242,7 +243,7 @@ class GooglePhotosService implements CloudStorageServiceInterface
                 $albumData = $albumResponse->json();
                 $albumId = $albumData['id'] ?? null;
                 $productUrl = $albumData['productUrl'] ?? null;
-                
+
                 Log::info('Google Photos album created', [
                     'album_id' => $albumId,
                     'album_name' => $albumName,
@@ -262,27 +263,27 @@ class GooglePhotosService implements CloudStorageServiceInterface
 
         foreach ($files as $file) {
             $folder = $file['folder'] ?? 'Uncategorized';
-            
+
             // Get MIME type from file data or detect from content
             $mimeType = $file['mime_type'] ?? '';
-            if (!$mimeType && isset($file['content'])) {
+            if (! $mimeType && isset($file['content'])) {
                 $finfo = finfo_open(FILEINFO_MIME_TYPE);
                 $mimeType = finfo_buffer($finfo, $file['content']);
                 finfo_close($finfo);
             }
-            if (!$mimeType && isset($file['path']) && file_exists($file['path'])) {
+            if (! $mimeType && isset($file['path']) && file_exists($file['path'])) {
                 $mimeType = mime_content_type($file['path']);
             }
-            
+
             // Only process image/video files (skip other types)
-            if (!str_starts_with($mimeType, 'image/') && !str_starts_with($mimeType, 'video/')) {
+            if (! str_starts_with($mimeType, 'image/') && ! str_starts_with($mimeType, 'video/')) {
                 continue;
             }
 
             try {
                 // Upload binary data
                 $fileContents = $file['content'] ?? file_get_contents($file['path']);
-                if (!$fileContents) {
+                if (! $fileContents) {
                     continue;
                 }
 
@@ -297,9 +298,9 @@ class GooglePhotosService implements CloudStorageServiceInterface
                         'folder' => $folder,
                         'description' => $file['name'] ?? '',
                     ];
-                    
+
                     // Track items per folder for album organization
-                    if (!isset($folderItems[$folder])) {
+                    if (! isset($folderItems[$folder])) {
                         $folderItems[$folder] = [];
                     }
                     $folderItems[$folder][] = $uploadToken;
@@ -355,7 +356,7 @@ class GooglePhotosService implements CloudStorageServiceInterface
             try {
                 $albumDetailsResponse = Http::withToken($accessToken)
                     ->get("https://photoslibrary.googleapis.com/v1/albums/{$albumId}");
-                
+
                 if ($albumDetailsResponse->successful()) {
                     $albumDetails = $albumDetailsResponse->json();
                     $productUrl = $albumDetails['productUrl'] ?? null;
@@ -366,6 +367,7 @@ class GooglePhotosService implements CloudStorageServiceInterface
                             'files_uploaded' => count($uploadTokens),
                             'media_items_created' => count($createdMediaItems),
                         ]);
+
                         return $productUrl;
                     }
                 }
@@ -375,7 +377,7 @@ class GooglePhotosService implements CloudStorageServiceInterface
                     'error' => $e->getMessage(),
                 ]);
             }
-            
+
             // Fallback to constructed URL
             $albumUrl = "https://photos.google.com/album/{$albumId}";
             Log::info('Google Photos upload completed (using fallback URL)', [
@@ -384,17 +386,19 @@ class GooglePhotosService implements CloudStorageServiceInterface
                 'files_uploaded' => count($uploadTokens),
                 'media_items_created' => count($createdMediaItems),
             ]);
+
             return $albumUrl;
         }
 
         // Fallback to first media item URL if album creation failed
-        if (!empty($createdMediaItems)) {
+        if (! empty($createdMediaItems)) {
             $fallbackUrl = $createdMediaItems[0]['productUrl'] ?? $createdMediaItems[0]['baseUrl'] ?? 'https://photos.google.com';
             Log::info('Google Photos upload completed (no album)', [
                 'fallback_url' => $fallbackUrl,
                 'files_uploaded' => count($uploadTokens),
                 'media_items_created' => count($createdMediaItems),
             ]);
+
             return $fallbackUrl;
         }
 
@@ -402,6 +406,7 @@ class GooglePhotosService implements CloudStorageServiceInterface
             'files_uploaded' => count($uploadTokens),
             'media_items_created' => count($createdMediaItems),
         ]);
+
         return 'https://photos.google.com';
     }
 

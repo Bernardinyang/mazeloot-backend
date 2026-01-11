@@ -16,7 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'api-key' => \App\Http\Middleware\ApiKeyAuth::class,
             'guest.token' => \App\Http\Middleware\GuestTokenAuth::class,
         ]);
-        
+
         $middleware->validateCsrfTokens(except: [
             'broadcasting/auth',
         ]);

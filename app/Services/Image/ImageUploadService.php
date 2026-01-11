@@ -170,7 +170,7 @@ class ImageUploadService
                     // Build public URL using provider's method or Storage URL
                     $uploadedVariants[$variantName] = $this->getPublicUrl($storagePath);
                 }
-                
+
                 // Calculate total size including all variants
                 $totalSizeWithVariants = array_sum($variantSizes);
             }

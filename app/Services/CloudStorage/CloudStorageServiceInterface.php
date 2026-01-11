@@ -31,16 +31,16 @@ interface CloudStorageServiceInterface
 
     /**
      * Upload multiple files organized by folders/sets
-     * @param array $files Array of ['path' => string, 'name' => string, 'folder' => string, 'content' => string]
-     * @param string $accessToken OAuth access token
-     * @param string $albumName Name for album/folder (if applicable)
+     *
+     * @param  array  $files  Array of ['path' => string, 'name' => string, 'folder' => string, 'content' => string]
+     * @param  string  $accessToken  OAuth access token
+     * @param  string  $albumName  Name for album/folder (if applicable)
      * @return string URL to album/folder or first uploaded file
      */
     public function uploadFiles(array $files, string $accessToken, string $albumName = 'Collection'): string;
 
     /**
      * Get service name
-     * @return string
      */
     public function getServiceName(): string;
 }

@@ -32,7 +32,7 @@ class CloudStorageOAuthController extends Controller
 
             // Generate state token
             $state = bin2hex(random_bytes(32));
-            
+
             // Store state in cache with metadata
             Cache::put("cloud_oauth_state_{$state}", [
                 'service' => $service,
@@ -97,7 +97,7 @@ class CloudStorageOAuthController extends Controller
             ]));
         }
 
-        if (!$code || !$state) {
+        if (! $code || ! $state) {
             return redirect($this->getFrontendRedirectUrl([
                 'success' => false,
                 'error' => 'Missing code or state',
@@ -107,7 +107,7 @@ class CloudStorageOAuthController extends Controller
 
         // Retrieve state from cache for OAuth services
         $stateData = Cache::get("cloud_oauth_state_{$state}");
-        if (!$stateData) {
+        if (! $stateData) {
             return redirect($this->getFrontendRedirectUrl([
                 'success' => false,
                 'error' => 'Invalid or expired state',
@@ -123,10 +123,9 @@ class CloudStorageOAuthController extends Controller
             $tokenData = $cloudService->exchangeCodeForToken($code, $redirectUri);
 
             // Store token in cache with download token or collection ID as key
-            $tokenKey = $stateData['download_token'] 
+            $tokenKey = $stateData['download_token']
                 ? "cloud_token_{$service}_{$stateData['download_token']}"
                 : "cloud_token_{$service}_{$stateData['collection_id']}";
-
 
             Cache::put($tokenKey, [
                 'access_token' => $tokenData['access_token'],
@@ -165,14 +164,14 @@ class CloudStorageOAuthController extends Controller
     {
         $baseUrl = rtrim(config('app.url'), '/');
         $redirectUri = "{$baseUrl}/api/v1/cloud-storage/oauth/{$service}/callback";
-        
+
         // Log for debugging
         Log::info('OAuth redirect URI generated', [
             'service' => $service,
             'redirect_uri' => $redirectUri,
             'base_url' => $baseUrl,
         ]);
-        
+
         return $redirectUri;
     }
 
@@ -180,6 +179,7 @@ class CloudStorageOAuthController extends Controller
     {
         $frontendUrl = config('app.frontend_url', config('app.url'));
         $query = http_build_query($params);
+
         return "{$frontendUrl}/cloud-storage/oauth/callback?{$query}";
     }
 
@@ -198,8 +198,8 @@ class CloudStorageOAuthController extends Controller
         return match ($error) {
             'access_denied' => "Access denied. Please ensure the app is properly configured in {$serviceName} and your account has been added as a test user if the app is in testing mode.",
             'invalid_client' => "Invalid client configuration. Please check your {$serviceName} OAuth credentials.",
-            'invalid_grant' => "Invalid authorization code. Please try again.",
-            'invalid_request' => "Invalid request. Please check your OAuth configuration.",
+            'invalid_grant' => 'Invalid authorization code. Please try again.',
+            'invalid_request' => 'Invalid request. Please check your OAuth configuration.',
             'invalid_scope' => "Invalid scope requested. Please check your {$serviceName} OAuth scopes configuration.",
             'server_error' => "{$serviceName} server error. Please try again later.",
             'temporarily_unavailable' => "{$serviceName} is temporarily unavailable. Please try again later.",
