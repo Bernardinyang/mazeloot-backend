@@ -69,6 +69,21 @@ class UserFile extends Model
                 $model->uuid = (string) Str::uuid();
             }
         });
+
+        static::deleted(function ($model) {
+            // Decrement storage when file is deleted (soft or hard delete)
+            if ($model->user_uuid) {
+                $storageService = app(\App\Services\Storage\UserStorageService::class);
+                $totalSize = $storageService->calculateFileSizeFromMetadata((object) [
+                    'metadata' => $model->metadata,
+                    'size' => $model->size,
+                ]);
+                
+                if ($totalSize > 0) {
+                    $storageService->decrementStorage($model->user_uuid, $totalSize);
+                }
+            }
+        });
     }
 
     /**

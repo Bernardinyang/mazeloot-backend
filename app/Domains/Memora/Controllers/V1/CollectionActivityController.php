@@ -388,8 +388,47 @@ class CollectionActivityController extends Controller
         try {
             $collection = MemoraCollection::where('uuid', $collectionId)->firstOrFail();
 
-            $favourites = MemoraCollectionFavourite::where('collection_uuid', $collectionId)
-                ->with(['media.file'])
+            $query = MemoraCollectionFavourite::where('collection_uuid', $collectionId);
+
+            // Filter by email if provided (for public users)
+            $emailHeader = $request->header('X-Collection-Email')
+                ?? $request->header('x-collection-email')
+                ?? $request->header('X-COLLECTION-EMAIL');
+            
+            $email = $emailHeader && trim($emailHeader) !== '' ? strtolower(trim($emailHeader)) : null;
+            
+            // Also try to get email from request body
+            if (! $email) {
+                $emailFromBody = $request->input('email');
+                if ($emailFromBody && trim($emailFromBody) !== '') {
+                    $email = strtolower(trim($emailFromBody));
+                }
+            }
+
+            // If email is provided and user is not authenticated owner, filter by email
+            if ($email && ! auth()->check()) {
+                $query->where('email', $email);
+            } elseif (auth()->check()) {
+                // If authenticated, show all (owner can see all activities)
+                // But if email is provided and user is not the owner, filter by email
+                $userUuid = auth()->user()->uuid;
+                $collectionOwnerUuid = $collection->user_uuid ?? $collection->userId;
+                
+                if ($userUuid !== $collectionOwnerUuid) {
+                    // Authenticated user but not owner - filter by their email
+                    $userEmail = auth()->user()->email;
+                    if ($userEmail) {
+                        $query->where(function($q) use ($userEmail, $userUuid) {
+                            $q->where('email', strtolower(trim($userEmail)))
+                              ->orWhere('user_uuid', $userUuid);
+                        });
+                    } else {
+                        $query->where('user_uuid', $userUuid);
+                    }
+                }
+            }
+
+            $favourites = $query->with(['media.file'])
                 ->orderBy('created_at', 'desc')
                 ->get();
 
@@ -450,8 +489,47 @@ class CollectionActivityController extends Controller
         try {
             $collection = MemoraCollection::where('uuid', $collectionId)->firstOrFail();
 
-            $accesses = MemoraCollectionPrivatePhotoAccess::where('collection_uuid', $collectionId)
-                ->with(['media.file'])
+            $query = MemoraCollectionPrivatePhotoAccess::where('collection_uuid', $collectionId);
+
+            // Filter by email if provided (for public users)
+            $emailHeader = $request->header('X-Collection-Email')
+                ?? $request->header('x-collection-email')
+                ?? $request->header('X-COLLECTION-EMAIL');
+            
+            $email = $emailHeader && trim($emailHeader) !== '' ? strtolower(trim($emailHeader)) : null;
+            
+            // Also try to get email from request body
+            if (! $email) {
+                $emailFromBody = $request->input('email');
+                if ($emailFromBody && trim($emailFromBody) !== '') {
+                    $email = strtolower(trim($emailFromBody));
+                }
+            }
+
+            // If email is provided and user is not authenticated owner, filter by email
+            if ($email && ! auth()->check()) {
+                $query->where('email', $email);
+            } elseif (auth()->check()) {
+                // If authenticated, show all (owner can see all activities)
+                // But if email is provided and user is not the owner, filter by email
+                $userUuid = auth()->user()->uuid;
+                $collectionOwnerUuid = $collection->user_uuid ?? $collection->userId;
+                
+                if ($userUuid !== $collectionOwnerUuid) {
+                    // Authenticated user but not owner - filter by their email
+                    $userEmail = auth()->user()->email;
+                    if ($userEmail) {
+                        $query->where(function($q) use ($userEmail, $userUuid) {
+                            $q->where('email', strtolower(trim($userEmail)))
+                              ->orWhere('user_uuid', $userUuid);
+                        });
+                    } else {
+                        $query->where('user_uuid', $userUuid);
+                    }
+                }
+            }
+
+            $accesses = $query->with(['media.file'])
                 ->orderBy('created_at', 'desc')
                 ->get();
 

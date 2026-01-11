@@ -108,6 +108,21 @@ class MemoraMedia extends Model
                 $model->media_set_uuid = $set->uuid;
             }
         });
+
+        // Update storage cache when media is soft deleted
+        static::deleted(function ($model) {
+            if ($model->user_uuid) {
+                try {
+                    $storageService = app(\App\Services\Storage\UserStorageService::class);
+                    $storageService->calculateAndCacheStorage($model->user_uuid);
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::warning('Failed to update storage cache after media deletion', [
+                        'media_uuid' => $model->uuid,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        });
     }
 
     protected static function newFactory(): Factory|MediaFactory

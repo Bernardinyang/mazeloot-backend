@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\V1\AuthController;
 use App\Http\Controllers\V1\ImageUploadController;
+use App\Http\Controllers\V1\NotificationController;
 use App\Http\Controllers\V1\UploadController;
 use Illuminate\Support\Facades\Route;
 
@@ -36,8 +37,18 @@ Route::prefix('auth')->group(function () {
 // Note: API key auth middleware (ApiKeyAuth) can be added to support programmatic access
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/auth/user', [AuthController::class, 'user']);
+    Route::get('/auth/storage', [AuthController::class, 'storage']);
     Route::post('/uploads', [UploadController::class, 'upload']);
     Route::post('/images/upload', [ImageUploadController::class, 'upload']);
+
+    // Notifications
+    Route::prefix('notifications')->group(function () {
+        Route::get('/', [NotificationController::class, 'index']);
+        Route::get('/unread-count', [NotificationController::class, 'unreadCount']);
+        Route::patch('/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::patch('/read-all', [NotificationController::class, 'markAllAsRead']);
+        Route::delete('/{id}', [NotificationController::class, 'destroy']);
+    });
 });
 
 // Domain routes

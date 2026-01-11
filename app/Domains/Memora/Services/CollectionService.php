@@ -7,16 +7,21 @@ use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraPreset;
 use App\Domains\Memora\Models\MemoraProject;
+use App\Services\Notification\NotificationService;
 use App\Services\Pagination\PaginationService;
 use Illuminate\Support\Facades\Auth;
 
 class CollectionService
 {
     protected PaginationService $paginationService;
+    protected NotificationService $notificationService;
 
-    public function __construct(PaginationService $paginationService)
-    {
+    public function __construct(
+        PaginationService $paginationService,
+        NotificationService $notificationService
+    ) {
         $this->paginationService = $paginationService;
+        $this->notificationService = $notificationService;
     }
 
     /**
@@ -24,9 +29,11 @@ class CollectionService
      *
      * @param  string|null  $projectId  If provided, lists collections for that project. If null, lists all user collections.
      * @param  bool|null  $starred  Filter by starred status
+     * @param  string|null  $search  Search query (searches in name)
+     * @param  string|null  $sortBy  Sort field and direction (e.g., 'created-desc', 'name-asc')
      * @return array Paginated response with data and pagination metadata
      */
-    public function list(?string $projectId, ?bool $starred = null, ?int $page = null, ?int $perPage = null)
+    public function list(?string $projectId, ?bool $starred = null, ?string $search = null, ?string $sortBy = null, ?int $page = null, ?int $perPage = null)
     {
         $user = Auth::user();
         if (! $user) {
@@ -58,6 +65,11 @@ class CollectionService
         }
         // When projectId is null, show all collections (both standalone and project-based)
 
+        // Search by name
+        if ($search && trim($search)) {
+            $query->where('name', 'LIKE', '%'.trim($search).'%');
+        }
+
         // Filter by starred status
         if ($starred !== null) {
             if ($starred) {
@@ -73,7 +85,29 @@ class CollectionService
             }
         }
 
-        $query->orderBy('created_at', 'desc');
+        // Apply sorting
+        if ($sortBy) {
+            $parts = explode('-', $sortBy);
+            $field = $parts[0] ?? 'created';
+            $direction = strtoupper($parts[1] ?? 'desc');
+            
+            // Validate direction - only use first two parts, ignore any additional parts
+            if (!in_array($direction, ['ASC', 'DESC'])) {
+                $direction = 'DESC';
+            }
+            
+            // Map frontend field names to database columns
+            $fieldMap = [
+                'created' => 'created_at',
+                'name' => 'name',
+                'status' => 'status',
+            ];
+            
+            $dbField = $fieldMap[$field] ?? 'created_at';
+            $query->orderBy($dbField, $direction);
+        } else {
+            $query->orderBy('created_at', 'desc');
+        }
 
         // Paginate the query
         $perPage = $perPage ?? 10;
@@ -221,7 +255,7 @@ class CollectionService
                 'coverFocalPoint' => ['x' => 50, 'y' => 50],
             ],
             'grid' => $settings['design']['grid'] ?? $settings['gridDesign'] ?? [
-                'gridStyle' => 'classic',
+                'gridStyle' => 'grid',
                 'gridColumns' => 3,
                 'thumbnailOrientation' => 'medium',
                 'gridSpacing' => 'normal',
@@ -406,9 +440,35 @@ class CollectionService
             }
         }
 
-        return $collection->load(['preset', 'watermark', 'mediaSets' => function ($query) {
-            $query->withCount('media')->orderBy('order');
+        $collection->load(['preset', 'watermark', 'mediaSets' => function ($query) {
+            $query->withCount('media')->orderBy('order', 'asc');
         }]);
+
+        // Create notification
+        $status = $collection->status?->value ?? $collection->status;
+        if ($status === 'active') {
+            $this->notificationService->create(
+                $user->uuid,
+                'memora',
+                'collection_published',
+                'Collection Published',
+                "Collection '{$collection->name}' has been published successfully.",
+                "Your collection '{$collection->name}' is now live and accessible.",
+                "/memora/collections/{$collection->uuid}"
+            );
+        } else {
+            $this->notificationService->create(
+                $user->uuid,
+                'memora',
+                'collection_created',
+                'Collection Created',
+                "Collection '{$collection->name}' has been created successfully.",
+                "Your collection '{$collection->name}' is ready to use.",
+                "/memora/collections/{$collection->uuid}"
+            );
+        }
+
+        return $collection;
     }
 
     /**
@@ -501,7 +561,11 @@ class CollectionService
             }
 
             if (isset($data['typographyDesign'])) {
-                $settings['design']['typography'] = $data['typographyDesign'];
+                $defaults = [
+                    'fontFamily' => 'sans',
+                    'fontStyle' => 'normal',
+                ];
+                $settings['design']['typography'] = array_merge($defaults, $data['typographyDesign']);
             }
 
             if (isset($data['colorDesign'])) {
@@ -650,9 +714,29 @@ class CollectionService
         // Organize settings into structured format before saving
         $updateData['settings'] = $this->organizeSettingsForStorage($settings);
 
+        // Check old status before update
+        $oldStatus = $collection->status?->value ?? $collection->status;
+
         // Use fill() and save() to ensure Laravel detects JSON column changes
         $collection->fill($updateData);
         $collection->save();
+
+        // Check new status after update
+        $collection->refresh();
+        $newStatus = $collection->status?->value ?? $collection->status;
+
+        // Create notification if status changed to 'active' (published)
+        if ($oldStatus !== 'active' && $newStatus === 'active') {
+            $this->notificationService->create(
+                $user->uuid,
+                'memora',
+                'collection_published',
+                'Collection Published',
+                "Collection '{$collection->name}' has been published successfully.",
+                "Your collection '{$collection->name}' is now live and accessible to viewers.",
+                "/memora/collections/{$collection->uuid}"
+            );
+        }
 
         // Restore preset sets if preset changed and new preset has photo_sets
         if ($presetChanged && $newPreset && $newPreset->photo_sets && is_array($newPreset->photo_sets) && count($newPreset->photo_sets) > 0) {
@@ -742,7 +826,7 @@ class CollectionService
         // Preserve existing sets when preset changes - do not delete/recreate sets
 
         return $collection->fresh()->load(['preset', 'watermark', 'mediaSets' => function ($query) {
-            $query->withCount('media')->orderBy('order');
+            $query->withCount('media')->orderBy('order', 'asc');
         }]);
     }
 
@@ -761,7 +845,7 @@ class CollectionService
         $query = MemoraCollection::where('user_uuid', $user->uuid)
             ->where('uuid', $id)
             ->with(['preset', 'watermark', 'project', 'mediaSets' => function ($query) {
-                $query->withCount('media')->orderBy('order');
+                $query->withCount('media')->orderBy('order', 'asc');
             }])
             ->with(['starredByUsers' => function ($query) use ($user) {
                 $query->where('user_uuid', $user->uuid);
@@ -802,9 +886,29 @@ class CollectionService
      */
     public function delete(?string $projectId, string $id): bool
     {
-        $collection = $this->find($projectId, $id);
+        $user = Auth::user();
+        if (! $user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
 
-        return $collection->delete();
+        $collection = $this->find($projectId, $id);
+        $name = $collection->name;
+        $deleted = $collection->delete();
+
+        if ($deleted) {
+            // Create notification
+            $this->notificationService->create(
+                $user->uuid,
+                'memora',
+                'collection_deleted',
+                'Collection Deleted',
+                "Collection '{$name}' has been deleted.",
+                "The collection '{$name}' has been permanently removed.",
+                '/memora/collections'
+            );
+        }
+
+        return $deleted;
     }
 
     /**
@@ -828,5 +932,100 @@ class CollectionService
         return [
             'starred' => $isStarred,
         ];
+    }
+
+    /**
+     * Duplicate a collection with all settings, media sets, and media
+     *
+     * @param  string|null  $projectId  Project UUID if collection is project-based
+     * @param  string  $id  Collection UUID
+     * @return MemoraCollection The duplicated collection
+     */
+    public function duplicate(?string $projectId, string $id): MemoraCollection
+    {
+        $user = Auth::user();
+        if (! $user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        // Load the original collection with all relationships
+        $original = MemoraCollection::where('uuid', $id)
+            ->where('user_uuid', $user->uuid)
+            ->with([
+                'mediaSets' => function ($query) {
+                    $query->whereNull('deleted_at')
+                        ->with(['media' => function ($q) {
+                            $q->whereNull('deleted_at')->orderBy('order', 'asc');
+                        }])->orderBy('order', 'asc');
+                },
+                'preset',
+                'watermark',
+            ])
+            ->firstOrFail();
+
+        if ($projectId) {
+            // Validate project exists and collection belongs to it
+            MemoraProject::where('uuid', $projectId)
+                ->where('user_uuid', $user->uuid)
+                ->firstOrFail();
+            if ($original->project_uuid !== $projectId) {
+                throw new \Exception('Collection does not belong to the specified project');
+            }
+        }
+
+        // Create the duplicated collection
+        $duplicated = MemoraCollection::create([
+            'user_uuid' => $user->uuid,
+            'project_uuid' => $original->project_uuid,
+            'preset_uuid' => $original->preset_uuid,
+            'watermark_uuid' => $original->watermark_uuid,
+            'name' => $original->name.' (Copy)',
+            'description' => $original->description,
+            'status' => 'draft',
+            'color' => $original->color,
+            'settings' => $original->settings,
+        ]);
+
+        // Duplicate media sets and their media
+        $setMapping = [];
+        foreach ($original->mediaSets as $originalSet) {
+            $newSet = MemoraMediaSet::create([
+                'user_uuid' => $user->uuid,
+                'collection_uuid' => $duplicated->uuid,
+                'project_uuid' => $originalSet->project_uuid,
+                'name' => $originalSet->name,
+                'description' => $originalSet->description,
+                'order' => $originalSet->order,
+                'selection_limit' => $originalSet->selection_limit,
+            ]);
+            $newSetUuid = $newSet->uuid;
+            $setMapping[$originalSet->uuid] = $newSetUuid;
+
+            // Duplicate media items (only non-deleted media)
+            if ($originalSet->relationLoaded('media') && $originalSet->media) {
+                foreach ($originalSet->media as $originalMedia) {
+                    if (!$originalMedia->deleted_at) {
+                        MemoraMedia::create([
+                            'user_uuid' => $user->uuid,
+                            'media_set_uuid' => $newSetUuid,
+                            'user_file_uuid' => $originalMedia->user_file_uuid,
+                            'original_file_uuid' => $originalMedia->original_file_uuid,
+                            'watermark_uuid' => $originalMedia->watermark_uuid,
+                            'order' => $originalMedia->order,
+                            'is_private' => $originalMedia->is_private,
+                            'is_featured' => false, // Reset featured status
+                        ]);
+                    }
+                }
+            }
+        }
+
+        // Reload the collection with relationships
+        $duplicated->refresh();
+        $duplicated->load(['preset', 'watermark', 'mediaSets' => function ($query) {
+            $query->withCount('media')->orderBy('order', 'asc');
+        }]);
+
+        return $duplicated;
     }
 }

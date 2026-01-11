@@ -130,6 +130,18 @@ class ProofingController extends Controller
     }
 
     /**
+     * Duplicate proofing (unified for standalone and project-based)
+     * For project-based: pass ?projectId=xxx as query parameter
+     */
+    public function duplicate(Request $request, string $id): JsonResponse
+    {
+        $projectId = $request->query('projectId');
+        $duplicated = $this->proofingService->duplicate($projectId, $id);
+
+        return ApiResponse::success(new ProofingResource($duplicated), 201);
+    }
+
+    /**
      * Set cover photo from media (unified for standalone and project-based)
      * For project-based: pass ?projectId=xxx as query parameter
      */

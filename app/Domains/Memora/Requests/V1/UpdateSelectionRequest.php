@@ -36,6 +36,9 @@ class UpdateSelectionRequest extends FormRequest
             'display_settings.grid_size' => ['sometimes', 'string', 'in:small,medium,large'],
             'display_settings.show_filename' => ['sometimes', 'boolean'],
             'display_settings.sort_order' => ['sometimes', 'string', 'in:uploaded-new-old,uploaded-old-new,name-a-z,name-z-a,date-taken-new-old,date-taken-old-new,random'],
+            'typographyDesign' => ['nullable', 'array'],
+            'typographyDesign.fontFamily' => ['nullable', 'string', 'max:100'],
+            'typographyDesign.fontStyle' => ['nullable', 'string', 'max:50'],
         ];
     }
 }

@@ -350,7 +350,66 @@ class ProjectService
             $updateData['has_collections'] = $data['hasCollections'];
         }
 
+        // Check if color was updated before updating project (normalize colors for comparison)
+        $originalColor = $project->color ?? null;
+        $newColorValue = $data['color'] ?? null;
+        $colorUpdated = isset($data['color']) && $newColorValue !== $originalColor;
+        $newColor = $colorUpdated ? $newColorValue : null;
+
         $project->update($updateData);
+        $project->refresh();
+
+        // Cascade color update to all active phases (active or draft status) if color was updated
+        if ($colorUpdated && $newColor) {
+
+            // Update selection phase if it exists (regardless of status)
+            $project->load('selection');
+            $selection = $project->selection;
+            if ($selection) {
+                $selectionService = app(\App\Domains\Memora\Services\SelectionService::class);
+                try {
+                    $selectionService->update($selection->uuid, ['color' => $newColor]);
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Failed to update selection color', [
+                        'selection_uuid' => $selection->uuid,
+                        'color' => $newColor,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+            
+            // Update proofing phase if it exists (regardless of status)
+            $project->load('proofing');
+            $proofing = $project->proofing;
+            if ($proofing) {
+                $proofingService = app(\App\Domains\Memora\Services\ProofingService::class);
+                try {
+                    $proofingService->update($project->uuid, $proofing->uuid, ['color' => $newColor]);
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Failed to update proofing color', [
+                        'proofing_uuid' => $proofing->uuid,
+                        'color' => $newColor,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+            
+            // Update all collections under this project (regardless of status)
+            $collectionService = app(\App\Domains\Memora\Services\CollectionService::class);
+            $allCollections = \App\Domains\Memora\Models\MemoraCollection::where('project_uuid', $project->uuid)->get();
+            
+            foreach ($allCollections as $collection) {
+                try {
+                    $collectionService->update($project->uuid, $collection->uuid, ['color' => $newColor]);
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Failed to update collection color', [
+                        'collection_uuid' => $collection->uuid,
+                        'color' => $newColor,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
 
         // Update media sets if provided
         if (isset($data['mediaSets']) && is_array($data['mediaSets'])) {

@@ -111,10 +111,15 @@ class ImageUploadService
             $basePath = 'uploads/images/'.$uuid;
 
             // Cloudinary doesn't use Storage facade - use provider's upload method
+            $variantSizes = []; // Track sizes of all variants
             if ($provider === 'cloudinary') {
                 foreach ($variantPaths as $variantName => $localPath) {
                     $extension = pathinfo($localPath, PATHINFO_EXTENSION);
                     $variantPath = $basePath.'/'.$variantName.'.'.$extension;
+
+                    // Get variant size from local temp file
+                    $variantSize = file_exists($localPath) ? filesize($localPath) : 0;
+                    $variantSizes[$variantName] = $variantSize;
 
                     // Create UploadedFile instance from variant file
                     $variantFile = $this->createUploadedFileFromPath($localPath, $variantName.'.'.$extension);
@@ -126,8 +131,11 @@ class ImageUploadService
 
                     $uploadedVariants[$variantName] = $uploadResult->url;
                 }
+                // Calculate total size including all variants
+                $totalSizeWithVariants = array_sum($variantSizes);
             } else {
                 // For Storage-based providers (local, s3, r2), use Storage facade
+                $variantSizes = []; // Track sizes of all variants
                 foreach ($variantPaths as $variantName => $localPath) {
                     // Get extension from the local file path
                     $extension = pathinfo($localPath, PATHINFO_EXTENSION);
@@ -144,6 +152,10 @@ class ImageUploadService
 
                     $storagePath = $basePath.'/'.$variantName.'.'.strtolower($extension);
 
+                    // Get variant size before uploading (from local temp file)
+                    $variantSize = file_exists($localPath) ? filesize($localPath) : 0;
+                    $variantSizes[$variantName] = $variantSize;
+
                     // Upload to storage using Storage facade
                     $contents = file_get_contents($localPath);
                     $uploaded = Storage::disk($this->disk)->put($storagePath, $contents, 'public');
@@ -158,15 +170,20 @@ class ImageUploadService
                     // Build public URL using provider's method or Storage URL
                     $uploadedVariants[$variantName] = $this->getPublicUrl($storagePath);
                 }
+                
+                // Calculate total size including all variants
+                $totalSizeWithVariants = array_sum($variantSizes);
             }
 
             return [
                 'uuid' => $uuid,
                 'variants' => $uploadedVariants,
+                'variant_sizes' => $variantSizes ?? [],
                 'meta' => [
                     'width' => $dimensions['width'],
                     'height' => $dimensions['height'],
                     'size' => $file->getSize(),
+                    'total_size_with_variants' => $totalSizeWithVariants ?? $file->getSize(),
                 ],
             ];
         } finally {

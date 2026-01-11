@@ -57,6 +57,7 @@ class MemoraSelection extends Model
         'auto_delete_enabled',
         'auto_delete_days',
         'display_settings',
+        'settings',
     ];
 
     /**
@@ -79,6 +80,7 @@ class MemoraSelection extends Model
         'cover_focal_point' => 'array',
         'display_settings' => 'array',
         'allowed_emails' => 'array',
+        'settings' => 'array',
     ];
 
     /**

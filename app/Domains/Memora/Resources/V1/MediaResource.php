@@ -22,7 +22,11 @@ class MediaResource extends JsonResource
             'feedback' => $this->whenLoaded('feedback', function () {
                 return MediaFeedbackResource::collection($this->feedback);
             }, []),
-            'file' => $this->whenLoaded('file', function () {
+            'file' => $this->whenLoaded('file', function () use ($request) {
+                // Pass media watermark_uuid to UserFileResource via request attributes
+                if ($this->watermark_uuid) {
+                    $request->attributes->set('media_watermark_uuid', $this->watermark_uuid);
+                }
                 return new UserFileResource($this->file);
             }, null),
             'isCompleted' => $this->is_completed,

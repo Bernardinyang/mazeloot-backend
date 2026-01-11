@@ -59,6 +59,7 @@ class MemoraProofing extends Model
         'allowed_emails',
         'primary_email',
         'password',
+        'settings',
     ];
 
     protected $casts = [
@@ -66,6 +67,7 @@ class MemoraProofing extends Model
         'completed_at' => 'datetime',
         'cover_focal_point' => 'array',
         'allowed_emails' => 'array',
+        'settings' => 'array',
     ];
 
     /**

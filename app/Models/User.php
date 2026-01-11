@@ -125,6 +125,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the notifications for the user.
+     */
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(Notification::class, 'user_uuid', 'uuid');
+    }
+
+    /**
      * Get the user's status.
      */
     public function status(): BelongsTo

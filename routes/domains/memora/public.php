@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Memora\Controllers\V1\ClosureRequestController;
+use App\Domains\Memora\Controllers\V1\CloudStorageOAuthController;
 use App\Domains\Memora\Controllers\V1\GuestProofingController;
 use App\Domains\Memora\Controllers\V1\GuestSelectionController;
 use App\Domains\Memora\Controllers\V1\ProofingApprovalRequestController;
@@ -120,6 +121,7 @@ Route::prefix('public/collections')->group(function () {
 
     // Get media sets for collection (public - no authentication required)
     Route::get('/{id}/sets', [PublicCollectionController::class, 'getSets']);
+    Route::get('/{id}/media-sets', [PublicCollectionController::class, 'getSets']); // Alias for frontend compatibility
 
     // Get media for a specific set (public - no authentication required)
     Route::get('/{id}/sets/{setId}/media', [PublicMediaController::class, 'getCollectionSetMedia']);
@@ -134,6 +136,11 @@ Route::prefix('public/collections')->group(function () {
     // Download media from collection (public - no authentication required)
     Route::get('/{id}/media/{mediaId}/download', [PublicMediaController::class, 'downloadCollectionMedia']);
 
+    // ZIP download routes
+    Route::post('/{id}/download/zip', [PublicCollectionController::class, 'initiateZipDownload']);
+    Route::get('/{id}/download/zip/{token}/status', [PublicCollectionController::class, 'getZipDownloadStatus']);
+    Route::get('/{id}/download/zip/{token}', [PublicCollectionController::class, 'downloadZip']);
+
     // Track activities (public - no authentication required)
     Route::post('/{id}/track-email-registration', [\App\Domains\Memora\Controllers\V1\CollectionActivityController::class, 'trackEmailRegistration']);
     Route::post('/{id}/track-share-link', [\App\Domains\Memora\Controllers\V1\CollectionActivityController::class, 'trackShareLinkClick']);
@@ -142,6 +149,12 @@ Route::prefix('public/collections')->group(function () {
     // Get collection (public - no authentication required for published collections)
     // Must be last to avoid matching more specific routes
     Route::get('/{id}', [PublicCollectionController::class, 'show']);
+});
+
+// Cloud Storage OAuth Routes (public - no authentication required)
+Route::prefix('cloud-storage/oauth')->group(function () {
+    Route::post('/initiate', [CloudStorageOAuthController::class, 'initiate']);
+    Route::get('/{service}/callback', [CloudStorageOAuthController::class, 'callback']);
 });
 
 // Public Media Closure Requests (guest token required)

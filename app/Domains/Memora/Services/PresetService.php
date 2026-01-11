@@ -5,12 +5,19 @@ namespace App\Domains\Memora\Services;
 use App\Domains\Memora\Models\MemoraCollection;
 use App\Domains\Memora\Models\MemoraPreset;
 use App\Domains\Memora\Models\MemoraProject;
+use App\Services\Notification\NotificationService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class PresetService
 {
+    protected NotificationService $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
     /**
      * Get all presets for the authenticated user
      */
@@ -349,6 +356,17 @@ class PresetService
         $preset = MemoraPreset::create($dbData);
         $preset->load('defaultWatermark');
 
+        // Create notification
+        $this->notificationService->create(
+            $user->uuid,
+            'memora',
+            'preset_created',
+            'Preset Created',
+            "Preset '{$preset->name}' has been created successfully.",
+            "Your new preset '{$preset->name}' is now available to use.",
+            '/memora/settings/preset'
+        );
+
         return $preset;
     }
 
@@ -375,6 +393,17 @@ class PresetService
 
         $preset->load('defaultWatermark');
 
+        // Create notification
+        $this->notificationService->create(
+            $user->uuid,
+            'memora',
+            'preset_updated',
+            'Preset Updated',
+            "Preset '{$preset->name}' has been updated successfully.",
+            "Your preset '{$preset->name}' settings have been saved.",
+            '/memora/settings/preset'
+        );
+
         return $preset;
     }
 
@@ -391,7 +420,23 @@ class PresetService
         $preset = MemoraPreset::where('user_uuid', $user->uuid)
             ->findOrFail($id);
 
-        return $preset->delete();
+        $name = $preset->name;
+        $deleted = $preset->delete();
+
+        if ($deleted) {
+            // Create notification
+            $this->notificationService->create(
+                $user->uuid,
+                'memora',
+                'preset_deleted',
+                'Preset Deleted',
+                "Preset '{$name}' has been deleted.",
+                "The preset '{$name}' has been permanently removed.",
+                '/memora/settings/preset'
+            );
+        }
+
+        return $deleted;
     }
 
     /**

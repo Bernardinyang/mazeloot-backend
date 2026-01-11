@@ -41,4 +41,28 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI', env('APP_URL').'/api/v1/auth/oauth/google/callback'),
     ],
 
+    'dropbox' => [
+        'client_id' => env('DROPBOX_CLIENT_ID'),
+        'client_secret' => env('DROPBOX_CLIENT_SECRET'),
+        'redirect' => env('DROPBOX_REDIRECT_URI', env('APP_URL').'/api/v1/cloud-storage/oauth/dropbox/callback'),
+    ],
+
+    'onedrive' => [
+        'client_id' => env('ONEDRIVE_CLIENT_ID'),
+        'client_secret' => env('ONEDRIVE_CLIENT_SECRET'),
+        'redirect' => env('ONEDRIVE_REDIRECT_URI', env('APP_URL').'/api/v1/cloud-storage/oauth/onedrive/callback'),
+    ],
+
+    'box' => [
+        'client_id' => env('BOX_CLIENT_ID'),
+        'client_secret' => env('BOX_CLIENT_SECRET'),
+        'redirect' => env('BOX_REDIRECT_URI', env('APP_URL').'/api/v1/cloud-storage/oauth/box/callback'),
+    ],
+
+    'adobe' => [
+        'client_id' => env('ADOBE_CLIENT_ID'),
+        'client_secret' => env('ADOBE_CLIENT_SECRET'),
+        'redirect' => env('ADOBE_REDIRECT_URI', env('APP_URL').'/api/v1/cloud-storage/oauth/adobe/callback'),
+    ],
+
 ];

@@ -4,6 +4,7 @@ use App\Domains\Memora\Controllers\V1\ClosureRequestController;
 use App\Domains\Memora\Controllers\V1\CollectionController;
 use App\Domains\Memora\Controllers\V1\CoverLayoutController;
 use App\Domains\Memora\Controllers\V1\CoverStyleController;
+use App\Domains\Memora\Controllers\V1\DashboardController;
 use App\Domains\Memora\Controllers\V1\EmailNotificationController;
 use App\Domains\Memora\Controllers\V1\MediaController;
 use App\Domains\Memora\Controllers\V1\MediaSetController;
@@ -26,6 +27,9 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
+    // Dashboard
+    Route::get('/dashboard', [DashboardController::class, 'stats']);
+
     // Proofing (unified routes - works for both standalone and project-based)
     // For project-based: pass ?projectId=xxx as query parameter
     Route::get('/proofing', [ProofingController::class, 'index']);
@@ -35,6 +39,7 @@ Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
     Route::delete('/proofing/{id}', [ProofingController::class, 'destroy']);
     Route::post('/proofing/{id}/publish', [ProofingController::class, 'publish']);
     Route::post('/proofing/{id}/star', [ProofingController::class, 'toggleStar']);
+    Route::post('/proofing/{id}/duplicate', [ProofingController::class, 'duplicate']);
     Route::post('/proofing/{id}/cover-photo', [ProofingController::class, 'setCoverPhoto']);
     Route::post('/proofing/{id}/recover', [ProofingController::class, 'recover']);
     Route::post('/proofing/{id}/revisions', [ProofingController::class, 'uploadRevision']);
@@ -96,6 +101,7 @@ Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
     Route::patch('/collections/{id}', [CollectionController::class, 'update']);
     Route::delete('/collections/{id}', [CollectionController::class, 'destroy']);
     Route::post('/collections/{id}/star', [CollectionController::class, 'toggleStar']);
+    Route::post('/collections/{id}/duplicate', [CollectionController::class, 'duplicate']);
 
     // Collection Activities
     Route::prefix('collections/{id}/activities')->group(function () {

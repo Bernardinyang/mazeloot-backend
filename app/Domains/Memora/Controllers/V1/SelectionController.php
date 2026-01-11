@@ -178,4 +178,14 @@ class SelectionController extends Controller
 
         return ApiResponse::success($result);
     }
+
+    /**
+     * Duplicate a selection
+     */
+    public function duplicate(string $id): JsonResponse
+    {
+        $duplicated = $this->selectionService->duplicate($id);
+
+        return ApiResponse::success($duplicated, 201);
+    }
 }

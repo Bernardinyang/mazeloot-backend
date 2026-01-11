@@ -456,7 +456,8 @@ class MediaController extends Controller
 
         try {
             $validated = $request->validated();
-            $media = $this->mediaService->applyWatermark($mediaId, $validated['watermarkUuid'], $userId);
+            $previewStyle = $validated['previewStyle'] ?? false;
+            $media = $this->mediaService->applyWatermark($mediaId, $validated['watermarkUuid'], $userId, $previewStyle);
 
             return ApiResponse::success(new MediaResource($media));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {

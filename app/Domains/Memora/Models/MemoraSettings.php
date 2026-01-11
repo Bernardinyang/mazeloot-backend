@@ -82,6 +82,7 @@ class MemoraSettings extends Model
         'branding_show_mazeloot_branding' => 'boolean',
         'preference_raw_photo_support' => 'boolean',
         'preference_enable_cookie_banner' => 'boolean',
+        'preference_use_preview_watermark' => 'boolean',
         'homepage_status' => 'boolean',
         'homepage_slideshow_enabled' => 'boolean',
         'homepage_info' => 'array',

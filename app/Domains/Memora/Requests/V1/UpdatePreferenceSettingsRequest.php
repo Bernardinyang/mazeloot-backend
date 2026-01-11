@@ -23,6 +23,7 @@ class UpdatePreferenceSettingsRequest extends FormRequest
             'enableCookieBanner' => ['nullable', 'boolean'],
             'language' => ['nullable', 'string', 'max:10'],
             'timezone' => ['nullable', 'string', 'max:50'],
+            'usePreviewWatermark' => ['nullable', 'boolean'],
         ];
     }
 }

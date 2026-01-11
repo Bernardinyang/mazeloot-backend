@@ -167,7 +167,7 @@ class UploadController extends Controller
             $metadata['thumbnail'] = $thumbnailUrl;
         }
 
-        return UserFile::query()->create([
+        $userFile = UserFile::query()->create([
             'user_uuid' => $userUuid,
             'url' => $uploadResult->url,
             'path' => $uploadResult->path,
@@ -179,5 +179,12 @@ class UploadController extends Controller
             'height' => $uploadResult->height,
             'metadata' => $metadata,
         ]);
+
+        // Update cached storage (use file size as fallback if no variants)
+        $fileSize = $uploadResult->size;
+        $storageService = app(\App\Services\Storage\UserStorageService::class);
+        $storageService->incrementStorage($userUuid, $fileSize);
+
+        return $userFile;
     }
 }

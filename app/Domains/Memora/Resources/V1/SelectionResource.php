@@ -2,6 +2,7 @@
 
 namespace App\Domains\Memora\Resources\V1;
 
+use App\Services\Storage\UserStorageService;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Auth;
 
@@ -39,6 +40,9 @@ class SelectionResource extends JsonResource
             'mediaCount' => $this->media_count ?? 0,
             'selectedCount' => $this->selected_count ?? 0,
             'setCount' => $this->set_count ?? ($this->relationLoaded('mediaSets') ? $this->mediaSets->count() : 0),
+            'storageUsedBytes' => $this->getStorageUsed(),
+            'storageUsedMB' => round($this->getStorageUsed() / (1024 * 1024), 2),
+            'storageUsedGB' => round($this->getStorageUsed() / (1024 * 1024 * 1024), 2),
             'isStarred' => Auth::check() && $this->relationLoaded('starredByUsers')
                 ? $this->starredByUsers->isNotEmpty()
                 : false,
@@ -48,6 +52,68 @@ class SelectionResource extends JsonResource
             'mediaSets' => $this->whenLoaded('mediaSets', function () {
                 return MediaSetResource::collection($this->mediaSets);
             }, []),
+            'design' => $this->getDesign(),
+            'typographyDesign' => $this->getTypographyDesign(),
         ];
+    }
+
+    /**
+     * Get design object from settings
+     * Always includes typography defaults
+     */
+    private function getDesign(): array
+    {
+        $settings = $this->settings ?? [];
+        $defaults = [
+            'typography' => [
+                'fontFamily' => 'sans',
+                'fontStyle' => 'normal',
+            ],
+        ];
+        
+        if (isset($settings['design']) && is_array($settings['design'])) {
+            $design = $settings['design'];
+            // Ensure typography always has defaults
+            if (!isset($design['typography']) || empty($design['typography'])) {
+                $design['typography'] = $defaults['typography'];
+            } else {
+                $design['typography'] = array_merge($defaults['typography'], $design['typography']);
+            }
+            return $design;
+        }
+        
+        return $defaults;
+    }
+
+    /**
+     * Get typographyDesign for backward compatibility
+     * Always returns default values if not set
+     */
+    private function getTypographyDesign(): array
+    {
+        $settings = $this->settings ?? [];
+        $defaults = [
+            'fontFamily' => 'sans',
+            'fontStyle' => 'normal',
+        ];
+        
+        if (isset($settings['design']['typography']) && is_array($settings['design']['typography']) && !empty($settings['design']['typography'])) {
+            return array_merge($defaults, $settings['design']['typography']);
+        }
+        
+        return $defaults;
+    }
+
+    /**
+     * Get storage used by media in this selection
+     */
+    private function getStorageUsed(): int
+    {
+        try {
+            $storageService = app(UserStorageService::class);
+            return $storageService->getPhaseStorageUsed($this->uuid, 'selection');
+        } catch (\Exception $e) {
+            return 0;
+        }
     }
 }

@@ -86,7 +86,9 @@ class ImageUploadController extends Controller
             ?? $uploadResult['variants']['large']
             ?? '';
 
-        return UserFile::query()->create([
+        $totalSizeWithVariants = $uploadResult['meta']['total_size_with_variants'] ?? $uploadResult['meta']['size'];
+        
+        $userFile = UserFile::query()->create([
             'user_uuid' => $userUuid,
             'url' => $primaryUrl,
             'path' => 'uploads/images/'.$uploadResult['uuid'],
@@ -99,8 +101,16 @@ class ImageUploadController extends Controller
             'metadata' => [
                 'uuid' => $uploadResult['uuid'],
                 'variants' => $uploadResult['variants'],
+                'variant_sizes' => $uploadResult['variant_sizes'] ?? [],
+                'total_size_with_variants' => $totalSizeWithVariants,
                 'provider' => config('upload.default_provider', 'local'),
             ],
         ]);
+
+        // Update cached storage
+        $storageService = app(\App\Services\Storage\UserStorageService::class);
+        $storageService->incrementStorage($userUuid, $totalSizeWithVariants);
+
+        return $userFile;
     }
 }

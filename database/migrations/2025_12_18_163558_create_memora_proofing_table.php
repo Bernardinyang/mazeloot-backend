@@ -39,6 +39,7 @@ return new class extends Migration
             $table->string('password')->nullable(); // Optional password for accessing proofing
             $table->json('allowed_emails')->nullable(); // Array of email addresses allowed to access this proofing
             $table->string('primary_email')->nullable(); // Primary contact email for this proofing
+            $table->json('settings')->nullable(); // Settings for the proofing phase
 
             // Revision tracking
             $table->integer('max_revisions')->default(5); // Maximum number of revisions allowed per media item

@@ -4,11 +4,18 @@ namespace App\Domains\Memora\Services;
 
 use App\Domains\Memora\Models\MemoraSocialLink;
 use App\Models\SocialMediaPlatform;
+use App\Services\Notification\NotificationService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 
 class SocialLinkService
 {
+    protected NotificationService $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
     /**
      * Get all social links for the authenticated user
      */
@@ -54,13 +61,26 @@ class SocialLinkService
         $maxOrder = MemoraSocialLink::where('user_uuid', $user->uuid)
             ->max('order') ?? -1;
 
-        return MemoraSocialLink::create([
+        $link = MemoraSocialLink::create([
             'user_uuid' => $user->uuid,
             'platform_uuid' => $platform->uuid,
             'url' => $data['url'],
             'is_active' => $data['isActive'] ?? $data['is_active'] ?? true,
             'order' => $data['order'] ?? ($maxOrder + 1),
         ]);
+
+        // Create notification
+        $this->notificationService->create(
+            $user->uuid,
+            'memora',
+            'social_link_created',
+            'Social Link Added',
+            "Social link for {$platform->name} has been added successfully.",
+            "Your {$platform->name} link has been added to your homepage.",
+            '/memora/settings/social-links'
+        );
+
+        return $link;
     }
 
     /**
@@ -105,6 +125,18 @@ class SocialLinkService
         $link->refresh();
         $link->load('platform');
 
+        // Create notification
+        $platformName = $link->platform?->name ?? 'Social Media';
+        $this->notificationService->create(
+            $user->uuid,
+            'memora',
+            'social_link_updated',
+            'Social Link Updated',
+            "Social link for {$platformName} has been updated successfully.",
+            "Your {$platformName} link has been updated.",
+            '/memora/settings/social-links'
+        );
+
         return $link;
     }
 
@@ -121,7 +153,23 @@ class SocialLinkService
         $link = MemoraSocialLink::where('user_uuid', $user->uuid)
             ->findOrFail($id);
 
-        return $link->delete();
+        $platformName = $link->platform?->name ?? 'Social Media';
+        $deleted = $link->delete();
+
+        if ($deleted) {
+            // Create notification
+            $this->notificationService->create(
+                $user->uuid,
+                'memora',
+                'social_link_deleted',
+                'Social Link Removed',
+                "Social link for {$platformName} has been removed.",
+                "Your {$platformName} link has been permanently removed from your homepage.",
+                '/memora/settings/social-links'
+            );
+        }
+
+        return $deleted;
     }
 
     /**

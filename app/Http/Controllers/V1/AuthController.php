@@ -12,7 +12,9 @@ use App\Http\Requests\V1\SendMagicLinkRequest;
 use App\Http\Requests\V1\VerifyEmailRequest;
 use App\Http\Requests\V1\VerifyMagicLinkRequest;
 use App\Models\User;
+use App\Models\UserFile;
 use App\Services\Auth\EmailVerificationService;
+use App\Services\Storage\UserStorageService;
 use App\Services\Auth\MagicLinkService;
 use App\Services\Auth\PasswordResetService;
 use App\Support\Responses\ApiResponse;
@@ -27,7 +29,8 @@ class AuthController extends Controller
     public function __construct(
         protected EmailVerificationService $verificationService,
         protected PasswordResetService $passwordResetService,
-        protected MagicLinkService $magicLinkService
+        protected MagicLinkService $magicLinkService,
+        protected UserStorageService $storageService
     ) {}
 
     /**
@@ -456,6 +459,53 @@ class AuthController extends Controller
                 ] : null,
             ],
         ]);
+    }
+
+    /**
+     * Get storage usage for authenticated user.
+     */
+    public function storage(): JsonResponse
+    {
+        try {
+            $user = auth()->user();
+
+            if (! $user) {
+                return ApiResponse::errorUnauthorized('User not authenticated.');
+            }
+
+            // Get cached storage (fast) - only check actual cloud storage if explicitly enabled
+            // Default to false for performance - cache is maintained on upload/delete
+            $checkActual = config('storage.check_actual_sizes', false);
+            
+            $totalUsed = $this->storageService->getTotalStorageUsed($user->uuid, $checkActual);
+            
+            // Get storage quota/limit from config (default 500MB, but can be overridden per user)
+            // If no quota is set, default to 5GB for display purposes
+            $quotaService = app(\App\Services\Quotas\QuotaService::class);
+            $totalLimit = $quotaService->getUploadQuota(null, $user->id);
+            
+            // If no quota is set (unlimited), use 5GB as default for UI display
+            if ($totalLimit === null) {
+                $totalLimit = 5 * 1024 * 1024 * 1024; // 5GB default
+            }
+
+            return ApiResponse::successOk([
+                'total_used_bytes' => $totalUsed,
+                'total_used_mb' => round($totalUsed / (1024 * 1024), 2),
+                'total_used_gb' => round($totalUsed / (1024 * 1024 * 1024), 2),
+                'total_storage_bytes' => $totalLimit,
+                'total_storage_mb' => round($totalLimit / (1024 * 1024), 2),
+                'total_storage_gb' => round($totalLimit / (1024 * 1024 * 1024), 2),
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to get storage usage', [
+                'user_uuid' => $user->uuid ?? 'unknown',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return ApiResponse::errorInternalServerError('Failed to retrieve storage usage. Please try again later.');
+        }
     }
 
     /**

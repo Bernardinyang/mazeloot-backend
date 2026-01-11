@@ -27,10 +27,12 @@ class CollectionController extends Controller
     {
         $projectId = $request->query('projectId');
         $starred = $request->has('starred') ? filter_var($request->query('starred'), FILTER_VALIDATE_BOOLEAN) : null;
+        $search = $request->query('search');
+        $sortBy = $request->query('sort_by');
         $page = max(1, (int) $request->query('page', 1));
         $perPage = max(1, min(100, (int) $request->query('per_page', 10)));
 
-        $result = $this->collectionService->list($projectId, $starred, $page, $perPage);
+        $result = $this->collectionService->list($projectId, $starred, $search, $sortBy, $page, $perPage);
 
         return ApiResponse::success($result);
     }
@@ -93,5 +95,17 @@ class CollectionController extends Controller
         $result = $this->collectionService->toggleStar($projectId, $id);
 
         return ApiResponse::success($result);
+    }
+
+    /**
+     * Duplicate collection (unified for standalone and project-based)
+     * For project-based: pass ?projectId=xxx as query parameter
+     */
+    public function duplicate(Request $request, string $id): JsonResponse
+    {
+        $projectId = $request->query('projectId');
+        $duplicated = $this->collectionService->duplicate($projectId, $id);
+
+        return ApiResponse::success(new CollectionResource($duplicated), 201);
     }
 }

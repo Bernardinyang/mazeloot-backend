@@ -19,21 +19,21 @@ class AutoDeleteSelectionsCommand extends Command
      *
      * @var string
      */
-    protected $description = 'Automatically delete selections that have passed their auto_delete_date';
+    protected $description = 'Automatically delete unselected media from selections that have passed their auto_delete_date';
 
     /**
      * Execute the console command.
      */
     public function handle(SelectionService $selectionService): int
     {
-        $this->info('Starting auto-deletion of selected media from expired selections...');
+        $this->info('Starting auto-deletion of unselected media from expired selections...');
 
         try {
             $result = $selectionService->autoDeleteExpiredSelections();
 
-            if ($result['selected_media_deleted'] > 0) {
+            if ($result['unselected_media_deleted'] > 0) {
                 $this->info(
-                    "Successfully deleted {$result['selected_media_deleted']} selected media item(s). ".
+                    "Successfully deleted {$result['unselected_media_deleted']} unselected media item(s). ".
                     'Selections remain intact.'
                 );
             } else {

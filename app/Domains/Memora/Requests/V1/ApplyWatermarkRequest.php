@@ -19,8 +19,28 @@ class ApplyWatermarkRequest extends FormRequest
      */
     public function rules(): array
     {
+        $userId = auth()->id();
+        
         return [
-            'watermarkUuid' => ['required', 'uuid', 'exists:memora_watermarks,uuid'],
+            'watermarkUuid' => [
+                'required',
+                'string',
+                'uuid',
+                'exists:memora_watermarks,uuid,user_uuid,'.$userId,
+            ],
+            'previewStyle' => ['sometimes', 'boolean'],
+        ];
+    }
+
+    /**
+     * Get custom messages for validator errors.
+     */
+    public function messages(): array
+    {
+        return [
+            'watermarkUuid.required' => 'Watermark UUID is required',
+            'watermarkUuid.uuid' => 'Watermark UUID must be a valid UUID',
+            'watermarkUuid.exists' => 'The selected watermark does not exist',
         ];
     }
 }

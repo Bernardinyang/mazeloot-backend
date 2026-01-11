@@ -16,6 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'api-key' => \App\Http\Middleware\ApiKeyAuth::class,
             'guest.token' => \App\Http\Middleware\GuestTokenAuth::class,
         ]);
+        
+        $middleware->validateCsrfTokens(except: [
+            'broadcasting/auth',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // Ensure API routes always return JSON responses for validation errors

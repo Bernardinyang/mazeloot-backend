@@ -186,6 +186,7 @@ class CollectionResource extends JsonResource
     public function toArray($request): array
     {
         $settings = $this->organizeSettings($this->settings ?? []);
+        $storageUsedBytes = $this->getStorageUsed();
 
         return [
             'id' => $this->uuid,
@@ -218,11 +219,32 @@ class CollectionResource extends JsonResource
                 ? $this->mediaSets->sum(fn ($set) => $set->media_count ?? 0)
                 : 0),
             'setCount' => $this->set_count ?? ($this->relationLoaded('mediaSets') ? $this->mediaSets->count() : 0),
+            'storageUsedBytes' => $storageUsedBytes,
+            'storageUsedMB' => round($storageUsedBytes / (1024 * 1024), 2),
+            'storageUsedGB' => round($storageUsedBytes / (1024 * 1024 * 1024), 2),
             'mediaSets' => $this->whenLoaded('mediaSets', function () {
                 return MediaSetResource::collection($this->mediaSets);
             }, []),
             'createdAt' => $this->created_at->toIso8601String(),
             'updatedAt' => $this->updated_at->toIso8601String(),
         ];
+    }
+
+    /**
+     * Get storage used by media in this collection
+     */
+    private function getStorageUsed(): int
+    {
+        try {
+            $storageService = app(\App\Services\Storage\UserStorageService::class);
+            return $storageService->getPhaseStorageUsed($this->uuid, 'collection');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to get collection storage used', [
+                'collection_uuid' => $this->uuid,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return 0;
+        }
     }
 }

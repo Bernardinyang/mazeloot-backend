@@ -4,16 +4,21 @@ namespace App\Domains\Memora\Services;
 
 use App\Domains\Memora\Models\MemoraWatermark;
 use App\Services\Image\ImageUploadService;
+use App\Services\Notification\NotificationService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 
 class WatermarkService
 {
     protected ImageUploadService $imageUploadService;
+    protected NotificationService $notificationService;
 
-    public function __construct(ImageUploadService $imageUploadService)
-    {
+    public function __construct(
+        ImageUploadService $imageUploadService,
+        NotificationService $notificationService
+    ) {
         $this->imageUploadService = $imageUploadService;
+        $this->notificationService = $notificationService;
     }
 
     /**
@@ -145,6 +150,17 @@ class WatermarkService
         $watermark = MemoraWatermark::create($watermarkData);
         $watermark->load('imageFile');
 
+        // Create notification
+        $this->notificationService->create(
+            $user->uuid,
+            'memora',
+            'watermark_created',
+            'Watermark Created',
+            "Watermark '{$watermark->name}' has been created successfully.",
+            "Your new watermark '{$watermark->name}' is now available to use.",
+            '/memora/settings/watermark'
+        );
+
         return $watermark;
     }
 
@@ -187,16 +203,16 @@ class WatermarkService
             $updateData['text'] = $data['text'];
         }
         if (array_key_exists('fontFamily', $data)) {
-            $updateData['font_family'] = $data['fontFamily'];
+            $updateData['font_family'] = $data['fontFamily'] ?: null;
         }
         if (array_key_exists('fontStyle', $data)) {
-            $updateData['font_style'] = $data['fontStyle'];
+            $updateData['font_style'] = $data['fontStyle'] ?: null;
         }
         if (array_key_exists('fontColor', $data)) {
-            $updateData['font_color'] = $this->convertColorToHex($data['fontColor']);
+            $updateData['font_color'] = $data['fontColor'] ? $this->convertColorToHex($data['fontColor']) : null;
         }
         if (array_key_exists('backgroundColor', $data)) {
-            $updateData['background_color'] = $this->convertColorToHex($data['backgroundColor']);
+            $updateData['background_color'] = $data['backgroundColor'] ? $this->convertColorToHex($data['backgroundColor']) : null;
         }
         if (array_key_exists('lineHeight', $data)) {
             $updateData['line_height'] = $data['lineHeight'];
@@ -208,7 +224,7 @@ class WatermarkService
             $updateData['padding'] = $data['padding'];
         }
         if (array_key_exists('textTransform', $data)) {
-            $updateData['text_transform'] = $data['textTransform'];
+            $updateData['text_transform'] = $data['textTransform'] ?: null;
         }
         if (array_key_exists('borderRadius', $data)) {
             $updateData['border_radius'] = $data['borderRadius'];
@@ -217,15 +233,26 @@ class WatermarkService
             $updateData['border_width'] = $data['borderWidth'];
         }
         if (array_key_exists('borderColor', $data)) {
-            $updateData['border_color'] = $this->convertColorToHex($data['borderColor']);
+            $updateData['border_color'] = $data['borderColor'] ? $this->convertColorToHex($data['borderColor']) : null;
         }
         if (array_key_exists('borderStyle', $data)) {
-            $updateData['border_style'] = $data['borderStyle'];
+            $updateData['border_style'] = $data['borderStyle'] ?: null;
         }
 
         $watermark->update($updateData);
         $watermark->refresh();
         $watermark->load('imageFile');
+
+        // Create notification
+        $this->notificationService->create(
+            $user->uuid,
+            'memora',
+            'watermark_updated',
+            'Watermark Updated',
+            "Watermark '{$watermark->name}' has been updated successfully.",
+            "Your watermark '{$watermark->name}' settings have been saved.",
+            '/memora/settings/watermark'
+        );
 
         return $watermark;
     }
@@ -243,7 +270,23 @@ class WatermarkService
         $watermark = MemoraWatermark::where('user_uuid', $user->uuid)
             ->findOrFail($id);
 
-        return $watermark->delete();
+        $name = $watermark->name;
+        $deleted = $watermark->delete();
+
+        if ($deleted) {
+            // Create notification
+            $this->notificationService->create(
+                $user->uuid,
+                'memora',
+                'watermark_deleted',
+                'Watermark Deleted',
+                "Watermark '{$name}' has been deleted.",
+                "The watermark '{$name}' has been permanently removed.",
+                '/memora/settings/watermark'
+            );
+        }
+
+        return $deleted;
     }
 
     /**
@@ -262,6 +305,7 @@ class WatermarkService
         ]);
 
         // Store file in user_files table
+        $totalSizeWithVariants = $uploadResult['meta']['total_size_with_variants'] ?? $file->getSize();
         $userFile = \App\Models\UserFile::create([
             'user_uuid' => $user->uuid,
             'url' => $uploadResult['variants']['original'] ?? $uploadResult['variants']['large'] ?? '',
@@ -275,8 +319,14 @@ class WatermarkService
             'metadata' => [
                 'uuid' => $uploadResult['uuid'],
                 'variants' => $uploadResult['variants'],
+                'variant_sizes' => $uploadResult['variant_sizes'] ?? [],
+                'total_size_with_variants' => $totalSizeWithVariants,
             ],
         ]);
+
+        // Update cached storage
+        $storageService = app(\App\Services\Storage\UserStorageService::class);
+        $storageService->incrementStorage($user->uuid, $totalSizeWithVariants);
 
         return [
             'url' => $userFile->url,

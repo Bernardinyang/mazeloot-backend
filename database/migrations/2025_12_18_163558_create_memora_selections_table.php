@@ -34,6 +34,7 @@ return new class extends Migration
             $table->date('auto_delete_date')->nullable();
             $table->boolean('auto_delete_enabled')->default(false);
             $table->integer('auto_delete_days')->nullable();
+            $table->json('settings')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

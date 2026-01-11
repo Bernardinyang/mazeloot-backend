@@ -25,6 +25,7 @@ Route::middleware(['auth:sanctum'])->prefix('selections')->group(function () {
     Route::post('/{id}/publish', [SelectionController::class, 'publish']);
     Route::post('/{id}/recover', [SelectionController::class, 'recover']);
     Route::post('/{id}/star', [SelectionController::class, 'toggleStar']);
+    Route::post('/{id}/duplicate', [SelectionController::class, 'duplicate']);
     Route::post('/{id}/cover-photo', [SelectionController::class, 'setCoverPhoto']);
     Route::get('/{id}/selected', [SelectionController::class, 'getSelectedMedia']);
     Route::get('/{id}/filenames', [SelectionController::class, 'getSelectedFilenames']);

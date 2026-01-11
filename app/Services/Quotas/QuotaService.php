@@ -2,10 +2,14 @@
 
 namespace App\Services\Quotas;
 
+use App\Services\Storage\UserStorageService;
 use App\Services\Upload\Exceptions\UploadException;
 
 class QuotaService
 {
+    public function __construct(
+        protected UserStorageService $storageService
+    ) {}
     /**
      * Check if upload quota allows the file size
      *
@@ -38,7 +42,7 @@ class QuotaService
      *
      * @return int|null Quota in bytes, null if unlimited
      */
-    protected function getUploadQuota(?string $domain = null, ?int $userId = null): ?int
+    public function getUploadQuota(?string $domain = null, ?int $userId = null): ?int
     {
         $config = config('upload.quota', []);
 
@@ -61,14 +65,28 @@ class QuotaService
     }
 
     /**
-     * Get used quota (placeholder - would integrate with storage tracking)
+     * Get used quota
      *
+     * @param  string|null  $domain
+     * @param  int|null  $userId
      * @return int Used quota in bytes
      */
     protected function getUsedQuota(?string $domain = null, ?int $userId = null): int
     {
-        // TODO: Implement actual quota tracking
-        // This would query the database/storage to get actual usage
-        return 0;
+        if (! $userId) {
+            $user = auth()->user();
+            if (! $user) {
+                return 0;
+            }
+            $userUuid = $user->uuid;
+        } else {
+            $user = \App\Models\User::find($userId);
+            if (! $user) {
+                return 0;
+            }
+            $userUuid = $user->uuid;
+        }
+
+        return $this->storageService->getTotalStorageUsed($userUuid);
     }
 }

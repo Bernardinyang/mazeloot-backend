@@ -3,9 +3,11 @@
 namespace App\Domains\Memora\Services;
 
 use App\Domains\Memora\Models\MemoraMedia;
+use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraProject;
 use App\Domains\Memora\Models\MemoraSelection;
 use App\Domains\Memora\Resources\V1\SelectionResource;
+use App\Services\Notification\NotificationService;
 use App\Services\Pagination\PaginationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -16,10 +18,14 @@ use Illuminate\Support\Facades\Log;
 class SelectionService
 {
     protected PaginationService $paginationService;
+    protected NotificationService $notificationService;
 
-    public function __construct(PaginationService $paginationService)
-    {
+    public function __construct(
+        PaginationService $paginationService,
+        NotificationService $notificationService
+    ) {
         $this->paginationService = $paginationService;
+        $this->notificationService = $notificationService;
     }
 
     /**
@@ -342,6 +348,20 @@ class SelectionService
             $updateData['auto_delete_date'] = $data['auto_delete_date'] ? $data['auto_delete_date'] : null;
         }
 
+        // Handle typographyDesign - always merge with defaults
+        if (isset($data['typographyDesign'])) {
+            $settings = $selection->settings ?? [];
+            if (! isset($settings['design'])) {
+                $settings['design'] = [];
+            }
+            $defaults = [
+                'fontFamily' => 'sans',
+                'fontStyle' => 'normal',
+            ];
+            $settings['design']['typography'] = array_merge($defaults, $data['typographyDesign']);
+            $updateData['settings'] = $settings;
+        }
+
         // Validate that at least one email is in allowed_emails before changing status to active
         $newStatus = $updateData['status'] ?? $selection->status->value;
         if ($newStatus === 'active') {
@@ -418,6 +438,19 @@ class SelectionService
                 $selection->load(['starredByUsers' => function ($q) use ($user) {
                     $q->where('user_uuid', $user->uuid);
                 }]);
+            }
+
+            // Create notification if user is authenticated
+            if ($user) {
+                $this->notificationService->create(
+                    $user->uuid,
+                    'memora',
+                    'selection_completed',
+                    'Selection Completed',
+                    "Selection '{$selection->name}' has been completed successfully.",
+                    "Your selection '{$selection->name}' is ready for review.",
+                    "/memora/selections/{$selection->uuid}"
+                );
             }
 
             return new SelectionResource($selection);
@@ -615,9 +648,9 @@ class SelectionService
 
     /**
      * Auto-delete selections that have passed their auto_delete_date
-     * Only deletes selected media (is_selected = true), keeping unselected media and selection intact
+     * Only deletes unselected media (is_selected = false), keeping selected media and selection intact
      *
-     * @return array{selected_media_deleted: int}
+     * @return array{unselected_media_deleted: int}
      */
     public function autoDeleteExpiredSelections(): array
     {
@@ -626,31 +659,31 @@ class SelectionService
             ->where('auto_delete_date', '<=', now())
             ->get();
 
-        $selectedMediaDeleted = 0;
+        $unselectedMediaDeleted = 0;
 
         foreach ($expiredSelections as $selection) {
             try {
-                // Get all selected media in this selection (only where is_selected = true)
-                $selectedMedia = MemoraMedia::query()
+                // Get all unselected media in this selection (only where is_selected = false)
+                $unselectedMedia = MemoraMedia::query()
                     ->whereHas('mediaSet', function ($query) use ($selection) {
                         $query->where('selection_uuid', $selection->uuid);
                     })
-                    ->where('is_selected', true)
+                    ->where('is_selected', false)
                     ->get();
 
-                // Delete only the selected media (not unselected media)
-                foreach ($selectedMedia as $media) {
+                // Delete only the unselected media (not selected media)
+                foreach ($unselectedMedia as $media) {
                     try {
                         $media->delete();
-                        $selectedMediaDeleted++;
+                        $unselectedMediaDeleted++;
                     } catch (\Exception $e) {
                         Log::error(
-                            "Failed to auto-delete selected media {$media->uuid}: ".$e->getMessage()
+                            "Failed to auto-delete unselected media {$media->uuid}: ".$e->getMessage()
                         );
                     }
                 }
 
-                // Clear the auto_delete_date since we've processed the selected media
+                // Clear the auto_delete_date since we've processed the unselected media
                 // This prevents it from being processed again
                 // The selection remains intact regardless of remaining media
                 $selection->update(['auto_delete_date' => null]);
@@ -663,8 +696,82 @@ class SelectionService
         }
 
         return [
-            'selected_media_deleted' => $selectedMediaDeleted,
+            'unselected_media_deleted' => $unselectedMediaDeleted,
         ];
+    }
+
+    /**
+     * Duplicate a selection with all settings, media sets, and media
+     *
+     * @param  string  $id  Selection UUID
+     * @return SelectionResource The duplicated selection
+     */
+    public function duplicate(string $id): SelectionResource
+    {
+        $user = Auth::user();
+        if (! $user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        // Load the original selection with all relationships
+        $original = MemoraSelection::where('uuid', $id)
+            ->where('user_uuid', $user->uuid)
+            ->with([
+                'mediaSets' => function ($query) {
+                    $query->with(['media' => function ($q) {
+                        $q->orderBy('order', 'asc');
+                    }])->orderBy('order', 'asc');
+                },
+            ])
+            ->firstOrFail();
+
+        // Create the duplicated selection
+        $duplicated = MemoraSelection::create([
+            'user_uuid' => $user->uuid,
+            'project_uuid' => $original->project_uuid,
+            'name' => $original->name.' (Copy)',
+            'description' => $original->description,
+            'status' => 'draft',
+            'color' => $original->color,
+            'password' => $original->password,
+            'allowed_emails' => $original->allowed_emails,
+            'selection_limit' => $original->selection_limit,
+            'settings' => $original->settings,
+            'auto_delete_enabled' => false, // Reset auto-delete
+            'auto_delete_days' => null,
+            'auto_delete_date' => null,
+        ]);
+
+        // Duplicate media sets and their media
+        foreach ($original->mediaSets as $originalSet) {
+            $newSet = MemoraMediaSet::create([
+                'user_uuid' => $user->uuid,
+                'selection_uuid' => $duplicated->uuid,
+                'project_uuid' => $originalSet->project_uuid,
+                'name' => $originalSet->name,
+                'description' => $originalSet->description,
+                'order' => $originalSet->order,
+                'selection_limit' => $originalSet->selection_limit,
+            ]);
+            $newSet->refresh(); // Ensure UUID is loaded from database
+            $newSetUuid = $newSet->uuid;
+
+            // Duplicate media items
+            foreach ($originalSet->media as $originalMedia) {
+                MemoraMedia::create([
+                    'user_uuid' => $user->uuid,
+                    'media_set_uuid' => $newSetUuid,
+                    'user_file_uuid' => $originalMedia->user_file_uuid,
+                    'original_file_uuid' => $originalMedia->original_file_uuid,
+                    'watermark_uuid' => $originalMedia->watermark_uuid,
+                    'order' => $originalMedia->order,
+                    'is_selected' => false, // Reset selection status
+                    'is_private' => false, // Reset private status
+                ]);
+            }
+        }
+
+        return new SelectionResource($this->findModel($duplicated->uuid));
     }
 
     /**
@@ -684,6 +791,9 @@ class SelectionService
 
         // Soft delete all media in all sets, then delete all sets, then delete selection in a transaction
         return DB::transaction(function () use ($mediaSets, $selection) {
+            $user = Auth::user();
+            $name = $selection->name;
+
             // Soft delete all media in all sets, then delete all sets
             foreach ($mediaSets as $set) {
                 // Ensure media is loaded for this set
@@ -701,7 +811,22 @@ class SelectionService
             }
 
             // Soft delete the selection itself
-            return $selection->delete();
+            $deleted = $selection->delete();
+
+            // Create notification if user is authenticated and deletion was successful
+            if ($deleted && $user) {
+                $this->notificationService->create(
+                    $user->uuid,
+                    'memora',
+                    'selection_deleted',
+                    'Selection Deleted',
+                    "Selection '{$name}' has been deleted.",
+                    "The selection '{$name}' has been permanently removed.",
+                    '/memora/selections'
+                );
+            }
+
+            return $deleted;
         });
     }
 }

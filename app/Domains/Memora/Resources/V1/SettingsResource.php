@@ -45,6 +45,7 @@ class SettingsResource extends JsonResource
                 'enableCookieBanner' => $this->preference_enable_cookie_banner,
                 'language' => $this->preference_language,
                 'timezone' => $this->preference_timezone,
+                'usePreviewWatermark' => $this->preference_use_preview_watermark ?? true,
             ],
             'homepage' => [
                 'status' => $this->homepage_status,

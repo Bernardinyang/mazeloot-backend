@@ -534,6 +534,20 @@ class ProofingService
             }
         }
 
+        // Handle typographyDesign - always merge with defaults
+        if (isset($data['typographyDesign'])) {
+            $settings = $proofing->settings ?? [];
+            if (! isset($settings['design'])) {
+                $settings['design'] = [];
+            }
+            $defaults = [
+                'fontFamily' => 'sans',
+                'fontStyle' => 'normal',
+            ];
+            $settings['design']['typography'] = array_merge($defaults, $data['typographyDesign']);
+            $updateData['settings'] = $settings;
+        }
+
         Log::info('Proofing update data before save', [
             'proofing_id' => $id,
             'update_data' => $updateData,
@@ -787,9 +801,94 @@ class ProofingService
     }
 
     /**
+     * Duplicate a proofing with all settings, media sets, and media
+     *
+     * @param  string|null  $projectId  Project UUID if proofing is project-based
+     * @param  string  $id  Proofing UUID
+     * @return MemoraProofing The duplicated proofing
+     */
+    public function duplicate(?string $projectId, string $id): MemoraProofing
+    {
+        $user = Auth::user();
+        if (! $user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $query = MemoraProofing::where('uuid', $id)->where('user_uuid', $user->uuid);
+
+        if ($projectId) {
+            $query->where('project_uuid', $projectId);
+        }
+
+        // Load the original proofing with all relationships
+        $original = $query->with([
+            'mediaSets' => function ($query) {
+                $query->with(['media' => function ($q) {
+                    $q->where('is_revised', false)->orderBy('order', 'asc');
+                }])->orderBy('order', 'asc');
+            },
+        ])->firstOrFail();
+
+        // Create the duplicated proofing
+        $duplicated = MemoraProofing::create([
+            'user_uuid' => $user->uuid,
+            'project_uuid' => $original->project_uuid,
+            'name' => $original->name.' (Copy)',
+            'description' => $original->description,
+            'status' => 'draft',
+            'color' => $original->color,
+            'max_revisions' => $original->max_revisions,
+            'current_revision' => 0, // Reset revision
+            'password' => $original->password,
+            'allowed_emails' => $original->allowed_emails,
+            'primary_email' => $original->primary_email,
+            'settings' => $original->settings,
+        ]);
+
+        // Duplicate media sets and their media
+        foreach ($original->mediaSets as $originalSet) {
+            $newSet = MemoraMediaSet::create([
+                'user_uuid' => $user->uuid,
+                'proof_uuid' => $duplicated->uuid,
+                'project_uuid' => $originalSet->project_uuid,
+                'name' => $originalSet->name,
+                'description' => $originalSet->description,
+                'order' => $originalSet->order,
+                'selection_limit' => $originalSet->selection_limit,
+            ]);
+            $newSet->refresh(); // Ensure UUID is loaded from database
+            $newSetUuid = $newSet->uuid;
+
+            // Duplicate media items (only non-revised items)
+            foreach ($originalSet->media as $originalMedia) {
+                if ($originalMedia->is_revised) {
+                    continue; // Skip revised items
+                }
+                MemoraMedia::create([
+                    'user_uuid' => $user->uuid,
+                    'media_set_uuid' => $newSetUuid,
+                    'user_file_uuid' => $originalMedia->user_file_uuid,
+                    'original_file_uuid' => $originalMedia->original_file_uuid,
+                    'watermark_uuid' => $originalMedia->watermark_uuid,
+                    'order' => $originalMedia->order,
+                    'is_selected' => false, // Reset selection status
+                    'is_completed' => false, // Reset completion status
+                    'is_rejected' => false, // Reset rejection status
+                    'is_revised' => false,
+                    'is_private' => false, // Reset private status
+                ]);
+            }
+        }
+
+        return $duplicated->fresh()->load(['mediaSets' => function ($query) {
+            $query->withCount('media')->orderBy('order', 'asc');
+        }]);
+    }
+
+    /**
      * Delete a proofing phase and all its sets and media
      */
-    public function delete(?string $projectId, string $id): bool
+public function delete(?string $projectId, string $id): bool
     {
         $user = Auth::user();
         if (! $user) {

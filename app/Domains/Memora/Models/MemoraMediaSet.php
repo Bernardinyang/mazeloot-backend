@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class MemoraMediaSet extends Model
 {
@@ -51,6 +52,32 @@ class MemoraMediaSet extends Model
         'selection_limit' => 'integer',
         'order' => 'integer',
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($model) {
+            if (empty($model->uuid)) {
+                $model->uuid = (string) Str::uuid();
+            }
+        });
+
+        // Update storage cache when media set is soft deleted
+        static::deleted(function ($model) {
+            if ($model->user_uuid) {
+                try {
+                    $storageService = app(\App\Services\Storage\UserStorageService::class);
+                    $storageService->calculateAndCacheStorage($model->user_uuid);
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::warning('Failed to update storage cache after media set deletion', [
+                        'media_set_uuid' => $model->uuid,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        });
+    }
 
     protected static function newFactory(): Factory|MediaSetFactory
     {

@@ -3,16 +3,21 @@
 namespace App\Domains\Memora\Services;
 
 use App\Domains\Memora\Models\MemoraSettings;
+use App\Services\Notification\NotificationService;
 use App\Services\Upload\UploadService;
 use Illuminate\Support\Facades\Auth;
 
 class SettingsService
 {
     protected UploadService $uploadService;
+    protected NotificationService $notificationService;
 
-    public function __construct(UploadService $uploadService)
-    {
+    public function __construct(
+        UploadService $uploadService,
+        NotificationService $notificationService
+    ) {
         $this->uploadService = $uploadService;
+        $this->notificationService = $notificationService;
     }
 
     /**
@@ -157,6 +162,20 @@ class SettingsService
         $settings->update($updateData);
         $settings->refresh();
 
+        // Create notification
+        $user = Auth::user();
+        if ($user) {
+            $this->notificationService->create(
+                $user->uuid,
+                'memora',
+                'settings_branding_updated',
+                'Branding Settings Updated',
+                'Your branding settings have been updated successfully.',
+                'Your branding configuration has been saved and will be applied to your collections.',
+                '/memora/settings/branding'
+            );
+        }
+
         return $settings;
     }
 
@@ -179,6 +198,7 @@ class SettingsService
             'enableCookieBanner' => 'preference_enable_cookie_banner',
             'language' => 'preference_language',
             'timezone' => 'preference_timezone',
+            'usePreviewWatermark' => 'preference_use_preview_watermark',
         ];
 
         foreach ($preferenceFields as $key => $dbKey) {
@@ -189,6 +209,20 @@ class SettingsService
 
         $settings->update($updateData);
         $settings->refresh();
+
+        // Create notification
+        $user = Auth::user();
+        if ($user) {
+            $this->notificationService->create(
+                $user->uuid,
+                'memora',
+                'settings_preference_updated',
+                'Preference Settings Updated',
+                'Your preference settings have been updated successfully.',
+                'Your preference configuration has been saved and will be applied to your collections.',
+                '/memora/settings/preference'
+            );
+        }
 
         return $settings;
     }
@@ -251,6 +285,20 @@ class SettingsService
 
         $settings->update($updateData);
         $settings->refresh();
+
+        // Create notification
+        $user = Auth::user();
+        if ($user) {
+            $this->notificationService->create(
+                $user->uuid,
+                'memora',
+                'settings_email_updated',
+                'Email Settings Updated',
+                'Your email settings have been updated successfully.',
+                'Your email configuration has been saved and will be used for notifications.',
+                '/memora/settings/email'
+            );
+        }
 
         return $settings;
     }

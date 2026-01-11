@@ -29,6 +29,9 @@ class UpdateProofingRequest extends FormRequest
             'cover_photo_url' => ['sometimes', 'nullable', 'string', 'max:500'],
             'cover_focal_point' => ['sometimes', 'nullable', 'array'],
             'coverFocalPoint' => ['sometimes', 'nullable', 'array'], // Frontend alias
+            'typographyDesign' => ['nullable', 'array'],
+            'typographyDesign.fontFamily' => ['nullable', 'string', 'max:100'],
+            'typographyDesign.fontStyle' => ['nullable', 'string', 'max:50'],
         ];
     }
 }
