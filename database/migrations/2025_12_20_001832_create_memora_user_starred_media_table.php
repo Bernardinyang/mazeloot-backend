@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('user_starred_media', function (Blueprint $table) {
+        Schema::create('memora_user_starred_media', function (Blueprint $table) {
             $table->uuid('user_uuid');
             $table->uuid('media_uuid');
             $table->timestamps();
@@ -33,6 +33,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('user_starred_media');
+        Schema::dropIfExists('memora_user_starred_media');
     }
 };

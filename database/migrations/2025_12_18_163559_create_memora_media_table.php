@@ -28,6 +28,8 @@ return new class extends Migration
             // Selection status
             $table->boolean('is_selected')->default(false); // Whether this media is selected in a selection
             $table->timestamp('selected_at')->nullable(); // Timestamp when media was selected
+            $table->boolean('is_creative_selected')->default(false); // Whether this media is pre-selected by creative as recommendation
+            $table->timestamp('creative_selected_at')->nullable(); // Timestamp when creative marked media as recommended
 
             // Revision tracking
             $table->integer('revision_number')->nullable(); // Revision number (null for original, 1, 2, 3... for revisions)

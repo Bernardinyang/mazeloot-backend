@@ -101,7 +101,7 @@ class MemoraProofing extends Model
     {
         return $this->belongsToMany(
             \App\Models\User::class,
-            'user_starred_proofing',
+            'memora_user_starred_proofing',
             'proofing_uuid',
             'user_uuid',
             'uuid',

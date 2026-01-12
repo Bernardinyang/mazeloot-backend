@@ -54,6 +54,9 @@ class PublicMediaSetController extends Controller
      */
     public function show(Request $request, string $id, string $setUuid): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
+        $setUuid = $request->route('setId') ?? $setUuid;
+        
         $guestToken = $request->attributes->get('guest_token');
 
         // Verify the token belongs to this selection

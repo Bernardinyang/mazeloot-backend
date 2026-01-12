@@ -24,14 +24,20 @@ class ProjectService
     public function list(array $filters = [], ?int $page = null, ?int $perPage = null)
     {
         $user = Auth::user();
-        $query = MemoraProject::query()->with([
-            'mediaSets',
-            'starredByUsers' => function ($query) use ($user) {
-                if ($user) {
-                    $query->where('user_uuid', $user->uuid);
-                }
-            },
-        ]);
+        if (! $user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+        
+        $query = MemoraProject::query()
+            ->where('user_uuid', $user->uuid)
+            ->with([
+                'mediaSets',
+                'starredByUsers' => function ($query) use ($user) {
+                    if ($user) {
+                        $query->where('user_uuid', $user->uuid);
+                    }
+                },
+            ]);
 
         // Filter by status
         if (isset($filters['status']) && $filters['status'] !== 'all') {

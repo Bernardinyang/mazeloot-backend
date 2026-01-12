@@ -176,8 +176,9 @@ class ProofingApprovalRequestController extends Controller
     /**
      * Get approval requests for a media item (authenticated - creative only)
      */
-    public function getByMedia(string $mediaId): JsonResponse
+    public function getByMedia(Request $request, string $mediaId): JsonResponse
     {
+        $mediaId = $request->route('mediaId') ?? $mediaId;
         try {
             $approvalRequests = $this->approvalRequestService->getByMedia($mediaId, Auth::id());
 

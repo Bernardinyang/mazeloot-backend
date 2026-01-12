@@ -7,6 +7,7 @@ enum PhaseTypeEnum: string
     case SELECTION = 'selection';
     case PROOFING = 'proofing';
     case COLLECTION = 'collection';
+    case RAW_FILES = 'raw_files';
 
     /**
      * Get all values as array
@@ -33,6 +34,7 @@ enum PhaseTypeEnum: string
             self::SELECTION => 'MemoraSelection',
             self::PROOFING => 'MemoraProofing',
             self::COLLECTION => 'MemoraCollection',
+            self::RAW_FILES => 'MemoraRawFiles',
         };
     }
 }

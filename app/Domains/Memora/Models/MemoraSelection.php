@@ -114,7 +114,7 @@ class MemoraSelection extends Model
     {
         return $this->belongsToMany(
             \App\Models\User::class,
-            'user_starred_selections',
+            'memora_user_starred_selections',
             'selection_uuid',
             'user_uuid',
             'uuid',

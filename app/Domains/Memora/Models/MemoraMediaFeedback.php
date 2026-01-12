@@ -3,6 +3,7 @@
 namespace App\Domains\Memora\Models;
 
 use App\Domains\Memora\Enums\MediaFeedbackTypeEnum;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,6 +11,7 @@ use Illuminate\Support\Str;
 
 class MemoraMediaFeedback extends Model
 {
+    use HasFactory;
     /**
      * The primary key for the model.
      *

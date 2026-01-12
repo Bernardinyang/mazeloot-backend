@@ -176,26 +176,66 @@ class ProofingService
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
-        $query = MemoraProofing::where('user_uuid', $user->uuid)->where('uuid', $id);
+        // Validate UUID format
+        if (! \Illuminate\Support\Str::isUuid($id)) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Invalid proofing ID format');
+        }
+
+        // First check if proofing exists at all (including soft-deleted)
+        $existsCheck = MemoraProofing::withTrashed()->where('uuid', $id)->first();
+        
+        if (! $existsCheck) {
+            Log::warning('Proofing does not exist', [
+                'proofing_id' => $id,
+                'user_id' => $user->uuid,
+            ]);
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Proofing not found');
+        }
+        
+        // Check if soft-deleted
+        if ($existsCheck->trashed()) {
+            Log::warning('Proofing is soft-deleted', [
+                'proofing_id' => $id,
+                'user_id' => $user->uuid,
+            ]);
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Proofing has been deleted');
+        }
+        
+        // Check ownership
+        if ($existsCheck->user_uuid !== $user->uuid) {
+            Log::warning('Proofing belongs to different user', [
+                'proofing_id' => $id,
+                'requested_user_id' => $user->uuid,
+                'actual_user_id' => $existsCheck->user_uuid,
+            ]);
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Proofing not found');
+        }
+
+        $query = MemoraProofing::where('user_uuid', $user->uuid)
+            ->where('uuid', $id)
+            ->with(['project'])
+            ->with(['mediaSets' => function ($query) {
+                $query->withCount('media')->orderBy('order');
+            }])
+            ->with(['starredByUsers' => function ($query) use ($user) {
+                $query->where('user_uuid', $user->uuid);
+            }]);
 
         if ($projectId) {
             // Validate project exists and proofing belongs to it
+            if (! \Illuminate\Support\Str::isUuid($projectId)) {
+                throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Invalid project ID format');
+            }
             MemoraProject::findOrFail($projectId);
             $query->where('project_uuid', $projectId);
         }
         // If no projectId provided, find proofing regardless of project association
 
-        $proofing = $query->firstOrFail();
+        $proofing = $query->first();
 
-        // Load relationships for the resource
-        $proofing->load(['mediaSets' => function ($query) {
-            $query->withCount('media')->orderBy('order');
-        }]);
-
-        // Load starredByUsers for the current user only
-        $proofing->load(['starredByUsers' => function ($query) use ($user) {
-            $query->where('user_uuid', $user->uuid);
-        }]);
+        if (!$proofing) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Proofing not found');
+        }
 
         // Load counts through media sets (only active revisions)
         $mediaCount = MemoraMedia::whereHas('mediaSet', function ($query) use ($id) {
@@ -904,10 +944,8 @@ class ProofingService
 
         $proofing = $query->firstOrFail();
 
-        // Load media sets relationship if not already loaded
-        if (! $proofing->relationLoaded('mediaSets')) {
-            $proofing->load(['mediaSets.media.feedback.replies', 'mediaSets.media.file']);
-        }
+        // Eager load all relationships upfront to avoid N+1 queries
+        $proofing->load(['mediaSets.media.feedback.replies', 'mediaSets.media.file']);
 
         // Get all media sets for this proofing
         $mediaSets = $proofing->mediaSets;
@@ -916,10 +954,7 @@ class ProofingService
         return DB::transaction(function () use ($mediaSets, $proofing) {
             // Soft delete all media in all sets, then delete all sets
             foreach ($mediaSets as $set) {
-                // Ensure media is loaded for this set
-                if (! $set->relationLoaded('media')) {
-                    $set->load('media');
-                }
+                // Media is already loaded via eager loading above
 
                 // Soft delete all media in this set
                 foreach ($set->media as $media) {

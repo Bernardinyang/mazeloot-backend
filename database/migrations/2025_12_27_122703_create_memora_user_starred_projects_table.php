@@ -11,17 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('user_starred_proofing', static function (Blueprint $table) {
+        Schema::create('memora_user_starred_projects', function (Blueprint $table) {
             $table->foreignUuid('user_uuid')->constrained('users', 'uuid')->cascadeOnDelete();
-            $table->foreignUuid('proofing_uuid')->constrained('memora_proofing', 'uuid')->cascadeOnDelete();
+            $table->foreignUuid('project_uuid')->constrained('memora_projects', 'uuid')->cascadeOnDelete();
             $table->timestamps();
 
             // Composite primary key
-            $table->primary(['user_uuid', 'proofing_uuid']);
+            $table->primary(['user_uuid', 'project_uuid']);
 
             // Index for faster lookups
             $table->index('user_uuid');
-            $table->index('proofing_uuid');
+            $table->index('project_uuid');
         });
     }
 
@@ -30,6 +30,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('user_starred_proofing');
+        Schema::dropIfExists('memora_user_starred_projects');
     }
 };

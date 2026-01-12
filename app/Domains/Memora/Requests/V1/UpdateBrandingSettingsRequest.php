@@ -35,6 +35,7 @@ class UpdateBrandingSettingsRequest extends FormRequest
             'taxVatId' => ['nullable', 'string', 'max:100'],
             'foundedYear' => ['nullable', 'integer', 'min:1800', 'max:'.date('Y')],
             'industry' => ['nullable', 'string', 'max:255'],
+            'domain' => ['nullable', 'string', 'min:3', 'max:63', 'regex:/^[a-z0-9-]+$/', 'not_in:admin,api,www,mail,ftp,localhost,test,staging,dev,app'],
         ];
     }
 }

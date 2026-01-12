@@ -17,8 +17,8 @@ class UpdateSocialMediaPlatformRequest extends FormRequest
         $platformId = $this->route('id');
 
         return [
-            'name' => ['sometimes', 'string', 'max:255', Rule::unique('social_media_platforms', 'name')->ignore($platformId, 'uuid')],
-            'slug' => ['sometimes', 'string', 'max:255', Rule::unique('social_media_platforms', 'slug')->ignore($platformId, 'uuid')],
+            'name' => ['sometimes', 'string', 'max:255', Rule::unique('memora_social_media_platforms', 'name')->ignore($platformId, 'uuid')],
+            'slug' => ['sometimes', 'string', 'max:255', Rule::unique('memora_social_media_platforms', 'slug')->ignore($platformId, 'uuid')],
             'icon' => ['nullable', 'string', 'max:255'],
             'baseUrl' => ['nullable', 'string', 'url', 'max:500'],
             'isActive' => ['nullable', 'boolean'],

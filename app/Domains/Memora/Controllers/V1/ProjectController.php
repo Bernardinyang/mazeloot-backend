@@ -44,11 +44,18 @@ class ProjectController extends Controller
      * Get a single project
      * GET /api/v1/projects/:id
      */
-    public function show(string $id): JsonResponse
+    public function show(Request $request, string $id): JsonResponse
     {
-        $project = $this->projectService->find($id);
-
-        return ApiResponse::success(new ProjectResource($project));
+        $id = $request->route('id') ?? $id;
+        try {
+            $project = $this->projectService->find($id);
+            return ApiResponse::success(new ProjectResource($project));
+        } catch (\Exception $e) {
+            if (str_contains($e->getMessage(), 'Unauthorized')) {
+                return ApiResponse::error('Unauthorized: You do not have access to this project', 'FORBIDDEN', 403);
+            }
+            throw $e;
+        }
     }
 
     /**
@@ -73,28 +80,43 @@ class ProjectController extends Controller
      */
     public function update(UpdateProjectRequest $request, string $id): JsonResponse
     {
-        $project = $this->projectService->update($id, $request->validated());
-
-        return ApiResponse::success(new ProjectResource($project));
+        $id = $request->route('id') ?? $id;
+        try {
+            $project = $this->projectService->update($id, $request->validated());
+            return ApiResponse::success(new ProjectResource($project));
+        } catch (\Exception $e) {
+            if (str_contains($e->getMessage(), 'Unauthorized')) {
+                return ApiResponse::error('Unauthorized: You do not have access to this project', 'FORBIDDEN', 403);
+            }
+            throw $e;
+        }
     }
 
     /**
      * Delete a project
      * DELETE /api/v1/projects/:id
      */
-    public function destroy(string $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
-        $this->projectService->delete($id);
-
-        return ApiResponse::success(null, 204);
+        $id = $request->route('id') ?? $id;
+        try {
+            $this->projectService->delete($id);
+            return ApiResponse::success(null, 204);
+        } catch (\Exception $e) {
+            if (str_contains($e->getMessage(), 'Unauthorized')) {
+                return ApiResponse::error('Unauthorized: You do not have access to this project', 'FORBIDDEN', 403);
+            }
+            throw $e;
+        }
     }
 
     /**
      * Get project phases
      * GET /api/v1/projects/:id/phases
      */
-    public function phases(string $id): JsonResponse
+    public function phases(Request $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         $phases = $this->projectService->getPhases($id);
 
         return ApiResponse::success($phases);
@@ -104,8 +126,9 @@ class ProjectController extends Controller
      * Toggle star status for a project
      * POST /api/v1/projects/:id/star
      */
-    public function toggleStar(string $id): JsonResponse
+    public function toggleStar(Request $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         $result = $this->projectService->toggleStar($id);
 
         return ApiResponse::success($result);

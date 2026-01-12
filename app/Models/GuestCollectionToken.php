@@ -9,6 +9,8 @@ use Illuminate\Support\Str;
 
 class GuestCollectionToken extends Model
 {
+    protected $table = 'memora_guest_collection_tokens';
+
     protected $primaryKey = 'uuid';
 
     protected $keyType = 'string';

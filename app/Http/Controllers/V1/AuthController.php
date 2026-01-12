@@ -210,16 +210,17 @@ class AuthController extends Controller
     {
         $user = User::where('email', $request->email)->first();
 
-        if (! $user) {
-            return ApiResponse::errorNotFound('User not found.');
+        // Always perform reset attempt to prevent timing attacks
+        $reset = false;
+        if ($user) {
+            $reset = $this->passwordResetService->resetPassword(
+                $user,
+                $request->code,
+                $request->password
+            );
         }
 
-        $reset = $this->passwordResetService->resetPassword(
-            $user,
-            $request->code,
-            $request->password
-        );
-
+        // Use same response timing regardless of user existence
         if (! $reset) {
             return ApiResponse::error('Invalid or expired reset code.', 'INVALID_CODE', 400);
         }

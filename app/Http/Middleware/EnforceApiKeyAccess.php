@@ -18,7 +18,7 @@ class EnforceApiKeyAccess
     public function handle(Request $request, Closure $next): Response
     {
         // Check if request is authenticated via API key
-        $apiKey = $request->header('X-API-Key') ?? $request->query('api_key');
+        $apiKey = $request->header('X-API-Key');
 
         if ($apiKey && ! $request->user()) {
             return ApiResponse::error(

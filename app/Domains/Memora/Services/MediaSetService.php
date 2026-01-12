@@ -597,4 +597,180 @@ class MediaSetService
             return true;
         });
     }
+
+    // ==================== Raw Files Media Sets ====================
+
+    /**
+     * Get all media sets for a raw files phase with pagination
+     *
+     * @return array Paginated response with data and pagination metadata
+     */
+    public function getByRawFiles(string $rawFilesId, ?int $page = null, ?int $perPage = null)
+    {
+        $user = Auth::user();
+        if (! $user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        // Verify user owns the raw files phase
+        \App\Domains\Memora\Models\MemoraRawFiles::where('uuid', $rawFilesId)
+            ->where('user_uuid', $user->uuid)
+            ->firstOrFail();
+
+        $query = MemoraMediaSet::where('raw_files_uuid', $rawFilesId)
+            ->withCount(['media' => function ($query) {
+                $query->whereNull('deleted_at');
+            }])
+            ->orderBy('order');
+
+        // Paginate the query
+        $perPage = $perPage ?? 10;
+        $paginator = $this->paginationService->paginate($query, $perPage, $page);
+
+        // Transform items to resources
+        $data = \App\Domains\Memora\Resources\V1\MediaSetResource::collection($paginator->items());
+
+        // Format response with pagination metadata
+        return [
+            'data' => $data,
+            'pagination' => [
+                'page' => $paginator->currentPage(),
+                'limit' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'totalPages' => $paginator->lastPage(),
+            ],
+        ];
+    }
+
+    /**
+     * Find a media set by raw files ID and set ID
+     */
+    public function findByRawFiles(string $rawFilesId, string $id): MemoraMediaSet
+    {
+        $user = Auth::user();
+        if (! $user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $set = MemoraMediaSet::where('raw_files_uuid', $rawFilesId)
+            ->where('uuid', $id)
+            ->withCount('media')
+            ->firstOrFail();
+
+        // Verify user owns the raw files phase
+        \App\Domains\Memora\Models\MemoraRawFiles::where('uuid', $rawFilesId)
+            ->where('user_uuid', $user->uuid)
+            ->firstOrFail();
+
+        return $set;
+    }
+
+    /**
+     * Create a media set in a raw files phase
+     */
+    public function createForRawFiles(string $rawFilesId, array $data): MemoraMediaSet
+    {
+        $user = Auth::user();
+        if (! $user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $rawFiles = \App\Domains\Memora\Models\MemoraRawFiles::where('uuid', $rawFilesId)
+            ->where('user_uuid', $user->uuid)
+            ->firstOrFail();
+
+        // Check if raw files phase is completed
+        if ($rawFiles->status->value === 'completed') {
+            throw new \RuntimeException('Cannot create sets for a completed raw files phase');
+        }
+
+        // Get the maximum order for sets in this raw files phase
+        $maxOrder = MemoraMediaSet::where('raw_files_uuid', $rawFilesId)
+            ->max('order') ?? -1;
+
+        $setData = [
+            'user_uuid' => Auth::user()->uuid,
+            'raw_files_uuid' => $rawFilesId,
+            'project_uuid' => $rawFiles->project_uuid,
+            'name' => $data['name'],
+            'description' => $data['description'] ?? null,
+            'order' => $maxOrder + 1,
+        ];
+
+        return MemoraMediaSet::create($setData);
+    }
+
+    /**
+     * Update a media set for raw files
+     */
+    public function updateForRawFiles(string $rawFilesId, string $id, array $data): MemoraMediaSet
+    {
+        $set = $this->findByRawFiles($rawFilesId, $id);
+
+        $updateData = [];
+        if (isset($data['name'])) {
+            $updateData['name'] = $data['name'];
+        }
+        if (array_key_exists('description', $data)) {
+            $updateData['description'] = $data['description'] === null || $data['description'] === '' ? null : $data['description'];
+        }
+
+        if (! empty($updateData)) {
+            $set->update($updateData);
+            $set->refresh();
+        }
+
+        return $set;
+    }
+
+    /**
+     * Delete a media set for raw files and all media in it
+     */
+    public function deleteForRawFiles(string $rawFilesId, string $id): bool
+    {
+        $set = $this->findByRawFiles($rawFilesId, $id);
+
+        // Load media relationship if not already loaded
+        if (! $set->relationLoaded('media')) {
+            $set->load(['media.feedback.replies', 'media.file']);
+        }
+
+        // Soft delete all media in this set, then delete the set in a transaction
+        return DB::transaction(function () use ($set) {
+            // Soft delete all media in this set
+            foreach ($set->media as $media) {
+                $media->delete();
+            }
+
+            // Soft delete the set itself
+            return $set->delete();
+        });
+    }
+
+    /**
+     * Reorder media sets for raw files
+     */
+    public function reorderForRawFiles(string $rawFilesId, array $setUuids): bool
+    {
+        $user = Auth::user();
+        if (! $user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        // Verify user owns the raw files phase
+        \App\Domains\Memora\Models\MemoraRawFiles::where('uuid', $rawFilesId)
+            ->where('user_uuid', $user->uuid)
+            ->firstOrFail();
+
+        // Update all set orders in a transaction
+        return DB::transaction(function () use ($rawFilesId, $setUuids) {
+            foreach ($setUuids as $order => $setUuid) {
+                MemoraMediaSet::where('raw_files_uuid', $rawFilesId)
+                    ->where('uuid', $setUuid)
+                    ->update(['order' => $order]);
+            }
+
+            return true;
+        });
+    }
 }

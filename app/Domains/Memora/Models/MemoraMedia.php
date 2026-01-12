@@ -41,6 +41,8 @@ class MemoraMedia extends Model
         'media_set_uuid',
         'is_selected',
         'selected_at',
+        'is_creative_selected',
+        'creative_selected_at',
         'revision_number',
         'is_completed',
         'completed_at',
@@ -65,6 +67,8 @@ class MemoraMedia extends Model
     protected $casts = [
         'is_selected' => 'boolean',
         'selected_at' => 'datetime',
+        'is_creative_selected' => 'boolean',
+        'creative_selected_at' => 'datetime',
         'is_completed' => 'boolean',
         'completed_at' => 'datetime',
         'is_rejected' => 'boolean',
@@ -155,7 +159,7 @@ class MemoraMedia extends Model
     {
         return $this->belongsToMany(
             \App\Models\User::class,
-            'user_starred_media',
+            'memora_user_starred_media',
             'media_uuid',
             'user_uuid',
             'uuid',

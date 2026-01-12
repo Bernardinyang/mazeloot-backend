@@ -2,12 +2,11 @@
 
 namespace Database\Factories;
 
+use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraMediaFeedback;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
-/**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Domains\Memora\Models\MemoraMediaFeedback>
- */
 class MemoraMediaFeedbackFactory extends Factory
 {
     protected $model = MemoraMediaFeedback::class;
@@ -15,9 +14,12 @@ class MemoraMediaFeedbackFactory extends Factory
     public function definition(): array
     {
         return [
-            'media_uuid' => \App\Domains\Memora\Models\MemoraMedia::factory(),
-            'type' => 'comment',
+            'media_uuid' => MemoraMedia::factory(),
+            'parent_uuid' => null,
             'content' => fake()->sentence(),
+            'type' => 'text',
+            'timestamp' => null,
+            'mentions' => null,
             'created_by' => null,
         ];
     }

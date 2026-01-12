@@ -14,7 +14,7 @@ class UpdateSocialLinkRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'platformUuid' => ['sometimes', 'uuid', 'exists:social_media_platforms,uuid'],
+            'platformUuid' => ['sometimes', 'uuid', 'exists:memora_social_media_platforms,uuid'],
             'url' => ['sometimes', 'string', 'url', 'max:500'],
             'isActive' => ['nullable', 'boolean'],
             'order' => ['nullable', 'integer'],

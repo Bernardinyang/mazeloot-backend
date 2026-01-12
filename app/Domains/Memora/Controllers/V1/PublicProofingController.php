@@ -37,6 +37,11 @@ class PublicProofingController extends Controller
     public function checkStatus(Request $request, string $id): JsonResponse
     {
         try {
+            // Validate UUID format
+            if (! \Illuminate\Support\Str::isUuid($id)) {
+                return ApiResponse::error('Invalid proofing ID format', 'INVALID_ID_FORMAT', 400);
+            }
+
             $proofing = MemoraProofing::query()
                 ->where('uuid', $id)
                 ->select('uuid', 'status', 'user_uuid', 'name')
@@ -85,6 +90,11 @@ class PublicProofingController extends Controller
         }
 
         try {
+            // Validate UUID format
+            if (! \Illuminate\Support\Str::isUuid($id)) {
+                return ApiResponse::error('Invalid proofing ID format', 'INVALID_ID_FORMAT', 400);
+            }
+
             // For guest access, find the proofing without user filtering
             $proofing = MemoraProofing::query()
                 ->where('uuid', $id)
@@ -127,6 +137,11 @@ class PublicProofingController extends Controller
         ]);
 
         try {
+            // Validate UUID format
+            if (! \Illuminate\Support\Str::isUuid($id)) {
+                return ApiResponse::error('Invalid proofing ID format', 'INVALID_ID_FORMAT', 400);
+            }
+
             $proofing = MemoraProofing::query()
                 ->where('uuid', $id)
                 ->select('uuid', 'password', 'status')

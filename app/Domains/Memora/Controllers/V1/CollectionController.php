@@ -43,10 +43,20 @@ class CollectionController extends Controller
      */
     public function show(Request $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         $projectId = $request->query('projectId');
-        $collection = $this->collectionService->find($projectId, $id);
-
-        return ApiResponse::success(new CollectionResource($collection));
+        try {
+            $collection = $this->collectionService->find($projectId, $id);
+            return ApiResponse::success(new CollectionResource($collection));
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            // Collection not found or doesn't belong to user - return 403 for security
+            return ApiResponse::error('Unauthorized: You do not have access to this collection', 'FORBIDDEN', 403);
+        } catch (\Exception $e) {
+            if (str_contains($e->getMessage(), 'Unauthorized')) {
+                return ApiResponse::error('Unauthorized: You do not have access to this collection', 'FORBIDDEN', 403);
+            }
+            throw $e;
+        }
     }
 
     /**
@@ -67,6 +77,7 @@ class CollectionController extends Controller
      */
     public function update(UpdateCollectionRequest $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         $projectId = $request->query('projectId');
         $collection = $this->collectionService->update($projectId, $id, $request->validated());
 
@@ -79,6 +90,7 @@ class CollectionController extends Controller
      */
     public function destroy(Request $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         $projectId = $request->query('projectId');
         $this->collectionService->delete($projectId, $id);
 
@@ -91,6 +103,7 @@ class CollectionController extends Controller
      */
     public function toggleStar(Request $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         $projectId = $request->query('projectId');
         $result = $this->collectionService->toggleStar($projectId, $id);
 
@@ -103,6 +116,7 @@ class CollectionController extends Controller
      */
     public function duplicate(Request $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         $projectId = $request->query('projectId');
         $duplicated = $this->collectionService->duplicate($projectId, $id);
 

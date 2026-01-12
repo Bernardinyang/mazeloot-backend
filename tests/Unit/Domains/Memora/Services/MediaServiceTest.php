@@ -26,22 +26,55 @@ class MediaServiceTest extends TestCase
 
     public function test_get_phase_media(): void
     {
-        // Skip - phase/phase_id columns don't exist in schema
-        // Media is linked to phases via media_set relationships
-        $this->markTestSkipped('getPhaseMedia uses phase columns that don\'t exist in schema');
+        $user = \App\Models\User::factory()->create();
+        $selection = \App\Domains\Memora\Models\MemoraSelection::factory()->create(['user_uuid' => $user->uuid]);
+        $set = MemoraMediaSet::factory()->create(['selection_uuid' => $selection->uuid]);
+        MemoraMedia::factory()->count(3)->create(['media_set_uuid' => $set->uuid]);
+
+        $result = $this->service->getPhaseMedia('selection', $selection->uuid);
+
+        $this->assertCount(3, $result);
+        $this->assertTrue($result->every(fn ($media) => $media->mediaSet->selection_uuid === $selection->uuid));
     }
 
     public function test_get_phase_media_with_set_filter(): void
     {
-        // Skip - phase/phase_id columns don't exist in schema
-        $this->markTestSkipped('getPhaseMedia uses phase columns that don\'t exist in schema');
+        $user = \App\Models\User::factory()->create();
+        $selection = \App\Domains\Memora\Models\MemoraSelection::factory()->create(['user_uuid' => $user->uuid]);
+        $set1 = MemoraMediaSet::factory()->create(['selection_uuid' => $selection->uuid]);
+        $set2 = MemoraMediaSet::factory()->create(['selection_uuid' => $selection->uuid]);
+        MemoraMedia::factory()->count(2)->create(['media_set_uuid' => $set1->uuid]);
+        MemoraMedia::factory()->count(3)->create(['media_set_uuid' => $set2->uuid]);
+
+        $result = $this->service->getPhaseMedia('selection', $selection->uuid, $set1->uuid);
+
+        $this->assertCount(2, $result);
+        $this->assertTrue($result->every(fn ($media) => $media->media_set_uuid === $set1->uuid));
     }
 
     public function test_move_between_phases(): void
     {
-        // Skip - phase/phase_id columns don't exist in schema
-        // Media movement should be handled via media_set relationships
-        $this->markTestSkipped('moveBetweenPhases uses phase columns that don\'t exist in schema');
+        $user = \App\Models\User::factory()->create();
+        $selection = \App\Domains\Memora\Models\MemoraSelection::factory()->create(['user_uuid' => $user->uuid]);
+        $proofing = \App\Domains\Memora\Models\MemoraProofing::factory()->create(['user_uuid' => $user->uuid]);
+        $fromSet = MemoraMediaSet::factory()->create(['selection_uuid' => $selection->uuid]);
+        $toSet = MemoraMediaSet::factory()->create(['proof_uuid' => $proofing->uuid]);
+        $media1 = MemoraMedia::factory()->create(['media_set_uuid' => $fromSet->uuid]);
+        $media2 = MemoraMedia::factory()->create(['media_set_uuid' => $fromSet->uuid]);
+
+        $result = $this->service->moveBetweenPhases(
+            [$media1->uuid, $media2->uuid],
+            'selection',
+            $selection->uuid,
+            'proofing',
+            $proofing->uuid
+        );
+
+        $this->assertEquals(2, $result['movedCount']);
+        $media1->refresh();
+        $media2->refresh();
+        $this->assertEquals($toSet->uuid, $media1->media_set_uuid);
+        $this->assertEquals($toSet->uuid, $media2->media_set_uuid);
     }
 
     public function test_mark_selected(): void
@@ -93,15 +126,17 @@ class MediaServiceTest extends TestCase
 
         $result = $this->service->getRevisions($original->uuid);
 
-        $this->assertCount(3, $result['revisions']);
-        $this->assertEquals($original->uuid, $result['original']->uuid);
+        // getRevisions returns a collection array, not a structured array
+        $this->assertIsArray($result);
+        $this->assertCount(3, $result);
+        // Verify original is in the result
+        $originalIds = array_column($result, 'id');
+        $this->assertContains($original->uuid, $originalIds);
     }
 
     public function test_process_low_res_copy(): void
     {
-        $media = MemoraMedia::factory()->create([
-            'url' => 'https://example.com/image.jpg',
-        ]);
+        $media = MemoraMedia::factory()->create();
 
         $this->service->processLowResCopy($media->uuid);
 

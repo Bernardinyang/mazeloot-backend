@@ -14,8 +14,8 @@ class StoreSocialMediaPlatformRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255', 'unique:social_media_platforms,name'],
-            'slug' => ['required', 'string', 'max:255', 'unique:social_media_platforms,slug'],
+            'name' => ['required', 'string', 'max:255', 'unique:memora_social_media_platforms,name'],
+            'slug' => ['required', 'string', 'max:255', 'unique:memora_social_media_platforms,slug'],
             'icon' => ['nullable', 'string', 'max:255'],
             'baseUrl' => ['nullable', 'string', 'url', 'max:500'],
             'isActive' => ['nullable', 'boolean'],

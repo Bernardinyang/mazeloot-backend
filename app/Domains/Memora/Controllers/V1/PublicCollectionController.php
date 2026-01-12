@@ -9,6 +9,7 @@ use App\Domains\Memora\Resources\V1\PublicCollectionResource;
 use App\Domains\Memora\Services\MediaSetService;
 use App\Http\Controllers\Controller;
 use App\Models\GuestCollectionToken;
+use App\Services\Product\SubdomainResolutionService;
 use App\Support\Responses\ApiResponse;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -23,23 +24,26 @@ use Illuminate\Http\Request;
 class PublicCollectionController extends Controller
 {
     protected MediaSetService $mediaSetService;
+    protected SubdomainResolutionService $subdomainResolutionService;
 
-    public function __construct(MediaSetService $mediaSetService)
+    public function __construct(MediaSetService $mediaSetService, SubdomainResolutionService $subdomainResolutionService)
     {
         $this->mediaSetService = $mediaSetService;
+        $this->subdomainResolutionService = $subdomainResolutionService;
     }
 
     /**
      * Check collection status (public endpoint - no authentication required)
      * Returns status and ownership info for quick validation
      */
-    public function checkStatus(Request $request, string $id): JsonResponse
+    public function checkStatus(Request $request, string $subdomainOrUsername, string $id): JsonResponse
     {
+        $subdomainOrUsername = $request->route('subdomainOrUsername') ?? $subdomainOrUsername;
+        $id = $request->route('id') ?? $id;
+        
         try {
-            $collection = MemoraCollection::query()
-                ->where('uuid', $id)
-                ->select('uuid', 'status', 'user_uuid', 'name')
-                ->firstOrFail();
+            $result = $this->resolveUserAndValidateCollection($subdomainOrUsername, $id);
+            $collection = $result['collection'];
 
             $isOwner = false;
             if (auth()->check()) {
@@ -76,11 +80,23 @@ class PublicCollectionController extends Controller
     /**
      * Get a collection (public endpoint - no authentication required for published collections)
      */
-    public function show(Request $request, string $id): JsonResponse
+    public function show(Request $request, string $subdomainOrUsername, string $id): JsonResponse
     {
+        $subdomainOrUsername = $request->route('subdomainOrUsername') ?? $subdomainOrUsername;
+        $id = $request->route('id') ?? $id;
+        
         try {
+            // Resolve user from subdomain or username
+            $resolution = $this->subdomainResolutionService->resolve($subdomainOrUsername);
+            $resolvedUser = $resolution['user'];
+
+            if (!$resolvedUser) {
+                return ApiResponse::error('User not found', 'USER_NOT_FOUND', 404);
+            }
+
             $collection = MemoraCollection::query()
                 ->where('uuid', $id)
+                ->where('user_uuid', $resolvedUser->uuid)
                 ->with(['mediaSets' => function ($query) {
                     $query->withCount('media')->orderBy('order');
                 }, 'preset', 'watermark'])
@@ -203,16 +219,18 @@ class PublicCollectionController extends Controller
     /**
      * Verify password for a collection (public endpoint - no authentication required)
      */
-    public function verifyPassword(Request $request, string $id): JsonResponse
+    public function verifyPassword(Request $request, string $subdomainOrUsername, string $id): JsonResponse
     {
+        $subdomainOrUsername = $request->route('subdomainOrUsername') ?? $subdomainOrUsername;
+        $id = $request->route('id') ?? $id;
+        
         $request->validate([
             'password' => ['required', 'string'],
         ]);
 
         try {
-            $collection = MemoraCollection::query()
-                ->where('uuid', $id)
-                ->firstOrFail();
+            $result = $this->resolveUserAndValidateCollection($subdomainOrUsername, $id);
+            $collection = $result['collection'];
 
             $settings = $collection->settings ?? [];
 
@@ -257,16 +275,18 @@ class PublicCollectionController extends Controller
     /**
      * Verify download PIN for a collection (public endpoint - no authentication required)
      */
-    public function verifyDownloadPin(Request $request, string $id): JsonResponse
+    public function verifyDownloadPin(Request $request, string $subdomainOrUsername, string $id): JsonResponse
     {
+        $subdomainOrUsername = $request->route('subdomainOrUsername') ?? $subdomainOrUsername;
+        $id = $request->route('id') ?? $id;
+        
         $request->validate([
             'pin' => ['required', 'string', 'size:4', 'regex:/^\d{4}$/'],
         ]);
 
         try {
-            $collection = MemoraCollection::query()
-                ->where('uuid', $id)
-                ->firstOrFail();
+            $result = $this->resolveUserAndValidateCollection($subdomainOrUsername, $id);
+            $collection = $result['collection'];
 
             $status = $collection->status?->value ?? $collection->status;
 
@@ -301,17 +321,19 @@ class PublicCollectionController extends Controller
     /**
      * Verify client password for a collection (public endpoint - no authentication required)
      */
-    public function verifyClientPassword(Request $request, string $id): JsonResponse
+    public function verifyClientPassword(Request $request, string $subdomainOrUsername, string $id): JsonResponse
     {
+        $subdomainOrUsername = $request->route('subdomainOrUsername') ?? $subdomainOrUsername;
+        $id = $request->route('id') ?? $id;
+        
         $request->validate([
             'password' => ['required', 'string'],
             'email' => ['nullable', 'string', 'email'],
         ]);
 
         try {
-            $collection = MemoraCollection::query()
-                ->where('uuid', $id)
-                ->firstOrFail();
+            $result = $this->resolveUserAndValidateCollection($subdomainOrUsername, $id);
+            $collection = $result['collection'];
 
             $status = $collection->status?->value ?? $collection->status;
 
@@ -365,12 +387,14 @@ class PublicCollectionController extends Controller
     /**
      * Get all media sets for a collection (public endpoint)
      */
-    public function getSets(Request $request, string $id): JsonResponse
+    public function getSets(Request $request, string $subdomainOrUsername, string $id): JsonResponse
     {
+        $subdomainOrUsername = $request->route('subdomainOrUsername') ?? $subdomainOrUsername;
+        $id = $request->route('id') ?? $id;
+        
         try {
-            $collection = MemoraCollection::query()
-                ->where('uuid', $id)
-                ->firstOrFail();
+            $result = $this->resolveUserAndValidateCollection($subdomainOrUsername, $id);
+            $collection = $result['collection'];
 
             $status = $collection->status?->value ?? $collection->status;
 
@@ -428,16 +452,20 @@ class PublicCollectionController extends Controller
     /**
      * Initiate ZIP download generation
      */
-    public function initiateZipDownload(Request $request, string $id): JsonResponse
+    public function initiateZipDownload(Request $request, string $subdomainOrUsername, string $id): JsonResponse
     {
+        $subdomainOrUsername = $request->route('subdomainOrUsername') ?? $subdomainOrUsername;
+        $id = $request->route('id') ?? $id;
+        
         try {
+            $result = $this->resolveUserAndValidateCollection($subdomainOrUsername, $id);
+            $collection = $result['collection'];
+            
             // Validate collection access first (includes password, download PIN, email restrictions)
-            $validationError = $this->validateCollectionAccess($request, $id);
+            $validationError = $this->validateCollectionAccess($request, $subdomainOrUsername, $id);
             if ($validationError) {
                 return $validationError;
             }
-
-            $collection = MemoraCollection::where('uuid', $id)->firstOrFail();
 
             $status = $collection->status?->value ?? $collection->status;
             if ($status !== 'active') {
@@ -523,11 +551,17 @@ class PublicCollectionController extends Controller
     /**
      * Get ZIP download status
      */
-    public function getZipDownloadStatus(Request $request, string $id, string $token): JsonResponse
+    public function getZipDownloadStatus(Request $request, string $subdomainOrUsername, string $id, string $token): JsonResponse
     {
+        $subdomainOrUsername = $request->route('subdomainOrUsername') ?? $subdomainOrUsername;
+        $id = $request->route('id') ?? $id;
+        $token = $request->route('token') ?? $token;
+        
         try {
+            $result = $this->resolveUserAndValidateCollection($subdomainOrUsername, $id);
+            
             // Validate collection access first
-            $validationError = $this->validateCollectionAccess($request, $id);
+            $validationError = $this->validateCollectionAccess($request, $subdomainOrUsername, $id);
             if ($validationError) {
                 return $validationError;
             }
@@ -567,11 +601,17 @@ class PublicCollectionController extends Controller
     /**
      * Download ZIP file
      */
-    public function downloadZip(Request $request, string $id, string $token): \Symfony\Component\HttpFoundation\BinaryFileResponse|\Illuminate\Http\JsonResponse
+    public function downloadZip(Request $request, string $subdomainOrUsername, string $id, string $token): \Symfony\Component\HttpFoundation\BinaryFileResponse|\Illuminate\Http\JsonResponse
     {
+        $subdomainOrUsername = $request->route('subdomainOrUsername') ?? $subdomainOrUsername;
+        $id = $request->route('id') ?? $id;
+        $token = $request->route('token') ?? $token;
+        
         try {
+            $result = $this->resolveUserAndValidateCollection($subdomainOrUsername, $id);
+            
             // Validate collection access first
-            $validationError = $this->validateCollectionAccess($request, $id);
+            $validationError = $this->validateCollectionAccess($request, $subdomainOrUsername, $id);
             if ($validationError) {
                 return $validationError;
             }
@@ -614,7 +654,16 @@ class PublicCollectionController extends Controller
             }
 
             // file_path is stored as "downloads/filename.zip" in the job
-            $filePath = storage_path("app/{$zipTask['file_path']}");
+            // Sanitize path to prevent directory traversal
+            $sanitizedPath = str_replace(['../', '..\\', '..'], '', $zipTask['file_path']);
+            $filePath = storage_path("app/{$sanitizedPath}");
+            
+            // Ensure path is within storage/app directory
+            $realPath = realpath($filePath);
+            $storagePath = realpath(storage_path('app'));
+            if (!$realPath || !str_starts_with($realPath, $storagePath)) {
+                return ApiResponse::error('Invalid file path', 'INVALID_PATH', 403);
+            }
 
             \Illuminate\Support\Facades\Log::info('Attempting ZIP download', [
                 'token' => $token,
@@ -718,10 +767,11 @@ class PublicCollectionController extends Controller
      * Validate collection access (shared logic for download endpoints)
      * Validates guest token, password, download PIN, and email restrictions
      */
-    private function validateCollectionAccess(Request $request, string $id): ?JsonResponse
+    private function validateCollectionAccess(Request $request, string $subdomainOrUsername, string $id): ?JsonResponse
     {
         try {
-            $collection = MemoraCollection::where('uuid', $id)->firstOrFail();
+            $result = $this->resolveUserAndValidateCollection($subdomainOrUsername, $id);
+            $collection = $result['collection'];
 
             $isOwner = false;
             if (auth()->check()) {

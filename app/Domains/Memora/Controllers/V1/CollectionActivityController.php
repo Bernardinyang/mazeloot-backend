@@ -9,6 +9,7 @@ use App\Domains\Memora\Models\MemoraCollectionFavourite;
 use App\Domains\Memora\Models\MemoraCollectionPrivatePhotoAccess;
 use App\Domains\Memora\Models\MemoraCollectionShareLink;
 use App\Services\ActivityLog\ActivityLogService;
+use App\Services\Product\SubdomainResolutionService;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,19 +18,43 @@ use Illuminate\Support\Facades\Log;
 class CollectionActivityController extends Controller
 {
     protected ActivityLogService $activityLogService;
+    protected SubdomainResolutionService $subdomainResolutionService;
 
-    public function __construct(ActivityLogService $activityLogService)
-    {
+    public function __construct(
+        ActivityLogService $activityLogService,
+        SubdomainResolutionService $subdomainResolutionService
+    ) {
         $this->activityLogService = $activityLogService;
+        $this->subdomainResolutionService = $subdomainResolutionService;
+    }
+
+    /**
+     * Resolve user from subdomain or username and validate collection belongs to user
+     */
+    protected function resolveUserAndValidateCollection(string $subdomainOrUsername, string $collectionId): array
+    {
+        $resolution = $this->subdomainResolutionService->resolve($subdomainOrUsername);
+        $resolvedUser = $resolution['user'];
+
+        if (!$resolvedUser) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('User not found');
+        }
+
+        $collection = MemoraCollection::where('uuid', $collectionId)
+            ->where('user_uuid', $resolvedUser->uuid)
+            ->firstOrFail();
+
+        return ['user' => $resolvedUser, 'collection' => $collection];
     }
 
     /**
      * Track email registration for a collection
      */
-    public function trackEmailRegistration(Request $request, string $collectionId): JsonResponse
+    public function trackEmailRegistration(Request $request, string $subdomainOrUsername, string $collectionId): JsonResponse
     {
         try {
-            $collection = MemoraCollection::where('uuid', $collectionId)->firstOrFail();
+            $result = $this->resolveUserAndValidateCollection($subdomainOrUsername, $collectionId);
+            $collection = $result['collection'];
 
             $request->validate([
                 'email' => ['required', 'email'],
@@ -101,10 +126,11 @@ class CollectionActivityController extends Controller
     /**
      * Track quick share link click
      */
-    public function trackShareLinkClick(Request $request, string $collectionId): JsonResponse
+    public function trackShareLinkClick(Request $request, string $subdomainOrUsername, string $collectionId): JsonResponse
     {
         try {
-            $collection = MemoraCollection::where('uuid', $collectionId)->firstOrFail();
+            $result = $this->resolveUserAndValidateCollection($subdomainOrUsername, $collectionId);
+            $collection = $result['collection'];
 
             $request->validate([
                 'link_id' => ['nullable', 'string'],
@@ -180,10 +206,15 @@ class CollectionActivityController extends Controller
     /**
      * Track private photo access
      */
-    public function trackPrivatePhotoAccess(Request $request, string $collectionId, string $mediaId): JsonResponse
+    public function trackPrivatePhotoAccess(Request $request, string $subdomainOrUsername, string $collectionId, string $mediaId): JsonResponse
     {
+        $subdomainOrUsername = $request->route('subdomainOrUsername') ?? $subdomainOrUsername;
+        $collectionId = $request->route('id') ?? $collectionId;
+        $mediaId = $request->route('mediaId') ?? $mediaId;
+        
         try {
-            $collection = MemoraCollection::where('uuid', $collectionId)->firstOrFail();
+            $result = $this->resolveUserAndValidateCollection($subdomainOrUsername, $collectionId);
+            $collection = $result['collection'];
 
             $userEmail = $request->header('X-Collection-Email');
             $userUuid = auth()->check() ? auth()->user()->uuid : null;
@@ -249,6 +280,8 @@ class CollectionActivityController extends Controller
      */
     public function getEmailRegistrations(Request $request, string $collectionId): JsonResponse
     {
+        $collectionId = $request->route('id') ?? $collectionId;
+        
         try {
             $collection = MemoraCollection::where('uuid', $collectionId)->firstOrFail();
 
@@ -282,6 +315,8 @@ class CollectionActivityController extends Controller
      */
     public function getShareLinkActivities(Request $request, string $collectionId): JsonResponse
     {
+        $collectionId = $request->route('id') ?? $collectionId;
+        
         try {
             $collection = MemoraCollection::where('uuid', $collectionId)->firstOrFail();
 
@@ -322,6 +357,8 @@ class CollectionActivityController extends Controller
      */
     public function getDownloadActivities(Request $request, string $collectionId): JsonResponse
     {
+        $collectionId = $request->route('id') ?? $collectionId;
+        
         try {
             $collection = MemoraCollection::where('uuid', $collectionId)->firstOrFail();
 
@@ -385,6 +422,8 @@ class CollectionActivityController extends Controller
      */
     public function getFavouriteActivities(Request $request, string $collectionId): JsonResponse
     {
+        $collectionId = $request->route('id') ?? $collectionId;
+        
         try {
             $collection = MemoraCollection::where('uuid', $collectionId)->firstOrFail();
 
@@ -486,6 +525,8 @@ class CollectionActivityController extends Controller
      */
     public function getPrivatePhotoActivities(Request $request, string $collectionId): JsonResponse
     {
+        $collectionId = $request->route('id') ?? $collectionId;
+        
         try {
             $collection = MemoraCollection::where('uuid', $collectionId)->firstOrFail();
 

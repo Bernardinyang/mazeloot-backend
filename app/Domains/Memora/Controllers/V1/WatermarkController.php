@@ -10,6 +10,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\ImageUploadRequest;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class WatermarkController extends Controller
 {
@@ -33,8 +34,9 @@ class WatermarkController extends Controller
     /**
      * Get single watermark
      */
-    public function show(string $id): JsonResponse
+    public function show(Request $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         $watermark = $this->watermarkService->getById($id);
 
         return ApiResponse::success(new WatermarkResource($watermark));
@@ -55,6 +57,7 @@ class WatermarkController extends Controller
      */
     public function update(UpdateWatermarkRequest $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         $watermark = $this->watermarkService->update($id, $request->validated());
 
         return ApiResponse::success(new WatermarkResource($watermark));
@@ -63,8 +66,9 @@ class WatermarkController extends Controller
     /**
      * Delete a watermark
      */
-    public function destroy(string $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         $this->watermarkService->delete($id);
 
         return ApiResponse::success(null, 204);
@@ -88,8 +92,9 @@ class WatermarkController extends Controller
     /**
      * Duplicate a watermark
      */
-    public function duplicate(string $id): JsonResponse
+    public function duplicate(Request $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         $duplicated = $this->watermarkService->duplicate($id);
 
         return ApiResponse::success(new WatermarkResource($duplicated), 201);
@@ -98,8 +103,9 @@ class WatermarkController extends Controller
     /**
      * Get watermark usage count
      */
-    public function usage(string $id): JsonResponse
+    public function usage(Request $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         $count = $this->watermarkService->getUsageCount($id);
 
         return ApiResponse::success(['count' => $count]);

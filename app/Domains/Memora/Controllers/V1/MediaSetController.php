@@ -97,6 +97,7 @@ class MediaSetController extends Controller
      */
     public function indexForProofing(Request $request, string $proofingId): JsonResponse
     {
+        $proofingId = $request->route('proofingId') ?? $proofingId;
         $projectId = $request->query('projectId');
         $page = max(1, (int) $request->query('page', 1));
         $perPage = max(1, min(100, (int) $request->query('per_page', 10)));
@@ -113,6 +114,8 @@ class MediaSetController extends Controller
      */
     public function showForProofing(Request $request, string $proofingId, string $id): JsonResponse
     {
+        $proofingId = $request->route('proofingId') ?? $proofingId;
+        $id = $request->route('id') ?? $id;
         $projectId = $request->query('projectId');
         $set = $this->mediaSetService->findByProofing($proofingId, $id, $projectId);
 
@@ -126,6 +129,7 @@ class MediaSetController extends Controller
      */
     public function storeForProofing(StoreMediaSetRequest $request, string $proofingId): JsonResponse
     {
+        $proofingId = $request->route('proofingId') ?? $proofingId;
         $projectId = $request->query('projectId');
         $set = $this->mediaSetService->createForProofing($proofingId, $request->validated(), $projectId);
 
@@ -139,6 +143,8 @@ class MediaSetController extends Controller
      */
     public function updateForProofing(UpdateMediaSetRequest $request, string $proofingId, string $id): JsonResponse
     {
+        $proofingId = $request->route('proofingId') ?? $proofingId;
+        $id = $request->route('id') ?? $id;
         $projectId = $request->query('projectId');
         $set = $this->mediaSetService->updateForProofing($proofingId, $id, $request->validated(), $projectId);
 
@@ -152,6 +158,8 @@ class MediaSetController extends Controller
      */
     public function destroyForProofing(Request $request, string $proofingId, string $id): JsonResponse
     {
+        $proofingId = $request->route('proofingId') ?? $proofingId;
+        $id = $request->route('id') ?? $id;
         $projectId = $request->query('projectId');
         $this->mediaSetService->deleteForProofing($proofingId, $id, $projectId);
 
@@ -165,6 +173,7 @@ class MediaSetController extends Controller
      */
     public function reorderForProofing(Request $request, string $proofingId): JsonResponse
     {
+        $proofingId = $request->route('proofingId') ?? $proofingId;
         $request->validate([
             'setIds' => 'required|array',
             'setIds.*' => 'uuid',
@@ -185,6 +194,7 @@ class MediaSetController extends Controller
      */
     public function indexForCollection(Request $request, string $collectionId): JsonResponse
     {
+        $collectionId = $request->route('collectionId') ?? $collectionId;
         $projectId = $request->query('projectId');
         $page = max(1, (int) $request->query('page', 1));
         $perPage = max(1, min(100, (int) $request->query('per_page', 10)));
@@ -201,6 +211,8 @@ class MediaSetController extends Controller
      */
     public function showForCollection(Request $request, string $collectionId, string $id): JsonResponse
     {
+        $collectionId = $request->route('collectionId') ?? $collectionId;
+        $id = $request->route('id') ?? $id;
         $projectId = $request->query('projectId');
         $set = $this->mediaSetService->findByCollection($collectionId, $id, $projectId);
 
@@ -214,6 +226,7 @@ class MediaSetController extends Controller
      */
     public function storeForCollection(StoreMediaSetRequest $request, string $collectionId): JsonResponse
     {
+        $collectionId = $request->route('collectionId') ?? $collectionId;
         $projectId = $request->query('projectId');
         $set = $this->mediaSetService->createForCollection($collectionId, $request->validated(), $projectId);
 
@@ -227,6 +240,8 @@ class MediaSetController extends Controller
      */
     public function updateForCollection(UpdateMediaSetRequest $request, string $collectionId, string $id): JsonResponse
     {
+        $collectionId = $request->route('collectionId') ?? $collectionId;
+        $id = $request->route('id') ?? $id;
         $projectId = $request->query('projectId');
         $set = $this->mediaSetService->updateForCollection($collectionId, $id, $request->validated(), $projectId);
 
@@ -240,6 +255,8 @@ class MediaSetController extends Controller
      */
     public function destroyForCollection(Request $request, string $collectionId, string $id): JsonResponse
     {
+        $collectionId = $request->route('collectionId') ?? $collectionId;
+        $id = $request->route('id') ?? $id;
         $projectId = $request->query('projectId');
         $this->mediaSetService->deleteForCollection($collectionId, $id, $projectId);
 
@@ -253,6 +270,7 @@ class MediaSetController extends Controller
      */
     public function reorderForCollection(Request $request, string $collectionId): JsonResponse
     {
+        $collectionId = $request->route('collectionId') ?? $collectionId;
         $request->validate([
             'setIds' => 'required|array',
             'setIds.*' => 'uuid',
@@ -260,6 +278,85 @@ class MediaSetController extends Controller
 
         $projectId = $request->query('projectId');
         $this->mediaSetService->reorderForCollection($collectionId, $request->input('setIds'), $projectId);
+
+        return ApiResponse::success(['message' => 'Sets reordered successfully']);
+    }
+
+    // ==================== Raw Files Media Sets ====================
+
+    /**
+     * Get all media sets for a raw files phase with optional pagination parameters
+     */
+    public function indexForRawFiles(Request $request, string $rawFilesId): JsonResponse
+    {
+        $rawFilesId = $request->route('rawFilesId') ?? $rawFilesId;
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = max(1, min(100, (int) $request->query('per_page', 10)));
+
+        $result = $this->mediaSetService->getByRawFiles($rawFilesId, $page, $perPage);
+
+        return ApiResponse::success($result);
+    }
+
+    /**
+     * Get a single media set for raw files
+     */
+    public function showForRawFiles(Request $request, string $rawFilesId, string $id): JsonResponse
+    {
+        $rawFilesId = $request->route('rawFilesId') ?? $rawFilesId;
+        $id = $request->route('id') ?? $id;
+        $set = $this->mediaSetService->findByRawFiles($rawFilesId, $id);
+
+        return ApiResponse::success(new MediaSetResource($set));
+    }
+
+    /**
+     * Create a media set for raw files
+     */
+    public function storeForRawFiles(StoreMediaSetRequest $request, string $rawFilesId): JsonResponse
+    {
+        $rawFilesId = $request->route('rawFilesId') ?? $rawFilesId;
+        $set = $this->mediaSetService->createForRawFiles($rawFilesId, $request->validated());
+
+        return ApiResponse::success(new MediaSetResource($set), 201);
+    }
+
+    /**
+     * Update a media set for raw files
+     */
+    public function updateForRawFiles(UpdateMediaSetRequest $request, string $rawFilesId, string $id): JsonResponse
+    {
+        $rawFilesId = $request->route('rawFilesId') ?? $rawFilesId;
+        $id = $request->route('id') ?? $id;
+        $set = $this->mediaSetService->updateForRawFiles($rawFilesId, $id, $request->validated());
+
+        return ApiResponse::success(new MediaSetResource($set));
+    }
+
+    /**
+     * Delete a media set for raw files
+     */
+    public function destroyForRawFiles(Request $request, string $rawFilesId, string $id): JsonResponse
+    {
+        $rawFilesId = $request->route('rawFilesId') ?? $rawFilesId;
+        $id = $request->route('id') ?? $id;
+        $this->mediaSetService->deleteForRawFiles($rawFilesId, $id);
+
+        return ApiResponse::success(null, 204);
+    }
+
+    /**
+     * Reorder media sets for raw files
+     */
+    public function reorderForRawFiles(Request $request, string $rawFilesId): JsonResponse
+    {
+        $rawFilesId = $request->route('rawFilesId') ?? $rawFilesId;
+        $request->validate([
+            'setIds' => 'required|array',
+            'setIds.*' => 'uuid',
+        ]);
+
+        $this->mediaSetService->reorderForRawFiles($rawFilesId, $request->input('setIds'));
 
         return ApiResponse::success(['message' => 'Sets reordered successfully']);
     }

@@ -42,6 +42,7 @@ class MemoraMediaSet extends Model
         'selection_uuid',
         'proof_uuid',
         'collection_uuid',
+        'raw_files_uuid',
         'name',
         'description',
         'order',
@@ -102,6 +103,11 @@ class MemoraMediaSet extends Model
     public function collection(): BelongsTo
     {
         return $this->belongsTo(MemoraCollection::class, 'collection_uuid', 'uuid');
+    }
+
+    public function rawFiles(): BelongsTo
+    {
+        return $this->belongsTo(MemoraRawFiles::class, 'raw_files_uuid', 'uuid');
     }
 
     public function media(): HasMany

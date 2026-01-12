@@ -55,6 +55,7 @@ class SocialLinkController extends Controller
      */
     public function update(UpdateSocialLinkRequest $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         $link = $this->socialLinkService->update($id, $request->validated());
 
         return ApiResponse::success(new SocialLinkResource($link));
@@ -63,8 +64,9 @@ class SocialLinkController extends Controller
     /**
      * Delete a social link
      */
-    public function destroy(string $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         $this->socialLinkService->delete($id);
 
         return ApiResponse::success(null, 204);

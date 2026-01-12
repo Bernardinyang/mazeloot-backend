@@ -9,6 +9,7 @@ use App\Domains\Memora\Services\PresetService;
 use App\Http\Controllers\Controller;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class PresetController extends Controller
 {
@@ -35,8 +36,9 @@ class PresetController extends Controller
     /**
      * Get single preset by ID or name
      */
-    public function show(string $id): JsonResponse
+    public function show(Request $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         // Try to get by ID first (UUID)
         try {
             $preset = $this->presetService->getById($id);
@@ -66,6 +68,7 @@ class PresetController extends Controller
      */
     public function update(UpdatePresetRequest $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         $preset = $this->presetService->update($id, $request->validated());
 
         return ApiResponse::success(new PresetResource($preset));
@@ -74,8 +77,9 @@ class PresetController extends Controller
     /**
      * Delete a preset
      */
-    public function destroy(string $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         $this->presetService->delete($id);
 
         return ApiResponse::success(null, 204);
@@ -84,8 +88,9 @@ class PresetController extends Controller
     /**
      * Duplicate a preset
      */
-    public function duplicate(string $id): JsonResponse
+    public function duplicate(Request $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         $duplicated = $this->presetService->duplicate($id);
 
         return ApiResponse::success(new PresetResource($duplicated), 201);
@@ -94,8 +99,10 @@ class PresetController extends Controller
     /**
      * Apply preset to collection
      */
-    public function applyToCollection(string $id, string $collectionId): JsonResponse
+    public function applyToCollection(Request $request, string $id, string $collectionId): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
+        $collectionId = $request->route('collectionId') ?? $collectionId;
         $collection = $this->presetService->applyToCollection($id, $collectionId);
 
         return ApiResponse::success(['message' => 'Preset applied successfully']);
@@ -104,8 +111,9 @@ class PresetController extends Controller
     /**
      * Get preset usage count
      */
-    public function usage(string $id): JsonResponse
+    public function usage(Request $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         $count = $this->presetService->getUsageCount($id);
 
         return ApiResponse::success(['count' => $count]);
@@ -114,8 +122,9 @@ class PresetController extends Controller
     /**
      * Set preset as default
      */
-    public function setDefault(string $id): JsonResponse
+    public function setDefault(Request $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         $preset = $this->presetService->setAsDefault($id);
 
         return ApiResponse::success(new PresetResource($preset));

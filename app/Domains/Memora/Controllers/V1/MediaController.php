@@ -15,6 +15,7 @@ use App\Domains\Memora\Resources\V1\MediaResource;
 use App\Domains\Memora\Services\MediaService;
 use App\Http\Controllers\Controller;
 use App\Support\Responses\ApiResponse;
+use App\Support\Traits\ExtractsRouteParameters;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,6 +27,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class MediaController extends Controller
 {
+    use ExtractsRouteParameters;
     protected MediaService $mediaService;
 
     public function __construct(MediaService $mediaService)
@@ -33,8 +35,9 @@ class MediaController extends Controller
         $this->mediaService = $mediaService;
     }
 
-    public function getRevisions(string $id): JsonResponse
+    public function getRevisions(Request $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         $revisions = $this->mediaService->getRevisions($id);
 
         return ApiResponse::success($revisions);
@@ -43,8 +46,9 @@ class MediaController extends Controller
     /**
      * Get a single media item by UUID
      */
-    public function show(string $id): JsonResponse
+    public function show(Request $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         $media = MemoraMedia::where('uuid', $id)
             ->with(['file', 'mediaSet', 'starredByUsers' => function ($query) {
                 if (Auth::check()) {
@@ -58,6 +62,7 @@ class MediaController extends Controller
 
     public function markCompleted(Request $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         $request->validate([
             'isCompleted' => ['required', 'boolean'],
         ]);
@@ -78,6 +83,8 @@ class MediaController extends Controller
      */
     public function uploadToSet(UploadMediaToSetRequest $request, string $selectionUuid, string $setUuid): JsonResponse
     {
+        $setUuid = $request->route('setId') ?? $request->route('setUuid') ?? $setUuid;
+        
         $media = $this->mediaService->createFromUploadUrlForSet(
             $setUuid,
             $request->validated()
@@ -105,14 +112,17 @@ class MediaController extends Controller
     public function addFeedback(AddMediaFeedbackRequest $request, string $proofingId, string $setId, string $mediaId): JsonResponse
     {
         try {
-            // Log to help debug parameter resolution
-            Log::info('Adding feedback to media', [
-                'media_id' => $mediaId,
-                'proofing_id' => $proofingId,
-                'set_id' => $setId,
-                'media_id_length' => strlen($mediaId),
-                'is_uuid_format' => preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $mediaId),
-            ]);
+            $proofingId = $request->route('proofingId') ?? $proofingId;
+            $setId = $request->route('setId') ?? $setId;
+            $mediaId = $request->route('mediaId') ?? $mediaId;
+            
+            if (config('app.debug')) {
+                Log::debug('Adding feedback to media', [
+                    'media_id' => $mediaId,
+                    'proofing_id' => $proofingId,
+                    'set_id' => $setId,
+                ]);
+            }
 
             // Validate that mediaId is not the same as proofingId (safety check)
             if ($mediaId === $proofingId) {
@@ -156,32 +166,23 @@ class MediaController extends Controller
      */
     public function updateFeedback(Request $request, string $proofingId, string $setId, string $mediaId, string $feedbackId): JsonResponse
     {
+        $proofingId = $this->getRouteParameter($request, 'proofingId', $proofingId);
+        $setId = $this->getRouteParameter($request, 'setId', $setId);
+        $mediaId = $this->getRouteParameter($request, 'mediaId', $mediaId);
+        $feedbackId = $this->getRouteParameter($request, 'feedbackId', $feedbackId);
+        
         $request->validate([
             'content' => ['required', 'string'],
         ]);
 
         try {
-            // Validate that media exists and belongs to the set/proofing
-            $media = MemoraMedia::where('uuid', $mediaId)->first();
-            if (! $media) {
+            $media = $this->mediaService->validateMediaBelongsToSet($mediaId, $setId);
+            if (!$media) {
                 return ApiResponse::error('Media not found or does not belong to the specified set', 'MEDIA_NOT_FOUND', 404);
             }
 
-            if ($media->media_set_uuid !== $setId) {
-                return ApiResponse::error('Media not found or does not belong to the specified set', 'MEDIA_NOT_FOUND', 404);
-            }
-
-            $set = MemoraMediaSet::where('uuid', $setId)->first();
-            if (! $set) {
-                return ApiResponse::error('Set not found or does not belong to the specified proofing', 'SET_NOT_FOUND', 404);
-            }
-
-            // Validate set belongs to proofing
-            // If phase/phase_id are null, we still allow if media belongs to the set
-            $setBelongsToProofing = ($set->phase === 'proofing' && $set->phase_id === $proofingId);
-            $mediaBelongsToSet = ($media->media_set_uuid === $setId);
-
-            if (! $setBelongsToProofing && ! $mediaBelongsToSet) {
+            $set = $this->mediaService->validateSetBelongsToProofing($setId, $proofingId);
+            if (!$set && $media->media_set_uuid !== $setId) {
                 return ApiResponse::error('Set not found or does not belong to the specified proofing', 'SET_NOT_FOUND', 404);
             }
 
@@ -205,11 +206,18 @@ class MediaController extends Controller
      * Delete feedback
      * Note: Route parameters include proofingId and setId for validation
      */
-    public function deleteFeedback(string $proofingId, string $setId, string $mediaId, string $feedbackId): JsonResponse
+    public function deleteFeedback(Request $request, string $proofingId, string $setId, string $mediaId, string $feedbackId): JsonResponse
     {
+        $proofingId = $this->getRouteParameter($request, 'proofingId', $proofingId);
+        $setId = $this->getRouteParameter($request, 'setId', $setId);
+        $mediaId = $this->getRouteParameter($request, 'mediaId', $mediaId);
+        $feedbackId = $this->getRouteParameter($request, 'feedbackId', $feedbackId);
+        
         try {
             // Validate that media exists and belongs to the set/proofing
-            $media = MemoraMedia::where('uuid', $mediaId)->first();
+            $media = MemoraMedia::where('uuid', $mediaId)
+                ->with(['file', 'mediaSet'])
+                ->first();
             if (! $media) {
                 Log::warning('Media not found for deleteFeedback', [
                     'media_id' => $mediaId,
@@ -221,42 +229,45 @@ class MediaController extends Controller
             }
 
             if ($media->media_set_uuid !== $setId) {
-                Log::warning('Media does not belong to set', [
-                    'media_id' => $mediaId,
-                    'media_set_uuid' => $media->media_set_uuid,
-                    'expected_set_id' => $setId,
-                    'proofing_id' => $proofingId,
-                ]);
+                if (config('app.debug')) {
+                    Log::debug('Media does not belong to set', [
+                        'media_id' => $mediaId,
+                        'media_set_uuid' => $media->media_set_uuid,
+                        'expected_set_id' => $setId,
+                        'proofing_id' => $proofingId,
+                    ]);
+                }
 
                 return ApiResponse::error('Media not found or does not belong to the specified set', 'MEDIA_NOT_FOUND', 404);
             }
 
-            $set = MemoraMediaSet::where('uuid', $setId)->first();
+            $set = MemoraMediaSet::where('uuid', $setId)
+                ->first();
             if (! $set) {
-                Log::warning('Set not found for deleteFeedback', [
-                    'set_id' => $setId,
-                    'proofing_id' => $proofingId,
-                    'media_id' => $mediaId,
-                    'all_sets_for_proofing' => MemoraMediaSet::where('phase', 'proofing')
-                        ->where('phase_id', $proofingId)
-                        ->pluck('uuid')
-                        ->toArray(),
-                ]);
+                if (config('app.debug')) {
+                    Log::debug('Set not found for deleteFeedback', [
+                        'set_id' => $setId,
+                        'proofing_id' => $proofingId,
+                        'media_id' => $mediaId,
+                    ]);
+                }
 
                 return ApiResponse::error('Set not found or does not belong to the specified proofing', 'SET_NOT_FOUND', 404);
             }
 
-            Log::info('Set found for deleteFeedback', [
-                'set_id' => $setId,
-                'set_uuid' => $set->uuid,
-                'set_phase' => $set->phase,
-                'set_phase_id' => $set->phase_id,
-                'expected_proofing_id' => $proofingId,
-                'media_id' => $mediaId,
-                'media_set_uuid' => $media->media_set_uuid,
-                'phase_match' => $set->phase === 'proofing',
-                'phase_id_match' => $set->phase_id === $proofingId,
-            ]);
+            if (config('app.debug')) {
+                Log::debug('Set found for deleteFeedback', [
+                    'set_id' => $setId,
+                    'set_uuid' => $set->uuid,
+                    'set_phase' => $set->phase,
+                    'set_phase_id' => $set->phase_id,
+                    'expected_proofing_id' => $proofingId,
+                    'media_id' => $mediaId,
+                    'media_set_uuid' => $media->media_set_uuid,
+                    'phase_match' => $set->phase === 'proofing',
+                    'phase_id_match' => $set->phase_id === $proofingId,
+                ]);
+            }
 
             // Validate set belongs to proofing
             // If phase/phase_id are null, we still allow if media belongs to the set
@@ -316,15 +327,18 @@ class MediaController extends Controller
     /**
      * Delete media from a set
      */
-    public function deleteFromSet(string $selectionId, string $setUuid, string $mediaId): JsonResponse
+    public function deleteFromSet(Request $request, string $selectionId, string $setUuid, string $mediaId): JsonResponse
     {
+        $setUuid = $request->route('setId') ?? $request->route('setUuid') ?? $setUuid;
+        $mediaId = $request->route('mediaId') ?? $mediaId;
+        
         $userId = Auth::id();
         if (! $userId) {
             return ApiResponse::error('Unauthorized', 'UNAUTHORIZED', 401);
         }
 
-        // Verify media belongs to set
-        $media = MemoraMedia::findOrFail($mediaId);
+        // Verify media belongs to set (use UUID lookup)
+        $media = MemoraMedia::where('uuid', $mediaId)->firstOrFail();
         if ($media->media_set_uuid !== $setUuid) {
             return ApiResponse::error('Media does not belong to this set', 'MEDIA_NOT_IN_SET', 403);
         }
@@ -343,8 +357,9 @@ class MediaController extends Controller
     /**
      * Delete media directly (without selection/set context)
      */
-    public function deleteDirect(string $mediaId): JsonResponse
+    public function deleteDirect(Request $request, string $mediaId): JsonResponse
     {
+        $mediaId = $request->route('id') ?? $mediaId;
         $userId = Auth::id();
         if (! $userId) {
             return ApiResponse::error('Unauthorized', 'UNAUTHORIZED', 401);
@@ -361,6 +376,10 @@ class MediaController extends Controller
 
             return ApiResponse::error('Failed to delete media', 'DELETE_FAILED', 500);
         } catch (\Exception $e) {
+            if (str_contains($e->getMessage(), 'Unauthorized')) {
+                return ApiResponse::error($e->getMessage(), 'FORBIDDEN', 403);
+            }
+            
             Log::error('Failed to delete media', [
                 'media_id' => $mediaId,
                 'exception' => $e->getMessage(),
@@ -375,6 +394,9 @@ class MediaController extends Controller
      */
     public function rename(RenameMediaRequest $request, string $selectionId, string $setUuid, string $mediaId): JsonResponse
     {
+        $setUuid = $request->route('setId') ?? $request->route('setUuid') ?? $setUuid;
+        $mediaId = $request->route('mediaId') ?? $mediaId;
+        
         $userId = Auth::id();
         if (! $userId) {
             return ApiResponse::error('Unauthorized', 'UNAUTHORIZED', 401);
@@ -412,6 +434,9 @@ class MediaController extends Controller
      */
     public function replace(ReplaceMediaRequest $request, string $selectionId, string $setUuid, string $mediaId): JsonResponse
     {
+        $setUuid = $request->route('setId') ?? $request->route('setUuid') ?? $setUuid;
+        $mediaId = $request->route('mediaId') ?? $mediaId;
+        
         $userId = Auth::id();
         if (! $userId) {
             return ApiResponse::error('Unauthorized', 'UNAUTHORIZED', 401);
@@ -449,6 +474,9 @@ class MediaController extends Controller
      */
     public function applyWatermark(ApplyWatermarkRequest $request, string $selectionId, string $setUuid, string $mediaId): JsonResponse
     {
+        $setUuid = $request->route('setId') ?? $request->route('setUuid') ?? $setUuid;
+        $mediaId = $request->route('mediaId') ?? $mediaId;
+        
         $userId = Auth::id();
         if (! $userId) {
             return ApiResponse::error('Unauthorized', 'UNAUTHORIZED', 401);
@@ -481,6 +509,9 @@ class MediaController extends Controller
      */
     public function removeWatermark(Request $request, string $selectionId, string $setUuid, string $mediaId): JsonResponse
     {
+        $setUuid = $request->route('setId') ?? $request->route('setUuid') ?? $setUuid;
+        $mediaId = $request->route('mediaId') ?? $mediaId;
+        
         $userId = Auth::id();
         if (! $userId) {
             return ApiResponse::error('Unauthorized', 'UNAUTHORIZED', 401);
@@ -594,6 +625,7 @@ class MediaController extends Controller
      */
     public function getSetMedia(Request $request, string $parentId, string $setId): JsonResponse
     {
+        $setId = $this->getRouteParameter($request, 'setId', $setId);
         $setUuid = $setId;
 
         $sortBy = $request->query('sort_by');
@@ -614,8 +646,11 @@ class MediaController extends Controller
     /**
      * Toggle star status for a media item (with selection/set context)
      */
-    public function toggleStar(string $selectionId, string $setUuid, string $mediaId): JsonResponse
+    public function toggleStar(Request $request, string $selectionId, string $setUuid, string $mediaId): JsonResponse
     {
+        $setUuid = $request->route('setId') ?? $request->route('setUuid') ?? $setUuid;
+        $mediaId = $request->route('mediaId') ?? $mediaId;
+        
         try {
             $result = $this->mediaService->toggleStar($mediaId);
 
@@ -637,8 +672,9 @@ class MediaController extends Controller
     /**
      * Toggle star status for a media item (direct, without selection/set context)
      */
-    public function toggleStarDirect(string $mediaId): JsonResponse
+    public function toggleStarDirect(Request $request, string $mediaId): JsonResponse
     {
+        $mediaId = $request->route('id') ?? $mediaId;
         try {
             $result = $this->mediaService->toggleStar($mediaId);
 
@@ -1036,6 +1072,34 @@ class MediaController extends Controller
 
                 if ($isCloudStorage) {
                     try {
+                        // Validate URL to prevent SSRF attacks
+                        $parsedUrl = parse_url($fileUrl);
+                        if (!$parsedUrl || !isset($parsedUrl['host'])) {
+                            throw new \RuntimeException('Invalid file URL');
+                        }
+                        
+                        // Only allow known cloud storage domains
+                        $allowedHosts = [
+                            'amazonaws.com',
+                            'r2.cloudflarestorage.com',
+                            'r2.dev',
+                            'cloudflare',
+                            's3.',
+                            '.s3.',
+                        ];
+                        
+                        $isAllowed = false;
+                        foreach ($allowedHosts as $allowedHost) {
+                            if (str_contains($parsedUrl['host'], $allowedHost)) {
+                                $isAllowed = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!$isAllowed) {
+                            throw new \RuntimeException('File URL not from allowed storage provider');
+                        }
+                        
                         $fileContents = file_get_contents($fileUrl);
                         if ($fileContents === false) {
                             throw new \RuntimeException('Failed to fetch file from cloud storage');
@@ -1136,8 +1200,9 @@ class MediaController extends Controller
     /**
      * Toggle featured status for media
      */
-    public function toggleFeatured(string $id): JsonResponse
+    public function toggleFeatured(Request $request, string $id): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
         try {
             $userId = Auth::id();
             if (! $userId) {
@@ -1166,5 +1231,61 @@ class MediaController extends Controller
 
             return ApiResponse::error('Failed to toggle featured status', 'TOGGLE_FAILED', 500);
         }
+    }
+
+    /**
+     * Toggle creative selected status for a media item
+     * Similar to toggleFeatured but validates selection ownership
+     */
+    public function toggleCreativeSelected(Request $request, string $id = null): JsonResponse
+    {
+        $mediaId = $request->route('mediaId') ?? $id;
+        try {
+            $user = Auth::user();
+            if (! $user) {
+                return ApiResponse::error('Unauthorized', 'UNAUTHORIZED', 401);
+            }
+
+            $media = MemoraMedia::where('uuid', $mediaId)
+                ->with('mediaSet.selection')
+                ->firstOrFail();
+
+            // Validate user is the selection owner (creative)
+            $selection = $media->mediaSet?->selection;
+            if (! $selection || $selection->user_uuid !== $user->uuid) {
+                return ApiResponse::error('You do not have permission to pre-select media for this selection.', 'FORBIDDEN', 403);
+            }
+
+            // Only allow for draft or active selections
+            if (! in_array($selection->status->value, ['draft', 'active'])) {
+                return ApiResponse::error('Can only mark as recommended for draft or active selections', 'INVALID_STATUS', 400);
+            }
+
+            $isCreativeSelected = ! $media->is_creative_selected;
+
+            $media->update([
+                'is_creative_selected' => $isCreativeSelected,
+                'creative_selected_at' => $isCreativeSelected ? now() : null,
+            ]);
+
+            return ApiResponse::success(new MediaResource($media->fresh()));
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ApiResponse::error('Media not found', 'NOT_FOUND', 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to toggle creative selected status', [
+                'media_id' => $id,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return ApiResponse::error('Failed to toggle creative selected status', 'TOGGLE_FAILED', 500);
+        }
+    }
+
+    /**
+     * Toggle creative selected status for media in selection context
+     */
+    public function toggleCreativeSelectedInSelection(Request $request, string $selectionId, string $setId, string $mediaId): JsonResponse
+    {
+        return $this->toggleCreativeSelected($request, $mediaId);
     }
 }

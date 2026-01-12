@@ -7,9 +7,6 @@ Route::get('/', static function () {
     return 'Welcome MAZELOOT';
 });
 
-// Broadcasting authentication route with Sanctum
-Broadcast::routes(['middleware' => ['auth:sanctum']]);
-
 // Fallback route for unmatched web requests
 Route::fallback(static function () {
     return response('Not Found', 404);

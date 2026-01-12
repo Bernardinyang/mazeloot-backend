@@ -7,6 +7,7 @@ use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraMediaFeedback;
 use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraProofing;
+use App\Domains\Memora\Models\MemoraRawFiles;
 use App\Domains\Memora\Models\MemoraSelection;
 use App\Services\Upload\UploadService;
 use Illuminate\Support\Facades\Auth;
@@ -25,16 +26,24 @@ class MediaService
 
     /**
      * Get phase media
+     * Media is linked to phases via media_set relationships (selection_uuid, proof_uuid, collection_uuid)
      */
-    public function getPhaseMedia(string $phaseType, string $phaseId, ?string $setUuid = null)
+    public function getPhaseMedia(string $phaseType, string $phaseId, ?string $setUuid = null): \Illuminate\Database\Eloquent\Collection
     {
-        $query = MemoraMedia::where('phase', $phaseType)
-            ->where('phase_id', $phaseId)
+        $query = MemoraMedia::whereHas('mediaSet', function ($q) use ($phaseType, $phaseId) {
+            match ($phaseType) {
+                'selection' => $q->where('selection_uuid', $phaseId),
+                'proofing' => $q->where('proof_uuid', $phaseId),
+                'collection' => $q->where('collection_uuid', $phaseId),
+                'raw_files' => $q->where('raw_files_uuid', $phaseId),
+                default => $q->whereRaw('1 = 0'), // No match, return empty
+            };
+        })
             ->with(['feedback.replies', 'file'])
             ->orderBy('order');
 
         if ($setUuid) {
-            $query->where('set_id', $setUuid);
+            $query->where('media_set_uuid', $setUuid);
         }
 
         return $query->get();
@@ -42,18 +51,35 @@ class MediaService
 
     /**
      * Move media between phases
+     * Media is moved by updating their media_set_uuid to point to a set in the target phase
      */
     public function moveBetweenPhases(array $mediaIds, string $fromPhase, string $fromPhaseId, string $toPhase, string $toPhaseId): array
     {
-        $moved = MemoraMedia::whereIn('id', $mediaIds)
-            ->where('phase', $fromPhase)
-            ->where('phase_id', $fromPhaseId)
-            ->update([
-                'phase' => $toPhase,
-                'phase_id' => $toPhaseId,
-            ]);
+        // Find target set in the destination phase
+        $targetSet = MemoraMediaSet::where(function ($q) use ($toPhase, $toPhaseId) {
+            match ($toPhase) {
+                'selection' => $q->where('selection_uuid', $toPhaseId),
+                'proofing' => $q->where('proof_uuid', $toPhaseId),
+                'collection' => $q->where('collection_uuid', $toPhaseId),
+                'raw_files' => $q->where('raw_files_uuid', $toPhaseId),
+                default => $q->whereRaw('1 = 0'),
+            };
+        })->firstOrFail();
 
-        $media = MemoraMedia::whereIn('id', $mediaIds)->get();
+        // Move media by updating media_set_uuid
+        $moved = MemoraMedia::whereIn('uuid', $mediaIds)
+            ->whereHas('mediaSet', function ($q) use ($fromPhase, $fromPhaseId) {
+                match ($fromPhase) {
+                    'selection' => $q->where('selection_uuid', $fromPhaseId),
+                    'proofing' => $q->where('proof_uuid', $fromPhaseId),
+                    'collection' => $q->where('collection_uuid', $fromPhaseId),
+                    'raw_files' => $q->where('raw_files_uuid', $fromPhaseId),
+                    default => $q->whereRaw('1 = 0'),
+                };
+            })
+            ->update(['media_set_uuid' => $targetSet->uuid]);
+
+        $media = MemoraMedia::whereIn('uuid', $mediaIds)->get();
 
         return [
             'movedCount' => $moved,
@@ -202,6 +228,31 @@ class MediaService
         $media->update([
             'is_selected' => $isSelected,
             'selected_at' => $isSelected ? now() : null,
+        ]);
+
+        return $media->fresh();
+    }
+
+    /**
+     * Mark media as creative selected (pre-selected by creative as recommendation)
+     */
+    public function markCreativeSelected(string $id, bool $isCreativeSelected, string $userId): MemoraMedia
+    {
+        $media = MemoraMedia::findOrFail($id);
+
+        // Load media set and selection relationships
+        $media->load('mediaSet.selection');
+        $set = $media->mediaSet;
+        $selection = $set?->selection;
+
+        // Validate user is the selection owner (creative)
+        if (! $selection || $selection->user_uuid !== $userId) {
+            throw new \Illuminate\Auth\Access\AuthorizationException('You do not have permission to pre-select media for this selection.');
+        }
+
+        $media->update([
+            'is_creative_selected' => $isCreativeSelected,
+            'creative_selected_at' => $isCreativeSelected ? now() : null,
         ]);
 
         return $media->fresh();
@@ -818,7 +869,7 @@ class MediaService
     }
 
     /**
-     * Check if a phase (proofing, selection, or collection) is completed
+     * Check if a phase (proofing, selection, collection, or raw_files) is completed
      */
     protected function isPhaseCompleted(MemoraMediaSet $mediaSet): bool
     {
@@ -838,6 +889,12 @@ class MediaService
             $collection = MemoraCollection::where('uuid', $mediaSet->collection_uuid)->first();
 
             return $collection && $collection->status->value === 'completed';
+        }
+
+        if ($mediaSet->raw_files_uuid) {
+            $rawFiles = MemoraRawFiles::where('uuid', $mediaSet->raw_files_uuid)->first();
+
+            return $rawFiles && $rawFiles->status->value === 'completed';
         }
 
         return false;
@@ -896,6 +953,11 @@ class MediaService
             } elseif ($mediaSet->collection_uuid) {
                 $collection = $mediaSet->collection;
                 if ($collection && $collection->user_uuid === $userId) {
+                    $isAuthorized = true;
+                }
+            } elseif ($mediaSet->raw_files_uuid) {
+                $rawFiles = $mediaSet->rawFiles;
+                if ($rawFiles && $rawFiles->user_uuid === $userId) {
                     $isAuthorized = true;
                 }
             }
@@ -1167,7 +1229,7 @@ class MediaService
             ->with('file')
             ->firstOrFail();
 
-        // Verify user owns the phase (proofing, selection, or collection) that contains this media
+        // Verify user owns the phase (proofing, selection, collection, or raw_files) that contains this media
         $mediaSet = $media->mediaSet;
         if ($mediaSet) {
             // Check ownership based on phase type
@@ -1185,6 +1247,11 @@ class MediaService
             } elseif ($mediaSet->collection_uuid) {
                 $collection = $mediaSet->collection;
                 if ($collection && $collection->user_uuid === $userId) {
+                    $isAuthorized = true;
+                }
+            } elseif ($mediaSet->raw_files_uuid) {
+                $rawFiles = $mediaSet->rawFiles;
+                if ($rawFiles && $rawFiles->user_uuid === $userId) {
                     $isAuthorized = true;
                 }
             }
@@ -3401,5 +3468,37 @@ class MediaService
         exec('ffmpeg -version 2>&1', $output, $returnCode);
 
         return $returnCode === 0;
+    }
+
+    public function validateMediaBelongsToSet(string $mediaId, string $setId): ?MemoraMedia
+    {
+        $media = MemoraMedia::where('uuid', $mediaId)
+            ->select(['uuid', 'media_set_uuid', 'user_file_uuid', 'order', 'is_selected', 'is_completed', 'is_rejected', 'is_revised', 'is_private'])
+            ->with(['file', 'mediaSet'])
+            ->first();
+
+        if (!$media || $media->media_set_uuid !== $setId) {
+            return null;
+        }
+
+        return $media;
+    }
+
+    public function validateSetBelongsToProofing(string $setId, string $proofingId): ?MemoraMediaSet
+    {
+        $set = MemoraMediaSet::where('uuid', $setId)
+            ->select(['uuid', 'proof_uuid', 'collection_uuid', 'selection_uuid', 'phase', 'phase_id'])
+            ->first();
+
+        if (!$set) {
+            return null;
+        }
+
+        $setBelongsToProofing = ($set->phase === 'proofing' && $set->phase_id === $proofingId);
+        if (!$setBelongsToProofing) {
+            return null;
+        }
+
+        return $set;
     }
 }

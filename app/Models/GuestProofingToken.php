@@ -9,6 +9,8 @@ use Illuminate\Support\Str;
 
 class GuestProofingToken extends Model
 {
+    protected $table = 'memora_guest_proofing_tokens';
+
     /**
      * The primary key for the model.
      *

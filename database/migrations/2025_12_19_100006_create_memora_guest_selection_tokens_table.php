@@ -12,7 +12,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('guest_selection_tokens', static function (Blueprint $table) {
+        Schema::create('memora_guest_selection_tokens', static function (Blueprint $table) {
             $table->unsignedBigInteger('id')->autoIncrement();
             $table->uuid('uuid')->default(DB::raw('(UUID())'))->unique();
             $table->foreignUuid('selection_uuid')->constrained('memora_selections', 'uuid')->cascadeOnDelete();
@@ -33,6 +33,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('guest_selection_tokens');
+        Schema::dropIfExists('memora_guest_selection_tokens');
     }
 };

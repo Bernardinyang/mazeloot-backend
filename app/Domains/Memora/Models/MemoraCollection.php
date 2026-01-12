@@ -102,7 +102,7 @@ class MemoraCollection extends Model
     {
         return $this->belongsToMany(
             \App\Models\User::class,
-            'user_starred_collections',
+            'memora_user_starred_collections',
             'collection_uuid',
             'user_uuid',
             'uuid',

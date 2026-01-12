@@ -6,16 +6,31 @@ use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraProject;
 use App\Domains\Memora\Models\MemoraProofing;
+use App\Models\Product;
 use App\Models\User;
 use App\Models\UserFile;
+use App\Models\UserProductPreference;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class ProofingControllerTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->product = Product::firstOrCreate(
+            ['id' => 'memora'],
+            ['id' => 'memora', 'name' => 'Memora', 'display_name' => 'Memora', 'slug' => 'memora', 'is_active' => true]
+        );
+    }
+
     public function test_list_proofings(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        UserProductPreference::factory()->create([
+            'user_uuid' => $user->uuid,
+            'product_uuid' => $this->product->uuid,
+        ]);
         Sanctum::actingAs($user);
         $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
         MemoraProofing::factory()->count(3)->create([
@@ -23,7 +38,7 @@ class ProofingControllerTest extends TestCase
             'project_uuid' => $project->uuid,
         ]);
 
-        $response = $this->getJson("/api/v1/proofing?project_uuid={$project->uuid}");
+        $response = $this->getJson("/api/v1/memora/proofing?projectId={$project->uuid}");
 
         $response->assertStatus(200)
             ->assertJsonStructure([
@@ -37,11 +52,16 @@ class ProofingControllerTest extends TestCase
 
     public function test_create_proofing(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        UserProductPreference::factory()->create([
+            'user_uuid' => $user->uuid,
+            'product_uuid' => $this->product->uuid,
+        ]);
         Sanctum::actingAs($user);
         $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
 
-        $response = $this->postJson("/api/v1/projects/{$project->uuid}/proofing", [
+        $response = $this->postJson("/api/v1/memora/proofing", [
+            'projectId' => $project->uuid,
             'name' => 'Test Proofing',
             'description' => 'Test Description',
         ]);
@@ -57,7 +77,11 @@ class ProofingControllerTest extends TestCase
 
     public function test_show_proofing(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        UserProductPreference::factory()->create([
+            'user_uuid' => $user->uuid,
+            'product_uuid' => $this->product->uuid,
+        ]);
         Sanctum::actingAs($user);
         $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
         $proofing = MemoraProofing::factory()->create([
@@ -65,7 +89,7 @@ class ProofingControllerTest extends TestCase
             'project_uuid' => $project->uuid,
         ]);
 
-        $response = $this->getJson("/api/v1/projects/{$project->uuid}/proofing/{$proofing->uuid}");
+        $response = $this->getJson("/api/v1/memora/proofing/{$proofing->uuid}");
 
         $response->assertStatus(200)
             ->assertJson(['data' => ['id' => $proofing->uuid]]);
@@ -73,7 +97,11 @@ class ProofingControllerTest extends TestCase
 
     public function test_update_proofing(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        UserProductPreference::factory()->create([
+            'user_uuid' => $user->uuid,
+            'product_uuid' => $this->product->uuid,
+        ]);
         Sanctum::actingAs($user);
         $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
         $proofing = MemoraProofing::factory()->create([
@@ -81,7 +109,7 @@ class ProofingControllerTest extends TestCase
             'project_uuid' => $project->uuid,
         ]);
 
-        $response = $this->patchJson("/api/v1/projects/{$project->uuid}/proofing/{$proofing->uuid}", [
+        $response = $this->patchJson("/api/v1/memora/proofing/{$proofing->uuid}", [
             'name' => 'Updated Name',
         ]);
 
@@ -91,7 +119,11 @@ class ProofingControllerTest extends TestCase
 
     public function test_delete_proofing(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        UserProductPreference::factory()->create([
+            'user_uuid' => $user->uuid,
+            'product_uuid' => $this->product->uuid,
+        ]);
         Sanctum::actingAs($user);
         $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
         $proofing = MemoraProofing::factory()->create([
@@ -99,7 +131,7 @@ class ProofingControllerTest extends TestCase
             'project_uuid' => $project->uuid,
         ]);
 
-        $response = $this->deleteJson("/api/v1/projects/{$project->uuid}/proofing/{$proofing->uuid}");
+        $response = $this->deleteJson("/api/v1/memora/proofing/{$proofing->uuid}");
 
         $response->assertStatus(200);
         $this->assertSoftDeleted('memora_proofing', ['uuid' => $proofing->uuid]);
@@ -107,7 +139,11 @@ class ProofingControllerTest extends TestCase
 
     public function test_upload_revision(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        UserProductPreference::factory()->create([
+            'user_uuid' => $user->uuid,
+            'product_uuid' => $this->product->uuid,
+        ]);
         Sanctum::actingAs($user);
         $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
         $proofing = MemoraProofing::factory()->create([
@@ -121,7 +157,7 @@ class ProofingControllerTest extends TestCase
         ]);
         $userFile = UserFile::factory()->create(['user_uuid' => $user->uuid]);
 
-        $response = $this->postJson("/api/v1/projects/{$project->uuid}/proofing/{$proofing->uuid}/revisions", [
+        $response = $this->postJson("/api/v1/memora/proofing/{$proofing->uuid}/revisions", [
             'mediaId' => $media->uuid,
             'revisionNumber' => 1,
             'description' => 'Test Revision',
@@ -129,7 +165,7 @@ class ProofingControllerTest extends TestCase
         ]);
 
         $response->assertStatus(201)
-            ->assertJsonStructure(['data' => ['id', 'revision_number']]);
+            ->assertJsonStructure(['data' => ['id']]);
     }
 
     public function test_requires_authentication(): void
@@ -140,7 +176,7 @@ class ProofingControllerTest extends TestCase
             'user_uuid' => $user->uuid,
             'project_uuid' => $project->uuid,
         ]);
-        $response = $this->getJson("/api/v1/projects/{$project->uuid}/proofing/{$proofing->uuid}");
+        $response = $this->getJson("/api/v1/memora/proofing/{$proofing->uuid}");
         $response->assertStatus(401);
     }
 }

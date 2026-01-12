@@ -18,6 +18,8 @@ class MediaResource extends JsonResource
             }, null),
             'isSelected' => $this->is_selected,
             'selectedAt' => $this->selected_at?->toIso8601String(),
+            'isCreativeSelected' => $this->is_creative_selected ?? false,
+            'creativeSelectedAt' => $this->creative_selected_at?->toIso8601String(),
             'revisionNumber' => $this->revision_number,
             'feedback' => $this->whenLoaded('feedback', function () {
                 return MediaFeedbackResource::collection($this->feedback);

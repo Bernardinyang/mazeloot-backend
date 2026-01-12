@@ -15,7 +15,8 @@ class MemoraCollectionFactory extends Factory
     public function definition(): array
     {
         return [
-            'project_uuid' => \App\Domains\Memora\Models\MemoraProject::factory(),
+            'user_uuid' => \App\Models\User::factory(),
+            'project_uuid' => null,
             'name' => fake()->words(3, true),
             'description' => fake()->sentence(),
             'status' => 'draft',

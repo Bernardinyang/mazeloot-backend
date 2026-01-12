@@ -168,7 +168,7 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(
             \App\Domains\Memora\Models\MemoraSelection::class,
-            'user_starred_selections',
+            'memora_user_starred_selections',
             'user_uuid',
             'selection_uuid',
             'uuid',
@@ -180,9 +180,21 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(
             \App\Domains\Memora\Models\MemoraProofing::class,
-            'user_starred_proofing',
+            'memora_user_starred_proofing',
             'user_uuid',
             'proofing_uuid',
+            'uuid',
+            'uuid'
+        )->withTimestamps();
+    }
+
+    public function starredRawFiles(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            \App\Domains\Memora\Models\MemoraRawFiles::class,
+            'memora_user_starred_raw_files',
+            'user_uuid',
+            'raw_files_uuid',
             'uuid',
             'uuid'
         )->withTimestamps();
@@ -195,7 +207,7 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(
             \App\Domains\Memora\Models\MemoraMedia::class,
-            'user_starred_media',
+            'memora_user_starred_media',
             'user_uuid',
             'media_uuid',
             'uuid',
@@ -210,7 +222,7 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(
             \App\Domains\Memora\Models\MemoraProject::class,
-            'user_starred_projects',
+            'memora_user_starred_projects',
             'user_uuid',
             'project_uuid',
             'uuid',
@@ -225,12 +237,36 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(
             \App\Domains\Memora\Models\MemoraCollection::class,
-            'user_starred_collections',
+            'memora_user_starred_collections',
             'user_uuid',
             'collection_uuid',
             'uuid',
             'uuid'
         )->withTimestamps();
+    }
+
+    /**
+     * Get the product preferences for this user.
+     */
+    public function productPreferences(): HasMany
+    {
+        return $this->hasMany(UserProductPreference::class, 'user_uuid', 'uuid');
+    }
+
+    /**
+     * Get the products selected by this user.
+     */
+    public function products(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Product::class,
+            'user_product_preferences',
+            'user_uuid',
+            'product_uuid',
+            'uuid',
+            'uuid'
+        )->withPivot('domain', 'onboarding_completed')
+          ->withTimestamps();
     }
 
     /**

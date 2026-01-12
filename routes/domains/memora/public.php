@@ -10,6 +10,8 @@ use App\Domains\Memora\Controllers\V1\PublicMediaController;
 use App\Domains\Memora\Controllers\V1\PublicMediaSetController;
 use App\Domains\Memora\Controllers\V1\PublicProofingController;
 use App\Domains\Memora\Controllers\V1\PublicProofingMediaSetController;
+use App\Domains\Memora\Controllers\V1\GuestRawFilesController;
+use App\Domains\Memora\Controllers\V1\PublicRawFilesController;
 use App\Domains\Memora\Controllers\V1\PublicSelectionController;
 use App\Domains\Memora\Controllers\V1\PublicSettingsController;
 use Illuminate\Support\Facades\Route;
@@ -106,7 +108,8 @@ Route::prefix('public/homepage')->group(function () {
 });
 
 // Public Collection Routes (no authentication required for published collections)
-Route::prefix('public/collections')->group(function () {
+// Format: /memora/{subdomainOrUsername}/collections/{id}
+Route::prefix('memora/{subdomainOrUsername}/collections')->group(function () {
     // Check collection status (truly public - no authentication required)
     Route::get('/{id}/status', [PublicCollectionController::class, 'checkStatus']);
 
@@ -149,6 +152,35 @@ Route::prefix('public/collections')->group(function () {
     // Get collection (public - no authentication required for published collections)
     // Must be last to avoid matching more specific routes
     Route::get('/{id}', [PublicCollectionController::class, 'show']);
+});
+
+// Public Raw Files Routes (no authentication required for published raw files phases)
+// Format: /memora/{subdomainOrUsername}/raw-files/{id}
+Route::prefix('memora/{subdomainOrUsername}/raw-files')->group(function () {
+    // Check raw files status (truly public - no authentication required)
+    Route::get('/{id}/status', [PublicRawFilesController::class, 'checkStatus']);
+
+    // Verify password (truly public - no authentication required)
+    Route::post('/{id}/verify-password', [PublicRawFilesController::class, 'verifyPassword']);
+
+    // Verify download PIN (truly public - no authentication required)
+    Route::post('/{id}/verify-download-pin', [PublicRawFilesController::class, 'verifyDownloadPin']);
+
+    // Generate guest token (truly public - no authentication required)
+    Route::post('/{id}/token', [GuestRawFilesController::class, 'generateToken']);
+
+    // Get raw files phase (public - no authentication required)
+    Route::get('/{id}', [PublicRawFilesController::class, 'show']);
+
+    // Get media sets for raw files phase (public - no authentication required)
+    Route::get('/{id}/sets', [PublicRawFilesController::class, 'getSets']);
+    Route::get('/{id}/media-sets', [PublicRawFilesController::class, 'getSets']); // Alias for frontend compatibility
+
+    // Get media for a specific set (public - no authentication required)
+    Route::get('/{id}/sets/{setId}/media', [PublicMediaController::class, 'getRawFilesSetMedia']);
+
+    // Download media from raw files phase (public - no authentication required)
+    Route::get('/{id}/media/{mediaId}/download', [PublicMediaController::class, 'downloadRawFilesMedia']);
 });
 
 // Cloud Storage OAuth Routes (public - no authentication required)

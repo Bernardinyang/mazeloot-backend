@@ -24,22 +24,28 @@ class SettingsService
     /**
      * Initialize default settings for a user
      */
-    public function initializeDefaults(string $userUuid): MemoraSettings
+    public function initializeDefaults(string $userUuid, ?string $domain = null): MemoraSettings
     {
+        $defaults = [
+            'branding_show_mazeloot_branding' => true,
+            'preference_filename_display' => 'show',
+            'preference_search_engine_visibility' => 'homepage-only',
+            'preference_sharpening_level' => 'optimal',
+            'preference_raw_photo_support' => false,
+            'preference_enable_cookie_banner' => false,
+            'preference_language' => 'en',
+            'preference_timezone' => 'UTC',
+            'homepage_status' => true,
+            'homepage_info' => json_encode(['biography', 'socialLinks']),
+        ];
+
+        if ($domain) {
+            $defaults['branding_domain'] = $domain;
+        }
+
         return MemoraSettings::firstOrCreate(
             ['user_uuid' => $userUuid],
-            [
-                'branding_show_mazeloot_branding' => true,
-                'preference_filename_display' => 'show',
-                'preference_search_engine_visibility' => 'homepage-only',
-                'preference_sharpening_level' => 'optimal',
-                'preference_raw_photo_support' => false,
-                'preference_enable_cookie_banner' => false,
-                'preference_language' => 'en',
-                'preference_timezone' => 'UTC',
-                'homepage_status' => true,
-                'homepage_info' => json_encode(['biography', 'socialLinks']),
-            ]
+            $defaults
         );
     }
 
@@ -158,6 +164,10 @@ class SettingsService
 
         if (array_key_exists('industry', $data)) {
             $updateData['branding_industry'] = $data['industry'];
+        }
+
+        if (array_key_exists('domain', $data)) {
+            $updateData['branding_domain'] = $data['domain'];
         }
 
         $settings->update($updateData);

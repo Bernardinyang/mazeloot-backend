@@ -7,6 +7,7 @@ use App\Domains\Memora\Models\MemoraCollectionDownload;
 use App\Domains\Memora\Models\MemoraCollectionFavourite;
 use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraProofing;
+use App\Domains\Memora\Models\MemoraRawFiles;
 use App\Domains\Memora\Models\MemoraSelection;
 use App\Domains\Memora\Requests\V1\AddMediaFeedbackRequest;
 use App\Domains\Memora\Resources\V1\MediaFeedbackResource;
@@ -29,10 +30,33 @@ use Illuminate\Support\Facades\Log;
 class PublicMediaController extends Controller
 {
     protected MediaService $mediaService;
+    protected \App\Services\Product\SubdomainResolutionService $subdomainResolutionService;
 
-    public function __construct(MediaService $mediaService)
-    {
+    public function __construct(
+        MediaService $mediaService,
+        \App\Services\Product\SubdomainResolutionService $subdomainResolutionService
+    ) {
         $this->mediaService = $mediaService;
+        $this->subdomainResolutionService = $subdomainResolutionService;
+    }
+
+    /**
+     * Resolve user from subdomain or username and validate collection belongs to user
+     */
+    protected function resolveUserAndValidateCollection(string $subdomainOrUsername, string $collectionId): array
+    {
+        $resolution = $this->subdomainResolutionService->resolve($subdomainOrUsername);
+        $resolvedUser = $resolution['user'];
+
+        if (!$resolvedUser) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('User not found');
+        }
+
+        $collection = MemoraCollection::where('uuid', $collectionId)
+            ->where('user_uuid', $resolvedUser->uuid)
+            ->firstOrFail();
+
+        return ['user' => $resolvedUser, 'collection' => $collection];
     }
 
     /**
@@ -40,6 +64,9 @@ class PublicMediaController extends Controller
      */
     public function getSetMedia(Request $request, string $id, string $setUuid): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
+        $setUuid = $request->route('setId') ?? $setUuid;
+        
         $guestToken = $request->attributes->get('guest_token');
 
         // Verify the token belongs to this selection
@@ -64,6 +91,9 @@ class PublicMediaController extends Controller
      */
     public function toggleSelected(Request $request, string $id, string $mediaId): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
+        $mediaId = $request->route('mediaId') ?? $mediaId;
+        
         $guestToken = $request->attributes->get('guest_token');
 
         // Verify the token belongs to this selection
@@ -106,6 +136,9 @@ class PublicMediaController extends Controller
      */
     public function getProofingSetMedia(Request $request, string $id, string $setUuid): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
+        $setUuid = $request->route('setId') ?? $setUuid;
+        
         $guestToken = $request->attributes->get('guest_token');
 
         // Verify the token belongs to this proofing
@@ -130,6 +163,9 @@ class PublicMediaController extends Controller
      */
     public function toggleProofingSelected(Request $request, string $id, string $mediaId): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
+        $mediaId = $request->route('mediaId') ?? $mediaId;
+        
         $guestToken = $request->attributes->get('guest_token');
 
         // Verify the token belongs to this proofing
@@ -172,6 +208,10 @@ class PublicMediaController extends Controller
      */
     public function addProofingFeedback(AddMediaFeedbackRequest $request, string $id, string $setId, string $mediaId): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
+        $setId = $request->route('setId') ?? $setId;
+        $mediaId = $request->route('mediaId') ?? $mediaId;
+        
         $guestToken = $request->attributes->get('guest_token');
 
         // Verify the token belongs to this proofing
@@ -215,6 +255,11 @@ class PublicMediaController extends Controller
      */
     public function updateProofingFeedback(Request $request, string $id, string $setId, string $mediaId, string $feedbackId): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
+        $setId = $request->route('setId') ?? $setId;
+        $mediaId = $request->route('mediaId') ?? $mediaId;
+        $feedbackId = $request->route('feedbackId') ?? $feedbackId;
+        
         $guestToken = $request->attributes->get('guest_token');
 
         // Verify the token belongs to this proofing
@@ -258,6 +303,11 @@ class PublicMediaController extends Controller
      */
     public function deleteProofingFeedback(Request $request, string $id, string $setId, string $mediaId, string $feedbackId): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
+        $setId = $request->route('setId') ?? $setId;
+        $mediaId = $request->route('mediaId') ?? $mediaId;
+        $feedbackId = $request->route('feedbackId') ?? $feedbackId;
+        
         $guestToken = $request->attributes->get('guest_token');
 
         // Verify the token belongs to this proofing
@@ -301,6 +351,9 @@ class PublicMediaController extends Controller
      */
     public function approveProofingMedia(Request $request, string $id, string $mediaId): JsonResponse
     {
+        $id = $request->route('id') ?? $id;
+        $mediaId = $request->route('mediaId') ?? $mediaId;
+        
         $guestToken = $request->attributes->get('guest_token');
 
         // Verify the token belongs to this proofing
@@ -355,6 +408,8 @@ class PublicMediaController extends Controller
      */
     public function getRevisions(Request $request, string $mediaId): JsonResponse
     {
+        $mediaId = $request->route('mediaId') ?? $mediaId;
+        
         $guestToken = $request->attributes->get('guest_token');
 
         // Verify guest token exists
@@ -404,13 +459,15 @@ class PublicMediaController extends Controller
     /**
      * Get media for a specific collection set (public endpoint - no authentication required)
      */
-    public function getCollectionSetMedia(Request $request, string $id, string $setUuid): JsonResponse
+    public function getCollectionSetMedia(Request $request, string $subdomainOrUsername, string $id, string $setUuid): JsonResponse
     {
+        $subdomainOrUsername = $request->route('subdomainOrUsername') ?? $subdomainOrUsername;
+        $id = $request->route('id') ?? $id;
+        $setUuid = $request->route('setId') ?? $setUuid;
+        
         try {
-            // Verify collection exists and is published
-            $collection = MemoraCollection::query()
-                ->where('uuid', $id)
-                ->firstOrFail();
+            $result = $this->resolveUserAndValidateCollection($subdomainOrUsername, $id);
+            $collection = $result['collection'];
 
             $status = $collection->status?->value ?? $collection->status;
 
@@ -474,13 +531,15 @@ class PublicMediaController extends Controller
      * Download media from a collection (public endpoint - no authentication required)
      * Validates download PIN, email restrictions, and downloadable sets
      */
-    public function downloadCollectionMedia(Request $request, string $collectionId, string $mediaId): \Symfony\Component\HttpFoundation\StreamedResponse|\Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse|\Illuminate\Http\Response
+    public function downloadCollectionMedia(Request $request, string $subdomainOrUsername, string $collectionId, string $mediaId): \Symfony\Component\HttpFoundation\StreamedResponse|\Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse|\Illuminate\Http\Response
     {
+        $subdomainOrUsername = $request->route('subdomainOrUsername') ?? $subdomainOrUsername;
+        $collectionId = $request->route('id') ?? $collectionId;
+        $mediaId = $request->route('mediaId') ?? $mediaId;
+        
         try {
-            // Verify collection exists and is published
-            $collection = MemoraCollection::query()
-                ->where('uuid', $collectionId)
-                ->firstOrFail();
+            $result = $this->resolveUserAndValidateCollection($subdomainOrUsername, $collectionId);
+            $collection = $result['collection'];
 
             $status = $collection->status?->value ?? $collection->status;
 
@@ -797,13 +856,15 @@ class PublicMediaController extends Controller
     /**
      * Toggle favourite status for collection media (public endpoint - no authentication required)
      */
-    public function toggleCollectionFavourite(Request $request, string $id, string $mediaId): JsonResponse
+    public function toggleCollectionFavourite(Request $request, string $subdomainOrUsername, string $id, string $mediaId): JsonResponse
     {
+        $subdomainOrUsername = $request->route('subdomainOrUsername') ?? $subdomainOrUsername;
+        $id = $request->route('id') ?? $id;
+        $mediaId = $request->route('mediaId') ?? $mediaId;
+        
         try {
-            // Verify collection exists and is published
-            $collection = MemoraCollection::query()
-                ->where('uuid', $id)
-                ->firstOrFail();
+            $result = $this->resolveUserAndValidateCollection($subdomainOrUsername, $id);
+            $collection = $result['collection'];
 
             $status = $collection->status?->value ?? $collection->status;
 
@@ -1005,13 +1066,15 @@ class PublicMediaController extends Controller
     /**
      * Toggle private status for collection media (public endpoint - requires client verification)
      */
-    public function toggleMediaPrivate(Request $request, string $id, string $mediaId): JsonResponse
+    public function toggleMediaPrivate(Request $request, string $subdomainOrUsername, string $id, string $mediaId): JsonResponse
     {
+        $subdomainOrUsername = $request->route('subdomainOrUsername') ?? $subdomainOrUsername;
+        $id = $request->route('id') ?? $id;
+        $mediaId = $request->route('mediaId') ?? $mediaId;
+        
         try {
-            // Verify collection exists and is published
-            $collection = MemoraCollection::query()
-                ->where('uuid', $id)
-                ->firstOrFail();
+            $result = $this->resolveUserAndValidateCollection($subdomainOrUsername, $id);
+            $collection = $result['collection'];
 
             $status = $collection->status?->value ?? $collection->status;
 
@@ -1129,6 +1192,217 @@ class PublicMediaController extends Controller
             ]);
 
             return ApiResponse::error('Failed to toggle private status', 'TOGGLE_FAILED', 500);
+        }
+    }
+
+    protected function resolveUserAndValidateRawFiles(string $subdomainOrUsername, string $rawFilesId): array
+    {
+        $resolution = $this->subdomainResolutionService->resolve($subdomainOrUsername);
+        $resolvedUser = $resolution['user'];
+
+        if (!$resolvedUser) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('User not found');
+        }
+
+        $rawFiles = MemoraRawFiles::where('uuid', $rawFilesId)
+            ->where('user_uuid', $resolvedUser->uuid)
+            ->firstOrFail();
+
+        return ['user' => $resolvedUser, 'rawFiles' => $rawFiles];
+    }
+
+    public function getRawFilesSetMedia(Request $request, string $subdomainOrUsername, string $id, string $setUuid): JsonResponse
+    {
+        $subdomainOrUsername = $request->route('subdomainOrUsername') ?? $subdomainOrUsername;
+        $id = $request->route('id') ?? $id;
+        $setUuid = $request->route('setId') ?? $setUuid;
+        
+        try {
+            $result = $this->resolveUserAndValidateRawFiles($subdomainOrUsername, $id);
+            $rawFiles = $result['rawFiles'];
+
+            $status = $rawFiles->status?->value ?? $rawFiles->status;
+
+            if ($status !== 'active') {
+                return ApiResponse::error('Raw Files phase is not accessible', 'RAW_FILES_NOT_ACCESSIBLE', 403);
+            }
+
+            $set = \App\Domains\Memora\Models\MemoraMediaSet::where('uuid', $setUuid)
+                ->where('raw_files_uuid', $id)
+                ->firstOrFail();
+
+            $sortBy = $request->query('sort_by');
+            $media = $this->mediaService->getSetMedia($setUuid, $sortBy);
+
+            return ApiResponse::success(MediaResource::collection($media));
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ApiResponse::error('Raw Files phase or set not found', 'NOT_FOUND', 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch raw files set media', [
+                'raw_files_id' => $id,
+                'set_id' => $setUuid,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return ApiResponse::error('Failed to fetch media', 'FETCH_FAILED', 500);
+        }
+    }
+
+    public function downloadRawFilesMedia(Request $request, string $subdomainOrUsername, string $rawFilesId, string $mediaId): \Symfony\Component\HttpFoundation\StreamedResponse|\Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse|\Illuminate\Http\Response
+    {
+        $subdomainOrUsername = $request->route('subdomainOrUsername') ?? $subdomainOrUsername;
+        $rawFilesId = $request->route('id') ?? $rawFilesId;
+        $mediaId = $request->route('mediaId') ?? $mediaId;
+        
+        try {
+            $result = $this->resolveUserAndValidateRawFiles($subdomainOrUsername, $rawFilesId);
+            $rawFiles = $result['rawFiles'];
+
+            $status = $rawFiles->status?->value ?? $rawFiles->status;
+
+            if ($status !== 'active') {
+                return ApiResponse::error('Raw Files phase is not accessible', 'RAW_FILES_NOT_ACCESSIBLE', 403);
+            }
+
+            $settings = $rawFiles->settings ?? [];
+            $password = $rawFiles->getAttribute('password');
+
+            $isOwner = false;
+            if (auth()->check()) {
+                $userUuid = auth()->user()->uuid;
+                $isOwner = $rawFiles->user_uuid === $userUuid;
+            }
+
+            if ($password && ! $isOwner) {
+                $providedPassword = $request->header('X-Raw-Files-Password');
+                if (! $providedPassword || $providedPassword !== $password) {
+                    return ApiResponse::error('Password required', 'PASSWORD_REQUIRED', 401);
+                }
+            }
+
+            $downloadSettings = $settings['download'] ?? [];
+            $downloadPinEnabled = $downloadSettings['downloadPinEnabled'] ?? false;
+            $downloadPin = $downloadSettings['downloadPin'] ?? null;
+            if ($downloadPinEnabled && $downloadPin && ! $isOwner) {
+                $providedPin = $request->header('X-Download-PIN');
+                if (! $providedPin || $providedPin !== $downloadPin) {
+                    return ApiResponse::error('Download PIN required', 'DOWNLOAD_PIN_REQUIRED', 401);
+                }
+            }
+
+            $media = MemoraMedia::findOrFail($mediaId);
+            $mediaSet = $media->mediaSet;
+            if (! $mediaSet || $mediaSet->raw_files_uuid !== $rawFilesId) {
+                return ApiResponse::error('Media does not belong to this raw files phase', 'MEDIA_NOT_IN_RAW_FILES', 403);
+            }
+
+            $file = $media->file;
+
+            if (! $file) {
+                return ApiResponse::error('File not found for this media', 'FILE_NOT_FOUND', 404);
+            }
+
+            $filePath = $file->path;
+            $fileUrl = $file->url;
+
+            if ($fileUrl && (str_starts_with($fileUrl, 'http://') || str_starts_with($fileUrl, 'https://'))) {
+                $isCloudStorage = str_contains($fileUrl, 'amazonaws.com') ||
+                    str_contains($fileUrl, 'r2.cloudflarestorage.com') ||
+                    str_contains($fileUrl, 'r2.dev') ||
+                    str_contains($fileUrl, 'cloudflare') ||
+                    str_contains($fileUrl, 's3.') ||
+                    str_contains($fileUrl, '.s3.');
+
+                if ($isCloudStorage) {
+                    try {
+                        $fileContents = file_get_contents($fileUrl);
+                        if ($fileContents === false) {
+                            throw new \RuntimeException('Failed to download file from cloud storage');
+                        }
+
+                        $filename = $file->filename ?? 'download';
+                        if (! pathinfo($filename, PATHINFO_EXTENSION)) {
+                            $extension = match ($file->mime_type) {
+                                'image/jpeg', 'image/jpg' => 'jpg',
+                                'image/png' => 'png',
+                                'image/gif' => 'gif',
+                                'image/webp' => 'webp',
+                                'video/mp4' => 'mp4',
+                                'video/mpeg' => 'mpeg',
+                                default => 'bin',
+                            };
+                            $filename .= '.'.$extension;
+                        }
+
+                        return response($fileContents)
+                            ->header('Content-Type', $file->mime_type ?? 'application/octet-stream')
+                            ->header('Content-Disposition', 'attachment; filename="'.$filename.'"')
+                            ->header('Content-Length', strlen($fileContents));
+                    } catch (\Exception $e) {
+                        Log::error('Failed to download from cloud storage', [
+                            'media_id' => $mediaId,
+                            'url' => $fileUrl,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+            }
+
+            if ($filePath) {
+                $disks = ['s3', 'r2', 'local'];
+                $foundDisk = null;
+
+                foreach ($disks as $disk) {
+                    if (\Illuminate\Support\Facades\Storage::disk($disk)->exists($filePath)) {
+                        $foundDisk = $disk;
+                        break;
+                    }
+                }
+
+                if ($foundDisk) {
+                    $filename = $file->filename ?? 'download';
+                    if (! pathinfo($filename, PATHINFO_EXTENSION)) {
+                        $extension = match ($file->mime_type) {
+                            'image/jpeg', 'image/jpg' => 'jpg',
+                            'image/png' => 'png',
+                            'image/gif' => 'gif',
+                            'image/webp' => 'webp',
+                            'video/mp4' => 'mp4',
+                            'video/mpeg' => 'mpeg',
+                            default => 'bin',
+                        };
+                        $filename .= '.'.$extension;
+                    }
+
+                    try {
+                        return \Illuminate\Support\Facades\Storage::disk($foundDisk)->download($filePath, $filename, [
+                            'Content-Type' => $file->mime_type ?? 'application/octet-stream',
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::error('Failed to download from storage', [
+                            'media_id' => $mediaId,
+                            'disk' => $foundDisk,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+            }
+
+            if ($fileUrl) {
+                return redirect($fileUrl);
+            }
+
+            return ApiResponse::error('File not available for download', 'FILE_NOT_AVAILABLE', 404);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ApiResponse::error('Raw Files phase or media not found', 'NOT_FOUND', 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to download raw files media', [
+                'raw_files_id' => $rawFilesId,
+                'media_id' => $mediaId,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return ApiResponse::error('Failed to download media', 'DOWNLOAD_FAILED', 500);
         }
     }
 }

@@ -178,8 +178,9 @@ class ClosureRequestController extends Controller
     /**
      * Get closure requests for a media item (authenticated - creative only)
      */
-    public function getByMedia(string $mediaId): JsonResponse
+    public function getByMedia(Request $request, string $mediaId): JsonResponse
     {
+        $mediaId = $request->route('mediaId') ?? $mediaId;
         try {
             $closureRequests = $this->closureRequestService->getByMedia($mediaId, Auth::id());
 

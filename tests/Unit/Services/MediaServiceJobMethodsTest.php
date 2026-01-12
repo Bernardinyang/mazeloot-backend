@@ -34,9 +34,7 @@ class MediaServiceJobMethodsTest extends TestCase
     {
         Queue::fake();
 
-        $media = MemoraMedia::factory()->create([
-            'url' => 'https://example.com/image.jpg',
-        ]);
+        $media = MemoraMedia::factory()->create();
 
         $this->mediaService->processLowResCopy($media->uuid);
 
@@ -54,9 +52,12 @@ class MediaServiceJobMethodsTest extends TestCase
 
     public function test_process_image_calls_generate_thumbnail_when_enabled(): void
     {
-        // Skip this test for now due to UUID() function incompatibility with SQLite
-        // The job test already verifies the service method is called correctly
-        $this->markTestSkipped('Requires MySQL UUID() function support');
+        $media = MemoraMedia::factory()->create();
+        
+        // Test that processImage calls generateThumbnail when enabled
+        // generateThumbnail is a placeholder, so we just verify it doesn't throw
+        $this->expectNotToPerformAssertions();
+        $this->mediaService->processImage($media->uuid, ['generateThumbnail' => true]);
     }
 
     public function test_process_image_handles_missing_media(): void

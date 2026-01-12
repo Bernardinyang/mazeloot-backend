@@ -71,10 +71,36 @@ class LocalProvider implements UploadProviderInterface
     protected function generatePath(UploadedFile $file, ?string $basePath = null): string
     {
         $base = $basePath ?? 'uploads';
+        
+        // Sanitize base path to prevent directory traversal
+        $base = $this->sanitizePath($base);
+        
         $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
         $datePath = date('Y/m/d');
 
         return "{$base}/{$datePath}/{$filename}";
+    }
+
+    /**
+     * Sanitize path to prevent directory traversal attacks
+     */
+    protected function sanitizePath(string $path): string
+    {
+        // Remove any directory traversal attempts
+        $path = str_replace(['../', '..\\', '..'], '', $path);
+        
+        // Remove leading/trailing slashes and normalize
+        $path = trim($path, '/\\');
+        
+        // Only allow alphanumeric, hyphens, underscores, and forward slashes
+        $path = preg_replace('/[^a-zA-Z0-9_\-\.\/]/', '', $path);
+        
+        // Prevent absolute paths
+        if (str_starts_with($path, '/') || preg_match('/^[a-zA-Z]:\\\\/', $path)) {
+            $path = 'uploads';
+        }
+        
+        return $path ?: 'uploads';
     }
 
     /**

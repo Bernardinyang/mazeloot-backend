@@ -26,7 +26,7 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
+Route::middleware(['auth:sanctum', 'validate.product'])->prefix('{productSlug}')->where(['productSlug' => 'memora'])->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'stats']);
 
@@ -144,6 +144,7 @@ Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
         Route::get('/featured', [MediaController::class, 'getFeaturedMedia']);
         Route::get('/user', [MediaController::class, 'getUserMedia']);
         Route::post('/{id}/toggle-featured', [MediaController::class, 'toggleFeatured']);
+        Route::post('/{id}/toggle-creative-selected', [MediaController::class, 'toggleCreativeSelected']);
         Route::post('/{id}/toggle-star', [MediaController::class, 'toggleStarDirect']);
         Route::delete('/{id}', [MediaController::class, 'deleteDirect']);
         Route::get('/{id}/revisions', [MediaController::class, 'getRevisions']);

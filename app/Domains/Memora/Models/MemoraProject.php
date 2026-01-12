@@ -120,7 +120,7 @@ class MemoraProject extends Model
     {
         return $this->belongsToMany(
             \App\Models\User::class,
-            'user_starred_projects',
+            'memora_user_starred_projects',
             'project_uuid',
             'user_uuid',
             'uuid',

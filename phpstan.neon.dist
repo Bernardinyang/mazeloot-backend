@@ -1,0 +1,9 @@
+parameters:
+    level: 5
+    paths:
+        - app
+    excludePaths:
+        - app/Console/Kernel.php
+        - bootstrap/*
+    checkMissingIterableValueType: false
+    checkGenericClassInNonGenericObjectType: false

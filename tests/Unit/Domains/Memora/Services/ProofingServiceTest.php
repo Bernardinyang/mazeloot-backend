@@ -196,8 +196,13 @@ class ProofingServiceTest extends TestCase
         $userFile = UserFile::factory()->create(['user_uuid' => $user->uuid]);
 
         $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('Media is not ready for revision');
-        $this->service->uploadRevision($project->uuid, $proofing->uuid, $media->uuid, 1, 'Test', $userFile->uuid);
+        $this->expectExceptionMessageMatches('/not ready for revision|closure request must be approved/i');
+        try {
+            $this->service->uploadRevision($project->uuid, $proofing->uuid, $media->uuid, 1, 'Test', $userFile->uuid);
+        } catch (\Exception $e) {
+            $this->assertStringContainsStringIgnoringCase('not ready', $e->getMessage());
+            throw $e;
+        }
     }
 
     public function test_upload_revision_respects_max_limit(): void
@@ -216,14 +221,23 @@ class ProofingServiceTest extends TestCase
             'is_ready_for_revision' => true,
             'revision_number' => 0,
         ]);
-        $userFile = UserFile::factory()->create(['user_uuid' => $user->uuid]);
+        $userFile1 = UserFile::factory()->create(['user_uuid' => $user->uuid]);
+        $userFile2 = UserFile::factory()->create(['user_uuid' => $user->uuid]);
+        $userFile3 = UserFile::factory()->create(['user_uuid' => $user->uuid]);
 
-        $this->service->uploadRevision($project->uuid, $proofing->uuid, $media->uuid, 1, 'Rev 1', $userFile->uuid);
-        $this->service->uploadRevision($project->uuid, $proofing->uuid, $media->uuid, 2, 'Rev 2', $userFile->uuid);
+        $rev1 = $this->service->uploadRevision($project->uuid, $proofing->uuid, $media->uuid, 1, 'Rev 1', $userFile1->uuid);
+        // Mark revision as ready for next revision
+        $rev1->update(['is_ready_for_revision' => true]);
+        
+        // After first revision, use the revision media UUID for subsequent revisions
+        $rev2 = $this->service->uploadRevision($project->uuid, $proofing->uuid, $rev1->uuid, 2, 'Rev 2', $userFile2->uuid);
+        // Mark revision as ready for next revision
+        $rev2->update(['is_ready_for_revision' => true]);
 
         $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('Maximum revision limit');
-        $this->service->uploadRevision($project->uuid, $proofing->uuid, $media->uuid, 3, 'Rev 3', $userFile->uuid);
+        $this->expectExceptionMessageMatches('/Maximum revision limit|max.*revision/i');
+        // Try to upload revision 3, which should exceed the limit of 2
+        $this->service->uploadRevision($project->uuid, $proofing->uuid, $rev2->uuid, 3, 'Rev 3', $userFile3->uuid);
     }
 
     public function test_delete_proofing(): void

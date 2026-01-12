@@ -38,6 +38,7 @@ class MemoraSettings extends Model
     protected $fillable = [
         'user_uuid',
         'branding_domain',
+        'branding_subdomain',
         'branding_custom_domain',
         'branding_logo_uuid',
         'branding_favicon_uuid',

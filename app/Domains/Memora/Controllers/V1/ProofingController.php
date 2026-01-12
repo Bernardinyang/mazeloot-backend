@@ -6,12 +6,15 @@ use App\Domains\Memora\Requests\V1\StoreProofingRequest;
 use App\Domains\Memora\Requests\V1\UpdateProofingRequest;
 use App\Domains\Memora\Resources\V1\ProofingResource;
 use App\Domains\Memora\Services\ProofingService;
+use App\Http\Controllers\Controller;
 use App\Support\Responses\ApiResponse;
+use App\Support\Traits\ExtractsRouteParameters;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ProofingController extends Controller
 {
+    use ExtractsRouteParameters;
     protected ProofingService $proofingService;
 
     public function __construct(ProofingService $proofingService)
@@ -45,12 +48,10 @@ class ProofingController extends Controller
         return ApiResponse::success($result);
     }
 
-    /**
-     * Show proofing (unified for standalone and project-based)
-     * For project-based: pass ?projectId=xxx as query parameter
-     */
     public function show(Request $request, string $id): JsonResponse
     {
+        $id = $this->getRouteParameter($request, 'id', $id);
+
         $projectId = $request->query('projectId');
         $proofing = $this->proofingService->find($projectId, $id);
 
@@ -77,6 +78,7 @@ class ProofingController extends Controller
      */
     public function update(UpdateProofingRequest $request, string $id): JsonResponse
     {
+        $id = $this->getRouteParameter($request, 'id', $id);
         $projectId = $request->query('projectId');
         $proofing = $projectId
             ? $this->proofingService->update($projectId, $id, $request->validated())
@@ -91,6 +93,7 @@ class ProofingController extends Controller
      */
     public function destroy(Request $request, string $id): JsonResponse
     {
+        $id = $this->getRouteParameter($request, 'id', $id);
         $projectId = $request->query('projectId');
         if ($projectId) {
             $this->proofingService->delete($projectId, $id);
@@ -107,6 +110,7 @@ class ProofingController extends Controller
      */
     public function publish(Request $request, string $id): JsonResponse
     {
+        $id = $this->getRouteParameter($request, 'id', $id);
         $projectId = $request->query('projectId');
         $proofing = $projectId
             ? $this->proofingService->publish($projectId, $id)
@@ -121,6 +125,7 @@ class ProofingController extends Controller
      */
     public function toggleStar(Request $request, string $id): JsonResponse
     {
+        $id = $this->getRouteParameter($request, 'id', $id);
         $projectId = $request->query('projectId');
         $result = $projectId
             ? $this->proofingService->toggleStar($projectId, $id)
@@ -135,6 +140,7 @@ class ProofingController extends Controller
      */
     public function duplicate(Request $request, string $id): JsonResponse
     {
+        $id = $this->getRouteParameter($request, 'id', $id);
         $projectId = $request->query('projectId');
         $duplicated = $this->proofingService->duplicate($projectId, $id);
 
@@ -147,6 +153,7 @@ class ProofingController extends Controller
      */
     public function setCoverPhoto(Request $request, string $id): JsonResponse
     {
+        $id = $this->getRouteParameter($request, 'id', $id);
         $validated = $request->validate([
             'media_uuid' => 'required|uuid',
             'focal_point' => 'nullable|array',
@@ -186,6 +193,7 @@ class ProofingController extends Controller
      */
     public function recover(Request $request, string $id): JsonResponse
     {
+        $id = $this->getRouteParameter($request, 'id', $id);
         $request->validate([
             'mediaIds' => 'required|array',
             'mediaIds.*' => 'uuid',
@@ -205,6 +213,7 @@ class ProofingController extends Controller
      */
     public function uploadRevision(Request $request, string $id): JsonResponse
     {
+        $id = $this->getRouteParameter($request, 'id', $id);
         $request->validate([
             'mediaId' => 'required|uuid',
             'userFileUuid' => 'required|uuid',
@@ -234,6 +243,7 @@ class ProofingController extends Controller
      */
     public function complete(Request $request, string $id): JsonResponse
     {
+        $id = $this->getRouteParameter($request, 'id', $id);
         $projectId = $request->query('projectId');
         $proofing = $projectId
             ? $this->proofingService->complete($projectId, $id)
@@ -252,6 +262,7 @@ class ProofingController extends Controller
      */
     public function moveToCollection(Request $request, string $id): JsonResponse
     {
+        $id = $this->getRouteParameter($request, 'id', $id);
         $request->validate([
             'mediaIds' => 'required|array',
             'mediaIds.*' => 'uuid',

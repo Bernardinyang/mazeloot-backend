@@ -15,13 +15,22 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'api-key' => \App\Http\Middleware\ApiKeyAuth::class,
             'guest.token' => \App\Http\Middleware\GuestTokenAuth::class,
+            'validate.product' => \App\Http\Middleware\ValidateProduct::class,
+            'cache.headers' => \App\Http\Middleware\AddCacheHeaders::class,
+            'security.headers' => \App\Http\Middleware\SecurityHeaders::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [
             'broadcasting/auth',
         ]);
+
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        if (class_exists(\Sentry\Laravel\Integration::class)) {
+            \Sentry\Laravel\Integration::handles($exceptions);
+        }
+
         // Ensure API routes always return JSON responses for validation errors
         // Return only the first error message instead of an array
         $exceptions->render(function (\Illuminate\Validation\ValidationException $e, \Illuminate\Http\Request $request) {
