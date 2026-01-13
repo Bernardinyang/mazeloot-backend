@@ -349,9 +349,13 @@ class SelectionService
             $updateData['auto_delete_date'] = $data['auto_delete_date'] ? $data['auto_delete_date'] : null;
         }
 
+        // Handle settings updates (typographyDesign and galleryAssist)
+        $needsSettingsUpdate = false;
+        // Always start with existing settings to preserve all existing values
+        $settings = $selection->settings ?? [];
+        
         // Handle typographyDesign - always merge with defaults
         if (isset($data['typographyDesign'])) {
-            $settings = $selection->settings ?? [];
             if (! isset($settings['design'])) {
                 $settings['design'] = [];
             }
@@ -360,6 +364,21 @@ class SelectionService
                 'fontStyle' => 'normal',
             ];
             $settings['design']['typography'] = array_merge($defaults, $data['typographyDesign']);
+            $needsSettingsUpdate = true;
+        }
+
+        // Handle galleryAssist
+        if (array_key_exists('galleryAssist', $data)) {
+            if (! isset($settings['general'])) {
+                $settings['general'] = [];
+            }
+            $settings['general']['galleryAssist'] = (bool) $data['galleryAssist'];
+            // Also set at root level for backward compatibility
+            $settings['galleryAssist'] = (bool) $data['galleryAssist'];
+            $needsSettingsUpdate = true;
+        }
+
+        if ($needsSettingsUpdate) {
             $updateData['settings'] = $settings;
         }
 

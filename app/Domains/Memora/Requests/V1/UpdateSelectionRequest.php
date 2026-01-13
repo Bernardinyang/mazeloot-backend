@@ -39,6 +39,7 @@ class UpdateSelectionRequest extends FormRequest
             'typographyDesign' => ['nullable', 'array'],
             'typographyDesign.fontFamily' => ['nullable', 'string', 'max:100'],
             'typographyDesign.fontStyle' => ['nullable', 'string', 'max:50'],
+            'galleryAssist' => ['sometimes', 'nullable', 'boolean'],
         ];
     }
 }

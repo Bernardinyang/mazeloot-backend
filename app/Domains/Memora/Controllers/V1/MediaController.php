@@ -1167,4 +1167,42 @@ class MediaController extends Controller
             return ApiResponse::error('Failed to toggle featured status', 'TOGGLE_FAILED', 500);
         }
     }
+
+    /**
+     * Toggle recommended status for media in a selection set
+     */
+    public function toggleRecommended(string $selectionId, string $setId, string $mediaId): JsonResponse
+    {
+        try {
+            $userId = Auth::id();
+            if (! $userId) {
+                return ApiResponse::error('Unauthorized', 'UNAUTHORIZED', 401);
+            }
+
+            $media = MemoraMedia::where('uuid', $mediaId)
+                ->where('user_uuid', Auth::user()->uuid)
+                ->where('media_set_uuid', $setId)
+                ->firstOrFail();
+
+            $isRecommended = ! $media->is_recommended;
+
+            $media->update([
+                'is_recommended' => $isRecommended,
+                'recommended_at' => $isRecommended ? now() : null,
+            ]);
+
+            return ApiResponse::success(new MediaResource($media->fresh()));
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ApiResponse::error('Media not found', 'NOT_FOUND', 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to toggle recommended status', [
+                'selection_id' => $selectionId,
+                'set_id' => $setId,
+                'media_id' => $mediaId,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return ApiResponse::error('Failed to toggle recommended status', 'TOGGLE_FAILED', 500);
+        }
+    }
 }

@@ -54,6 +54,7 @@ class SelectionResource extends JsonResource
             }, []),
             'design' => $this->getDesign(),
             'typographyDesign' => $this->getTypographyDesign(),
+            'galleryAssist' => $this->getGalleryAssist(),
         ];
     }
 
@@ -117,5 +118,14 @@ class SelectionResource extends JsonResource
         } catch (\Exception $e) {
             return 0;
         }
+    }
+
+    /**
+     * Get gallery assist setting from settings
+     */
+    private function getGalleryAssist(): bool
+    {
+        $settings = $this->settings ?? [];
+        return $settings['galleryAssist'] ?? $settings['general']['galleryAssist'] ?? false;
     }
 }

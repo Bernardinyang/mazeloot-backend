@@ -14,5 +14,31 @@ use Illuminate\Support\Facades\Broadcast;
 */
 
 Broadcast::channel('user.{userId}', function ($user, $userId) {
-    return (string) $user->uuid === (string) $userId;
+    \Illuminate\Support\Facades\Log::info('Broadcast channel authorization', [
+        'channel' => 'user.'.$userId,
+        'user_id' => $user?->uuid ?? $user?->id ?? 'null',
+        'requested_user_id' => $userId,
+    ]);
+    
+    if (!$user) {
+        \Illuminate\Support\Facades\Log::warning('Broadcast authorization failed: no user');
+        return false;
+    }
+    
+    $userUuid = $user->uuid ?? $user->id ?? null;
+    if (!$userUuid) {
+        \Illuminate\Support\Facades\Log::warning('Broadcast authorization failed: no user UUID', [
+            'user_id' => $user->id ?? 'null',
+        ]);
+        return false;
+    }
+    
+    $authorized = (string) $userUuid === (string) $userId;
+    \Illuminate\Support\Facades\Log::info('Broadcast authorization result', [
+        'authorized' => $authorized,
+        'user_uuid' => $userUuid,
+        'requested_uuid' => $userId,
+    ]);
+    
+    return $authorized;
 });

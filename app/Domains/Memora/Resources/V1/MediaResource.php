@@ -104,6 +104,10 @@ class MediaResource extends JsonResource
             'is_featured' => $this->is_featured ?? false,
             'featuredAt' => $this->featured_at?->toIso8601String(),
             'featured_at' => $this->featured_at?->toIso8601String(),
+            'isRecommended' => $this->is_recommended ?? false,
+            'is_recommended' => $this->is_recommended ?? false,
+            'recommendedAt' => $this->recommended_at?->toIso8601String(),
+            'recommended_at' => $this->recommended_at?->toIso8601String(),
             'createdAt' => $this->created_at->toIso8601String(),
             'updatedAt' => $this->updated_at->toIso8601String(),
         ];

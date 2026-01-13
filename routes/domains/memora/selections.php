@@ -51,6 +51,7 @@ Route::middleware(['auth:sanctum'])->prefix('selections')->group(function () {
             Route::post('/{mediaId}/watermark', [MediaController::class, 'applyWatermark']);
             Route::delete('/{mediaId}/watermark', [MediaController::class, 'removeWatermark']);
             Route::post('/{mediaId}/star', [MediaController::class, 'toggleStar']);
+            Route::post('/{mediaId}/recommend', [MediaController::class, 'toggleRecommended']);
             Route::delete('/{mediaId}', [MediaController::class, 'deleteFromSet']);
         });
     });

@@ -60,6 +60,8 @@ class MemoraMedia extends Model
         'marked_private_by_email',
         'is_featured',
         'featured_at',
+        'is_recommended',
+        'recommended_at',
     ];
 
     protected $casts = [
@@ -76,6 +78,8 @@ class MemoraMedia extends Model
         'marked_private_at' => 'datetime',
         'is_featured' => 'boolean',
         'featured_at' => 'datetime',
+        'is_recommended' => 'boolean',
+        'recommended_at' => 'datetime',
     ];
 
     /**

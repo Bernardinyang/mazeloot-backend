@@ -8,7 +8,8 @@ Route::get('/', static function () {
 });
 
 // Broadcasting authentication route with Sanctum
-Broadcast::routes(['middleware' => ['auth:sanctum']]);
+Route::post('/broadcasting/auth', [\App\Http\Controllers\BroadcastController::class, 'authenticate'])
+    ->middleware('auth:sanctum');
 
 // Fallback route for unmatched web requests
 Route::fallback(static function () {
