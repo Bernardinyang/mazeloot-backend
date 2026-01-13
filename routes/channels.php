@@ -19,26 +19,28 @@ Broadcast::channel('user.{userId}', function ($user, $userId) {
         'user_id' => $user?->uuid ?? $user?->id ?? 'null',
         'requested_user_id' => $userId,
     ]);
-    
-    if (!$user) {
+
+    if (! $user) {
         \Illuminate\Support\Facades\Log::warning('Broadcast authorization failed: no user');
+
         return false;
     }
-    
+
     $userUuid = $user->uuid ?? $user->id ?? null;
-    if (!$userUuid) {
+    if (! $userUuid) {
         \Illuminate\Support\Facades\Log::warning('Broadcast authorization failed: no user UUID', [
             'user_id' => $user->id ?? 'null',
         ]);
+
         return false;
     }
-    
+
     $authorized = (string) $userUuid === (string) $userId;
     \Illuminate\Support\Facades\Log::info('Broadcast authorization result', [
         'authorized' => $authorized,
         'user_uuid' => $userUuid,
         'requested_uuid' => $userId,
     ]);
-    
+
     return $authorized;
 });

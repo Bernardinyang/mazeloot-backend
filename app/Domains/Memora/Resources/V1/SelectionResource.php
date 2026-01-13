@@ -126,6 +126,7 @@ class SelectionResource extends JsonResource
     private function getGalleryAssist(): bool
     {
         $settings = $this->settings ?? [];
+
         return $settings['galleryAssist'] ?? $settings['general']['galleryAssist'] ?? false;
     }
 }

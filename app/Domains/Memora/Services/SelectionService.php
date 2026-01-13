@@ -353,7 +353,7 @@ class SelectionService
         $needsSettingsUpdate = false;
         // Always start with existing settings to preserve all existing values
         $settings = $selection->settings ?? [];
-        
+
         // Handle typographyDesign - always merge with defaults
         if (isset($data['typographyDesign'])) {
             if (! isset($settings['design'])) {
