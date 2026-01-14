@@ -23,7 +23,7 @@ class ProofingControllerTest extends TestCase
             'project_uuid' => $project->uuid,
         ]);
 
-        $response = $this->getJson("/api/v1/proofing?project_uuid={$project->uuid}");
+        $response = $this->getJson("/api/v1/memora/proofing?projectId={$project->uuid}");
 
         $response->assertStatus(200)
             ->assertJsonStructure([
@@ -41,7 +41,8 @@ class ProofingControllerTest extends TestCase
         Sanctum::actingAs($user);
         $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
 
-        $response = $this->postJson("/api/v1/projects/{$project->uuid}/proofing", [
+        $response = $this->postJson("/api/v1/memora/proofing", [
+            'projectId' => $project->uuid,
             'name' => 'Test Proofing',
             'description' => 'Test Description',
         ]);
@@ -65,7 +66,7 @@ class ProofingControllerTest extends TestCase
             'project_uuid' => $project->uuid,
         ]);
 
-        $response = $this->getJson("/api/v1/projects/{$project->uuid}/proofing/{$proofing->uuid}");
+        $response = $this->getJson("/api/v1/memora/proofing/{$proofing->uuid}");
 
         $response->assertStatus(200)
             ->assertJson(['data' => ['id' => $proofing->uuid]]);
@@ -81,7 +82,7 @@ class ProofingControllerTest extends TestCase
             'project_uuid' => $project->uuid,
         ]);
 
-        $response = $this->patchJson("/api/v1/projects/{$project->uuid}/proofing/{$proofing->uuid}", [
+        $response = $this->patchJson("/api/v1/memora/proofing/{$proofing->uuid}", [
             'name' => 'Updated Name',
         ]);
 
@@ -99,7 +100,7 @@ class ProofingControllerTest extends TestCase
             'project_uuid' => $project->uuid,
         ]);
 
-        $response = $this->deleteJson("/api/v1/projects/{$project->uuid}/proofing/{$proofing->uuid}");
+        $response = $this->deleteJson("/api/v1/memora/proofing/{$proofing->uuid}");
 
         $response->assertStatus(200);
         $this->assertSoftDeleted('memora_proofing', ['uuid' => $proofing->uuid]);
@@ -121,7 +122,7 @@ class ProofingControllerTest extends TestCase
         ]);
         $userFile = UserFile::factory()->create(['user_uuid' => $user->uuid]);
 
-        $response = $this->postJson("/api/v1/projects/{$project->uuid}/proofing/{$proofing->uuid}/revisions", [
+        $response = $this->postJson("/api/v1/memora/proofing/{$proofing->uuid}/revisions", [
             'mediaId' => $media->uuid,
             'revisionNumber' => 1,
             'description' => 'Test Revision',
@@ -129,7 +130,7 @@ class ProofingControllerTest extends TestCase
         ]);
 
         $response->assertStatus(201)
-            ->assertJsonStructure(['data' => ['id', 'revision_number']]);
+            ->assertJsonStructure(['data' => ['id', 'revisionNumber']]);
     }
 
     public function test_requires_authentication(): void
@@ -140,7 +141,7 @@ class ProofingControllerTest extends TestCase
             'user_uuid' => $user->uuid,
             'project_uuid' => $project->uuid,
         ]);
-        $response = $this->getJson("/api/v1/projects/{$project->uuid}/proofing/{$proofing->uuid}");
+        $response = $this->getJson("/api/v1/memora/proofing/{$proofing->uuid}");
         $response->assertStatus(401);
     }
 }

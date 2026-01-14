@@ -16,7 +16,7 @@ class ProjectTest extends TestCase
 
         MemoraProject::factory()->count(3)->create(['user_uuid' => $user->uuid]);
 
-        $response = $this->getJson('/api/v1/projects');
+        $response = $this->getJson('/api/v1/memora/projects');
 
         $response->assertStatus(200)
             ->assertJsonStructure([
@@ -36,7 +36,7 @@ class ProjectTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $response = $this->postJson('/api/v1/projects', [
+        $response = $this->postJson('/api/v1/memora/projects', [
             'name' => 'Test Project',
             'description' => 'Test Description',
             'status' => 'draft',
@@ -65,7 +65,7 @@ class ProjectTest extends TestCase
 
         $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
 
-        $response = $this->getJson("/api/v1/projects/{$project->uuid}");
+        $response = $this->getJson("/api/v1/memora/projects/{$project->uuid}");
 
         $response->assertStatus(200)
             ->assertJson([
@@ -83,7 +83,7 @@ class ProjectTest extends TestCase
 
         $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
 
-        $response = $this->patchJson("/api/v1/projects/{$project->uuid}", [
+        $response = $this->patchJson("/api/v1/memora/projects/{$project->uuid}", [
             'name' => 'Updated Name',
             'status' => 'active',
         ]);
@@ -105,7 +105,7 @@ class ProjectTest extends TestCase
 
         $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
 
-        $response = $this->deleteJson("/api/v1/projects/{$project->uuid}");
+        $response = $this->deleteJson("/api/v1/memora/projects/{$project->uuid}");
 
         $response->assertStatus(200);
 
@@ -116,7 +116,7 @@ class ProjectTest extends TestCase
 
     public function test_projects_require_authentication(): void
     {
-        $response = $this->getJson('/api/v1/projects');
+        $response = $this->getJson('/api/v1/memora/projects');
 
         $response->assertStatus(401);
     }

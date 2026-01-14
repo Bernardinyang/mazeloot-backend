@@ -123,7 +123,10 @@ class ClosureRequestServiceTest extends TestCase
     public function test_reject_closure_request(): void
     {
         $user = User::factory()->create();
-        $proofing = MemoraProofing::factory()->create(['user_uuid' => $user->uuid]);
+        $proofing = MemoraProofing::factory()->create([
+            'user_uuid' => $user->uuid,
+            'primary_email' => 'test@example.com',
+        ]);
         $set = MemoraMediaSet::factory()->create(['proof_uuid' => $proofing->uuid]);
         $media = MemoraMedia::factory()->create(['media_set_uuid' => $set->uuid]);
         $request = MemoraClosureRequest::factory()->create([

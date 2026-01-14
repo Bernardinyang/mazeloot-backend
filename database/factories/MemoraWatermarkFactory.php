@@ -18,7 +18,7 @@ class MemoraWatermarkFactory extends Factory
             'user_uuid' => \App\Models\User::factory(),
             'name' => fake()->words(2, true),
             'type' => 'text',
-            'image_url' => null,
+            'image_file_uuid' => null,
             'text' => fake()->company(),
             'font_family' => 'Arial',
             'font_style' => 'normal',

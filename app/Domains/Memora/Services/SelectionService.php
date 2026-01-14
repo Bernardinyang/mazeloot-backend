@@ -263,6 +263,7 @@ class SelectionService
             }
         }
 
+        $wasCompleted = $selection->status->value === 'completed';
         $selection->update(['status' => $newStatus]);
 
         $selection->refresh();
@@ -272,6 +273,27 @@ class SelectionService
         $selection->load(['starredByUsers' => function ($query) use ($user) {
             $query->where('user_uuid', $user->uuid);
         }]);
+
+        // Notify the selection owner when republishing a completed selection
+        if ($wasCompleted && $newStatus === 'active') {
+            try {
+                $this->notificationService->create(
+                    $user->uuid,
+                    'memora',
+                    'selection_republished',
+                    'Selection Republished',
+                    "Selection '{$selection->name}' has been republished.",
+                    "Selection '{$selection->name}' has been republished and is now available to clients.",
+                    "/memora/selections/{$selection->uuid}"
+                );
+            } catch (\Exception $e) {
+                Log::error('Failed to send selection republish notification', [
+                    'selection_uuid' => $selection->uuid,
+                    'user_uuid' => $user->uuid,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
 
         return new SelectionResource($selection);
     }
@@ -460,17 +482,25 @@ class SelectionService
                 }]);
             }
 
-            // Create notification if user is authenticated
-            if ($user) {
+            // Notify the selection owner when a client completes the selection
+            try {
                 $this->notificationService->create(
-                    $user->uuid,
+                    $selection->user_uuid,
                     'memora',
                     'selection_completed',
                     'Selection Completed',
-                    "Selection '{$selection->name}' has been completed successfully.",
-                    "Your selection '{$selection->name}' is ready for review.",
+                    "Selection '{$selection->name}' has been completed by a client.",
+                    $completedByEmail 
+                        ? "Selection '{$selection->name}' has been completed by {$completedByEmail}."
+                        : "Selection '{$selection->name}' has been completed.",
                     "/memora/selections/{$selection->uuid}"
                 );
+            } catch (\Exception $e) {
+                Log::error('Failed to send selection completion notification', [
+                    'selection_uuid' => $selection->uuid,
+                    'user_uuid' => $selection->user_uuid,
+                    'error' => $e->getMessage(),
+                ]);
             }
 
             return new SelectionResource($selection);

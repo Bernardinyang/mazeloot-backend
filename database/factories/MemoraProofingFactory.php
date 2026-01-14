@@ -15,6 +15,7 @@ class MemoraProofingFactory extends Factory
     public function definition(): array
     {
         return [
+            'user_uuid' => \App\Models\User::factory(),
             'project_uuid' => \App\Domains\Memora\Models\MemoraProject::factory(),
             'name' => fake()->words(2, true),
             'status' => 'draft',

@@ -25,35 +25,80 @@ class MediaService
 
     /**
      * Get phase media
+     * Uses media sets to find media for a phase (proofing, selection, or collection)
      */
     public function getPhaseMedia(string $phaseType, string $phaseId, ?string $setUuid = null)
     {
-        $query = MemoraMedia::where('phase', $phaseType)
-            ->where('phase_id', $phaseId)
+        // Find media sets for this phase
+        $setQuery = MemoraMediaSet::query();
+        
+        if ($phaseType === 'proofing') {
+            $setQuery->where('proof_uuid', $phaseId);
+        } elseif ($phaseType === 'selection') {
+            $setQuery->where('selection_uuid', $phaseId);
+        } elseif ($phaseType === 'collection') {
+            $setQuery->where('collection_uuid', $phaseId);
+        } else {
+            return collect();
+        }
+        
+        if ($setUuid) {
+            $setQuery->where('uuid', $setUuid);
+        }
+        
+        $setUuids = $setQuery->pluck('uuid');
+        
+        if ($setUuids->isEmpty()) {
+            return collect();
+        }
+        
+        // Get media from those sets
+        $query = MemoraMedia::whereIn('media_set_uuid', $setUuids)
             ->with(['feedback.replies', 'file'])
             ->orderBy('order');
-
-        if ($setUuid) {
-            $query->where('set_id', $setUuid);
-        }
 
         return $query->get();
     }
 
     /**
      * Move media between phases
+     * Uses media sets to move media from one phase to another
      */
     public function moveBetweenPhases(array $mediaIds, string $fromPhase, string $fromPhaseId, string $toPhase, string $toPhaseId): array
     {
-        $moved = MemoraMedia::whereIn('id', $mediaIds)
-            ->where('phase', $fromPhase)
-            ->where('phase_id', $fromPhaseId)
-            ->update([
-                'phase' => $toPhase,
-                'phase_id' => $toPhaseId,
+        // Find target media set for the destination phase
+        $targetSetQuery = MemoraMediaSet::query();
+        
+        if ($toPhase === 'proofing') {
+            $targetSetQuery->where('proof_uuid', $toPhaseId);
+        } elseif ($toPhase === 'selection') {
+            $targetSetQuery->where('selection_uuid', $toPhaseId);
+        } elseif ($toPhase === 'collection') {
+            $targetSetQuery->where('collection_uuid', $toPhaseId);
+        } else {
+            throw new \InvalidArgumentException("Invalid phase type: {$toPhase}");
+        }
+        
+        // Get or create the first set for the target phase
+        $targetSet = $targetSetQuery->first();
+        if (!$targetSet) {
+            // Create a default set if none exists
+            $targetSet = MemoraMediaSet::create([
+                'user_uuid' => Auth::user()->uuid,
+                'proof_uuid' => $toPhase === 'proofing' ? $toPhaseId : null,
+                'selection_uuid' => $toPhase === 'selection' ? $toPhaseId : null,
+                'collection_uuid' => $toPhase === 'collection' ? $toPhaseId : null,
+                'name' => 'Default Set',
+                'order' => 0,
             ]);
+        }
+        
+        // Move media to the target set
+        $moved = MemoraMedia::whereIn('uuid', $mediaIds)->update([
+            'media_set_uuid' => $targetSet->uuid,
+        ]);
 
-        $media = MemoraMedia::whereIn('id', $mediaIds)->get();
+        $media = MemoraMedia::whereIn('uuid', $mediaIds)->get();
 
         return [
             'movedCount' => $moved,

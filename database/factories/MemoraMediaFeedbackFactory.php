@@ -16,7 +16,7 @@ class MemoraMediaFeedbackFactory extends Factory
     {
         return [
             'media_uuid' => \App\Domains\Memora\Models\MemoraMedia::factory(),
-            'type' => 'comment',
+            'type' => 'text',
             'content' => fake()->sentence(),
             'created_by' => null,
         ];

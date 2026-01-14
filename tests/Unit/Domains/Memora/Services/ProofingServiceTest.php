@@ -218,12 +218,20 @@ class ProofingServiceTest extends TestCase
         ]);
         $userFile = UserFile::factory()->create(['user_uuid' => $user->uuid]);
 
-        $this->service->uploadRevision($project->uuid, $proofing->uuid, $media->uuid, 1, 'Rev 1', $userFile->uuid);
-        $this->service->uploadRevision($project->uuid, $proofing->uuid, $media->uuid, 2, 'Rev 2', $userFile->uuid);
+        $revision1 = $this->service->uploadRevision($project->uuid, $proofing->uuid, $media->uuid, 1, 'Rev 1', $userFile->uuid);
+        
+        // After first revision, mark the new revision as ready for next revision
+        $revision1->update(['is_ready_for_revision' => true]);
+        
+        $revision2 = $this->service->uploadRevision($project->uuid, $proofing->uuid, $revision1->uuid, 2, 'Rev 2', $userFile->uuid);
+        
+        // Mark revision 2 as ready
+        $revision2->update(['is_ready_for_revision' => true]);
 
+        // Third revision should fail due to max limit (2)
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Maximum revision limit');
-        $this->service->uploadRevision($project->uuid, $proofing->uuid, $media->uuid, 3, 'Rev 3', $userFile->uuid);
+        $this->service->uploadRevision($project->uuid, $proofing->uuid, $revision2->uuid, 3, 'Rev 3', $userFile->uuid);
     }
 
     public function test_delete_proofing(): void
