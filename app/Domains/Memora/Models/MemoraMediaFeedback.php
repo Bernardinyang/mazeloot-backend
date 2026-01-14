@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 class MemoraMediaFeedback extends Model
 {
     use HasFactory;
+
     /**
      * The primary key for the model.
      *

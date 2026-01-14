@@ -31,7 +31,7 @@ class MediaService
     {
         // Find media sets for this phase
         $setQuery = MemoraMediaSet::query();
-        
+
         if ($phaseType === 'proofing') {
             $setQuery->where('proof_uuid', $phaseId);
         } elseif ($phaseType === 'selection') {
@@ -41,17 +41,17 @@ class MediaService
         } else {
             return collect();
         }
-        
+
         if ($setUuid) {
             $setQuery->where('uuid', $setUuid);
         }
-        
+
         $setUuids = $setQuery->pluck('uuid');
-        
+
         if ($setUuids->isEmpty()) {
             return collect();
         }
-        
+
         // Get media from those sets
         $query = MemoraMedia::whereIn('media_set_uuid', $setUuids)
             ->with(['feedback.replies', 'file'])
@@ -68,7 +68,7 @@ class MediaService
     {
         // Find target media set for the destination phase
         $targetSetQuery = MemoraMediaSet::query();
-        
+
         if ($toPhase === 'proofing') {
             $targetSetQuery->where('proof_uuid', $toPhaseId);
         } elseif ($toPhase === 'selection') {
@@ -78,10 +78,10 @@ class MediaService
         } else {
             throw new \InvalidArgumentException("Invalid phase type: {$toPhase}");
         }
-        
+
         // Get or create the first set for the target phase
         $targetSet = $targetSetQuery->first();
-        if (!$targetSet) {
+        if (! $targetSet) {
             // Create a default set if none exists
             $targetSet = MemoraMediaSet::create([
                 'user_uuid' => Auth::user()->uuid,
@@ -92,7 +92,7 @@ class MediaService
                 'order' => 0,
             ]);
         }
-        
+
         // Move media to the target set
         $moved = MemoraMedia::whereIn('uuid', $mediaIds)->update([
             'media_set_uuid' => $targetSet->uuid,

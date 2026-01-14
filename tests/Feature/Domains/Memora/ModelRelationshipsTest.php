@@ -82,7 +82,7 @@ class ModelRelationshipsTest extends TestCase
     public function test_cover_style_relationships(): void
     {
         $coverStyle = MemoraCoverStyle::factory()->create();
-        
+
         // Cover style relationship with presets requires design_cover_uuid column
         // which doesn't exist in the database schema
         // This test verifies the cover style can be created

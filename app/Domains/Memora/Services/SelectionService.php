@@ -490,7 +490,7 @@ class SelectionService
                     'selection_completed',
                     'Selection Completed',
                     "Selection '{$selection->name}' has been completed by a client.",
-                    $completedByEmail 
+                    $completedByEmail
                         ? "Selection '{$selection->name}' has been completed by {$completedByEmail}."
                         : "Selection '{$selection->name}' has been completed.",
                     "/memora/selections/{$selection->uuid}"

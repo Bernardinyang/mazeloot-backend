@@ -41,7 +41,7 @@ class ProofingControllerTest extends TestCase
         Sanctum::actingAs($user);
         $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
 
-        $response = $this->postJson("/api/v1/memora/proofing", [
+        $response = $this->postJson('/api/v1/memora/proofing', [
             'projectId' => $project->uuid,
             'name' => 'Test Proofing',
             'description' => 'Test Description',

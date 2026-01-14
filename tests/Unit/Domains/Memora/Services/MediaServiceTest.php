@@ -77,7 +77,7 @@ class MediaServiceTest extends TestCase
 
         $this->assertEquals(3, $result['movedCount']);
         $this->assertCount(3, $result['media']);
-        
+
         // Verify media was moved to the target set
         foreach ($result['media'] as $m) {
             $m->refresh();

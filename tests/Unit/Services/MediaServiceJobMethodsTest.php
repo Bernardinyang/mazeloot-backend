@@ -56,7 +56,7 @@ class MediaServiceJobMethodsTest extends TestCase
 
         $media = MemoraMedia::factory()->create();
         $userFile = $media->file;
-        
+
         // Mock the upload service to avoid actual file operations
         $this->mockUploadService->shouldReceive('getFileUrl')
             ->andReturn('https://example.com/image.jpg');
