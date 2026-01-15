@@ -185,8 +185,16 @@ class CollectionResource extends JsonResource
 
     public function toArray($request): array
     {
+        // Check if the authenticated user is the owner of this collection
+        $isOwner = Auth::check() && Auth::user()->uuid === $this->user_uuid;
+
         $settings = $this->organizeSettings($this->settings ?? []);
         $storageUsedBytes = $this->getStorageUsed();
+
+        // Get password, downloadPin, and clientPrivatePassword (only for owners)
+        $password = $isOwner ? ($settings['privacy']['password'] ?? null) : null;
+        $downloadPin = $isOwner ? ($settings['download']['downloadPin'] ?? null) : null;
+        $clientPrivatePassword = $isOwner ? ($settings['privacy']['clientPrivatePassword'] ?? null) : null;
 
         return [
             'id' => $this->uuid,
@@ -211,6 +219,15 @@ class CollectionResource extends JsonResource
             'thumbnail' => $settings['thumbnail'] ?? null,
             'image' => $settings['image'] ?? null,
             'eventDate' => $settings['eventDate'] ?? null,
+            'hasPassword' => ! empty($settings['privacy']['password'] ?? null),
+            // Only include the actual password if the authenticated user is the owner
+            'password' => $password,
+            'hasDownloadPin' => ! empty($settings['download']['downloadPin'] ?? null),
+            // Only include the actual downloadPin if the authenticated user is the owner
+            'downloadPin' => $downloadPin,
+            'hasClientPrivatePassword' => ! empty($settings['privacy']['clientPrivatePassword'] ?? null),
+            // Only include the actual clientPrivatePassword if the authenticated user is the owner
+            'clientPrivatePassword' => $clientPrivatePassword,
             'settings' => $settings,
             'isStarred' => Auth::check() && $this->relationLoaded('starredByUsers')
                 ? $this->starredByUsers->isNotEmpty()

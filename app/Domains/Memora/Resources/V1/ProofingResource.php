@@ -9,6 +9,12 @@ class ProofingResource extends JsonResource
 {
     public function toArray($request): array
     {
+        // Check if the authenticated user is the owner of this proofing
+        $isOwner = \Illuminate\Support\Facades\Auth::check() && \Illuminate\Support\Facades\Auth::user()->uuid === $this->user_uuid;
+
+        // Get password value (even though it's in $hidden, we can access it via getAttribute)
+        $password = $isOwner ? $this->getAttribute('password') : null;
+
         return [
             'id' => $this->uuid,
             'projectId' => $this->project_uuid,
@@ -20,6 +26,8 @@ class ProofingResource extends JsonResource
             'coverPhotoUrl' => $this->cover_photo_url,
             'coverFocalPoint' => $this->cover_focal_point,
             'hasPassword' => ! empty($this->getAttribute('password')),
+            // Only include the actual password if the authenticated user is the owner
+            'password' => $password,
             'allowedEmails' => $this->allowed_emails ?? [],
             'primaryEmail' => $this->primary_email,
             'maxRevisions' => $this->max_revisions,
@@ -45,6 +53,7 @@ class ProofingResource extends JsonResource
             }, []),
             'design' => $this->getDesign(),
             'typographyDesign' => $this->getTypographyDesign(),
+            'galleryAssist' => $this->getGalleryAssist(),
         ];
     }
 
@@ -108,5 +117,15 @@ class ProofingResource extends JsonResource
         } catch (\Exception $e) {
             return 0;
         }
+    }
+
+    /**
+     * Get gallery assist setting from settings
+     */
+    private function getGalleryAssist(): bool
+    {
+        $settings = $this->settings ?? [];
+
+        return $settings['galleryAssist'] ?? $settings['general']['galleryAssist'] ?? false;
     }
 }

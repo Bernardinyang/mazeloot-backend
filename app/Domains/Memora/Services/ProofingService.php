@@ -534,9 +534,13 @@ class ProofingService
             }
         }
 
+        // Handle settings updates (typographyDesign and galleryAssist)
+        $needsSettingsUpdate = false;
+        // Always start with existing settings to preserve all existing values
+        $settings = $proofing->settings ?? [];
+
         // Handle typographyDesign - always merge with defaults
         if (isset($data['typographyDesign'])) {
-            $settings = $proofing->settings ?? [];
             if (! isset($settings['design'])) {
                 $settings['design'] = [];
             }
@@ -545,6 +549,21 @@ class ProofingService
                 'fontStyle' => 'normal',
             ];
             $settings['design']['typography'] = array_merge($defaults, $data['typographyDesign']);
+            $needsSettingsUpdate = true;
+        }
+
+        // Handle galleryAssist
+        if (array_key_exists('galleryAssist', $data)) {
+            if (! isset($settings['general'])) {
+                $settings['general'] = [];
+            }
+            $settings['general']['galleryAssist'] = (bool) $data['galleryAssist'];
+            // Also set at root level for backward compatibility
+            $settings['galleryAssist'] = (bool) $data['galleryAssist'];
+            $needsSettingsUpdate = true;
+        }
+
+        if ($needsSettingsUpdate) {
             $updateData['settings'] = $settings;
         }
 
