@@ -6,11 +6,11 @@ use App\Services\Storage\UserStorageService;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Auth;
 
-class SelectionResource extends JsonResource
+class RawFileResource extends JsonResource
 {
     public function toArray($request): array
     {
-        // Check if the authenticated user is the owner of this selection
+        // Check if the authenticated user is the owner of this raw file
         $isOwner = Auth::check() && Auth::user()->uuid === $this->user_uuid;
 
         // Get password value (even though it's in $hidden, we can access it via getAttribute)
@@ -30,10 +30,10 @@ class SelectionResource extends JsonResource
             // Only include the actual password if the authenticated user is the owner
             'password' => $password,
             'allowedEmails' => $this->allowed_emails ?? [],
-            'selectionCompletedAt' => $this->selection_completed_at?->toIso8601String(),
+            'rawFileCompletedAt' => $this->raw_file_completed_at?->toIso8601String(),
             'completedByEmail' => $this->completed_by_email,
-            'selectionLimit' => $this->selection_limit,
-            'resetSelectionLimitAt' => $this->reset_selection_limit_at?->toIso8601String(),
+            'rawFileLimit' => $this->raw_file_limit,
+            'resetRawFileLimitAt' => $this->reset_raw_file_limit_at?->toIso8601String(),
             'autoDeleteDate' => $this->auto_delete_date?->toIso8601String(),
             'createdAt' => $this->created_at->toIso8601String(),
             'updatedAt' => $this->updated_at->toIso8601String(),
@@ -55,6 +55,7 @@ class SelectionResource extends JsonResource
             'design' => $this->getDesign(),
             'typographyDesign' => $this->getTypographyDesign(),
             'galleryAssist' => $this->getGalleryAssist(),
+            'download' => $this->getDownloadSettings(),
         ];
     }
 
@@ -107,14 +108,14 @@ class SelectionResource extends JsonResource
     }
 
     /**
-     * Get storage used by media in this selection
+     * Get storage used by media in this raw file
      */
     private function getStorageUsed(): int
     {
         try {
             $storageService = app(UserStorageService::class);
 
-            return $storageService->getPhaseStorageUsed($this->uuid, 'selection');
+            return $storageService->getPhaseStorageUsed($this->uuid, 'raw_file');
         } catch (\Exception $e) {
             return 0;
         }
@@ -128,5 +129,52 @@ class SelectionResource extends JsonResource
         $settings = $this->settings ?? [];
 
         return $settings['galleryAssist'] ?? $settings['general']['galleryAssist'] ?? false;
+    }
+
+    /**
+     * Get download settings from settings
+     * Similar to CollectionResource download settings structure
+     */
+    private function getDownloadSettings(): array
+    {
+        $settings = $this->settings ?? [];
+        $isOwner = Auth::check() && Auth::user()->uuid === $this->user_uuid;
+
+        // If download settings exist in organized structure, use them
+        if (isset($settings['download']) && is_array($settings['download'])) {
+            $downloadSettings = $settings['download'];
+            // Only include downloadPin if owner
+            if (!$isOwner) {
+                unset($downloadSettings['downloadPin']);
+            }
+            return $downloadSettings;
+        }
+
+        // Build from flat settings structure
+        $downloadSettings = [
+            'photoDownload' => $settings['photoDownload'] ?? true,
+            'highResolution' => [
+                'enabled' => $settings['highResolutionEnabled'] ?? false,
+                'size' => $settings['highResolutionSize'] ?? '3600px',
+            ],
+            'webSize' => [
+                'enabled' => $settings['webSizeEnabled'] ?? false,
+                'size' => $settings['webSize'] ?? '1024px',
+            ],
+            'videoDownload' => $settings['videoDownload'] ?? false,
+            'downloadPinEnabled' => !empty($settings['downloadPin'] ?? null),
+            'limitDownloads' => $settings['limitDownloads'] ?? false,
+            'downloadLimit' => $settings['downloadLimit'] ?? 1,
+            'restrictToContacts' => $settings['restrictToContacts'] ?? false,
+            'allowedDownloadEmails' => $settings['allowedDownloadEmails'] ?? null,
+            'downloadableSets' => $settings['downloadableSets'] ?? null,
+        ];
+
+        // Only include downloadPin if owner
+        if ($isOwner && isset($settings['downloadPin'])) {
+            $downloadSettings['downloadPin'] = $settings['downloadPin'];
+        }
+
+        return $downloadSettings;
     }
 }

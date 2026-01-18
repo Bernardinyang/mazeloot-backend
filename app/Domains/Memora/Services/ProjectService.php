@@ -4,6 +4,7 @@ namespace App\Domains\Memora\Services;
 
 use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraProject;
+use App\Services\Notification\NotificationService;
 use App\Services\Pagination\PaginationService;
 use Illuminate\Support\Facades\Auth;
 
@@ -11,9 +12,12 @@ class ProjectService
 {
     protected PaginationService $paginationService;
 
-    public function __construct(PaginationService $paginationService)
+    protected NotificationService $notificationService;
+
+    public function __construct(PaginationService $paginationService, NotificationService $notificationService)
     {
         $this->paginationService = $paginationService;
+        $this->notificationService = $notificationService;
     }
 
     /**
@@ -285,7 +289,19 @@ class ProjectService
             $collectionService->create($project->uuid, $collectionData);
         }
 
-        return $project->load('mediaSets');
+        $project->load('mediaSets');
+        
+        $this->notificationService->create(
+            $userUuid,
+            'memora',
+            'project_created',
+            'Project Created',
+            "Project '{$project->name}' has been created successfully.",
+            "Your new project '{$project->name}' is now available to use.",
+            "/memora/projects/{$project->uuid}"
+        );
+
+        return $project;
     }
 
     /**
@@ -490,7 +506,19 @@ class ProjectService
             }
         }
 
-        return $project->load('mediaSets');
+        $project->load('mediaSets');
+        
+        $this->notificationService->create(
+            $user->uuid,
+            'memora',
+            'project_updated',
+            'Project Updated',
+            "Project '{$project->name}' has been updated successfully.",
+            "Your project '{$project->name}' settings have been saved.",
+            "/memora/projects/{$project->uuid}"
+        );
+
+        return $project;
     }
 
     /**
@@ -516,6 +544,8 @@ class ProjectService
             throw new \Exception('Unauthorized: You do not own this project');
         }
 
+        $name = $project->name;
+
         // Use forceDelete to actually delete from database
         // This will trigger database cascade deletes for all foreign keys
         // which will automatically delete:
@@ -527,7 +557,21 @@ class ProjectService
         // - All starred selections (cascade from selection_uuid)
         // - All starred media (cascade from media_uuid)
         // - All media feedback (cascade from media_uuid)
-        return $project->forceDelete();
+        $deleted = $project->forceDelete();
+
+        if ($deleted) {
+            $this->notificationService->create(
+                $user->uuid,
+                'memora',
+                'project_deleted',
+                'Project Deleted',
+                "Project '{$name}' has been deleted.",
+                "The project '{$name}' has been permanently removed.",
+                '/memora/projects'
+            );
+        }
+
+        return $deleted;
     }
 
     /**

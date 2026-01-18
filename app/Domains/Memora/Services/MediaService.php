@@ -219,29 +219,58 @@ class MediaService
     {
         $media = MemoraMedia::findOrFail($id);
 
-        // Load media set and selection relationships
-        $media->load('mediaSet.selection');
+        // Load media set with appropriate parent relationship (selection, rawFile, proof, or collection)
+        $media->load('mediaSet');
         $set = $media->mediaSet;
-        $selection = $set?->selection;
+        
+        if (!$set) {
+            throw new \RuntimeException('Media set not found for this media item.');
+        }
 
-        // If marking as selected, validate against selection limits
-        if ($isSelected && $selection) {
-            $selectionLimitService = app(\App\Domains\Memora\Services\SelectionLimitService::class);
+        // If marking as selected, validate against limits based on parent type
+        if ($isSelected) {
             $setId = $set->uuid;
-            $selectionId = $selection->uuid;
+            
+            // Check if media set belongs to a raw file
+            if ($set->raw_file_uuid) {
+                $rawFileLimitService = app(\App\Domains\Memora\Services\RawFileLimitService::class);
+                
+                // Get current selected count for this set
+                $currentCount = \App\Domains\Memora\Models\MemoraMedia::query()
+                    ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
+                    ->where('memora_media_sets.uuid', $setId)
+                    ->where('memora_media.is_selected', true)
+                    ->whereNull('memora_media.deleted_at')
+                    ->count();
 
-            // Get current selected count for this set
-            $currentCount = \App\Domains\Memora\Models\MemoraMedia::query()
-                ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
-                ->where('memora_media_sets.uuid', $setId)
-                ->where('memora_media.is_selected', true)
-                ->whereNull('memora_media.deleted_at')
-                ->count();
+                // Check if selection is allowed
+                if (!$rawFileLimitService->checkRawFileLimit($set->raw_file_uuid, $setId, $currentCount)) {
+                    throw new \RuntimeException('Raw file limit reached. Cannot select more items.');
+                }
+            } elseif ($set->selection_uuid) {
+                // Check if media set belongs to a selection
+                $media->load('mediaSet.selection');
+                $selection = $set->selection;
+                
+                if ($selection) {
+                    $selectionLimitService = app(\App\Domains\Memora\Services\SelectionLimitService::class);
+                    $selectionId = $selection->uuid;
 
-            // Check if selection is allowed
-            if (! $selectionLimitService->checkSelectionLimit($selectionId, $setId, $currentCount)) {
-                throw new \RuntimeException('Selection limit reached. Cannot select more items.');
+                    // Get current selected count for this set
+                    $currentCount = \App\Domains\Memora\Models\MemoraMedia::query()
+                        ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
+                        ->where('memora_media_sets.uuid', $setId)
+                        ->where('memora_media.is_selected', true)
+                        ->whereNull('memora_media.deleted_at')
+                        ->count();
+
+                    // Check if selection is allowed
+                    if (!$selectionLimitService->checkSelectionLimit($selectionId, $setId, $currentCount)) {
+                        throw new \RuntimeException('Selection limit reached. Cannot select more items.');
+                    }
+                }
             }
+            // Note: Proof and collection limits can be added here if needed
         }
 
         $media->update([
@@ -871,6 +900,12 @@ class MediaService
             $proofing = MemoraProofing::where('uuid', $mediaSet->proof_uuid)->first();
 
             return $proofing && $proofing->status->value === 'completed';
+        }
+
+        if ($mediaSet->raw_file_uuid) {
+            $rawFile = \App\Domains\Memora\Models\MemoraRawFile::where('uuid', $mediaSet->raw_file_uuid)->first();
+
+            return $rawFile && $rawFile->status->value === 'completed';
         }
 
         if ($mediaSet->selection_uuid) {

@@ -39,9 +39,9 @@ class ProofingResource extends JsonResource
             'completedCount' => $this->when(isset($this->completed_count), $this->completed_count),
             'pendingCount' => $this->when(isset($this->pending_count), $this->pending_count),
             'setCount' => $this->when(isset($this->set_count), $this->set_count) ?? ($this->relationLoaded('mediaSets') ? $this->mediaSets->count() : 0),
-            'storageUsedBytes' => $this->getStorageUsed(),
-            'storageUsedMB' => round($this->getStorageUsed() / (1024 * 1024), 2),
-            'storageUsedGB' => round($this->getStorageUsed() / (1024 * 1024 * 1024), 2),
+            'storageUsedBytes' => $storageUsed = $this->getStorageUsed(),
+            'storageUsedMB' => round($storageUsed / (1024 * 1024), 2),
+            'storageUsedGB' => round($storageUsed / (1024 * 1024 * 1024), 2),
             'isStarred' => \Illuminate\Support\Facades\Auth::check() && $this->relationLoaded('starredByUsers')
                 ? $this->starredByUsers->isNotEmpty()
                 : false,

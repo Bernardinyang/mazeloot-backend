@@ -263,4 +263,74 @@ class MediaSetController extends Controller
 
         return ApiResponse::success(['message' => 'Sets reordered successfully']);
     }
+
+    // ==================== Raw File Media Sets ====================
+
+    /**
+     * Get all media sets for a raw file with optional pagination parameters
+     */
+    public function indexForRawFile(Request $request, string $rawFileId): JsonResponse
+    {
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = max(1, min(100, (int) $request->query('per_page', 10)));
+
+        $result = $this->mediaSetService->getByRawFile($rawFileId, $page, $perPage);
+
+        return ApiResponse::success($result);
+    }
+
+    /**
+     * Get a single media set for raw file
+     */
+    public function showForRawFile(string $rawFileId, string $id): JsonResponse
+    {
+        $set = $this->mediaSetService->findByRawFile($rawFileId, $id);
+
+        return ApiResponse::success(new MediaSetResource($set));
+    }
+
+    /**
+     * Create a media set for raw file
+     */
+    public function storeForRawFile(StoreMediaSetRequest $request, string $rawFileId): JsonResponse
+    {
+        $set = $this->mediaSetService->createForRawFile($rawFileId, $request->validated());
+
+        return ApiResponse::success(new MediaSetResource($set), 201);
+    }
+
+    /**
+     * Update a media set for raw file
+     */
+    public function updateForRawFile(UpdateMediaSetRequest $request, string $rawFileId, string $id): JsonResponse
+    {
+        $set = $this->mediaSetService->updateForRawFile($rawFileId, $id, $request->validated());
+
+        return ApiResponse::success(new MediaSetResource($set));
+    }
+
+    /**
+     * Delete a media set for raw file
+     */
+    public function destroyForRawFile(string $rawFileId, string $id): JsonResponse
+    {
+        $this->mediaSetService->deleteForRawFile($rawFileId, $id);
+
+        return ApiResponse::success(null, 204);
+    }
+
+    /**
+     * Reorder media sets for raw file
+     */
+    public function reorderForRawFile(Request $request, string $rawFileId): JsonResponse
+    {
+        $request->validate([
+            'setIds' => 'required|array',
+            'setIds.*' => 'uuid',
+        ]);
+
+        $this->mediaSetService->reorderForRawFile($rawFileId, $request->input('setIds'));
+
+        return ApiResponse::success(['message' => 'Sets reordered successfully']);
+    }
 }

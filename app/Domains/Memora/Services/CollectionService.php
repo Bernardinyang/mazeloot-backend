@@ -737,6 +737,17 @@ class CollectionService
                 "Your collection '{$collection->name}' is now live and accessible to viewers.",
                 "/memora/collections/{$collection->uuid}"
             );
+        } elseif ($oldStatus === $newStatus) {
+            // General update notification (when status hasn't changed)
+            $this->notificationService->create(
+                $user->uuid,
+                'memora',
+                'collection_updated',
+                'Collection Updated',
+                "Collection '{$collection->name}' has been updated successfully.",
+                "Your collection '{$collection->name}' settings have been saved.",
+                $collection->project_uuid ? "/memora/projects/{$collection->project_uuid}/collections/{$collection->uuid}" : "/memora/collections/{$collection->uuid}"
+            );
         }
 
         // Restore preset sets if preset changed and new preset has photo_sets

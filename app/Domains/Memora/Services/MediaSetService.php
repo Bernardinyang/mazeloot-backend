@@ -597,4 +597,190 @@ class MediaSetService
             return true;
         });
     }
+
+    // ==================== Raw File Media Sets ====================
+
+    /**
+     * Create a media set in a raw file
+     */
+    public function createForRawFile(string $rawFileId, array $data): MemoraMediaSet
+    {
+        $user = Auth::user();
+        if (! $user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $rawFile = \App\Domains\Memora\Models\MemoraRawFile::findOrFail($rawFileId);
+
+        // Verify user owns the raw file
+        if ($rawFile->user_uuid !== $user->uuid) {
+            throw new \Exception('Unauthorized: You do not own this raw file');
+        }
+
+        // Check if raw file is completed
+        if ($rawFile->status->value === 'completed') {
+            throw new \RuntimeException('Cannot create sets for a completed raw file');
+        }
+
+        // Get the maximum order for sets in this raw file
+        $maxOrder = MemoraMediaSet::where('raw_file_uuid', $rawFileId)
+            ->max('order') ?? -1;
+
+        $setData = [
+            'user_uuid' => Auth::user()->uuid,
+            'raw_file_uuid' => $rawFileId,
+            'project_uuid' => $rawFile->project_uuid,
+            'name' => $data['name'],
+            'description' => $data['description'] ?? null,
+            'order' => $maxOrder + 1,
+        ];
+
+        // Handle selection_limit (support both snake_case and camelCase)
+        if (array_key_exists('selection_limit', $data) || array_key_exists('selectionLimit', $data)) {
+            $limit = $data['selection_limit'] ?? $data['selectionLimit'] ?? null;
+            if ($limit === null || $limit === '' || $limit === 0) {
+                $setData['selection_limit'] = null;
+            } else {
+                $setData['selection_limit'] = (int) $limit;
+            }
+        }
+
+        return MemoraMediaSet::create($setData);
+    }
+
+    /**
+     * Get all media sets for a raw file with pagination
+     */
+    public function getByRawFile(string $rawFileId, ?int $page = null, ?int $perPage = null)
+    {
+        $query = MemoraMediaSet::where('raw_file_uuid', $rawFileId)
+            ->withCount('media')
+            ->orderBy('order');
+
+        // Paginate the query
+        $perPage = $perPage ?? 10;
+        $paginator = $this->paginationService->paginate($query, $perPage, $page);
+
+        // Transform items to resources
+        $data = \App\Domains\Memora\Resources\V1\MediaSetResource::collection($paginator->items());
+
+        // Format response with pagination metadata
+        return [
+            'data' => $data,
+            'pagination' => [
+                'page' => $paginator->currentPage(),
+                'limit' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'totalPages' => $paginator->lastPage(),
+            ],
+        ];
+    }
+
+    /**
+     * Find a media set by raw file ID and set ID
+     */
+    public function findByRawFile(string $rawFileId, string $id): MemoraMediaSet
+    {
+        $user = Auth::user();
+        if (! $user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        $set = MemoraMediaSet::where('raw_file_uuid', $rawFileId)
+            ->where('uuid', $id)
+            ->withCount('media')
+            ->firstOrFail();
+
+        // Verify user owns the raw file
+        $rawFile = \App\Domains\Memora\Models\MemoraRawFile::findOrFail($rawFileId);
+        if ($rawFile->user_uuid !== $user->uuid) {
+            throw new \Exception('Unauthorized: You do not own this raw file');
+        }
+
+        return $set;
+    }
+
+    /**
+     * Update a media set for raw file
+     */
+    public function updateForRawFile(string $rawFileId, string $id, array $data): MemoraMediaSet
+    {
+        $set = $this->findByRawFile($rawFileId, $id);
+
+        $updateData = [];
+        if (isset($data['name'])) {
+            $updateData['name'] = $data['name'];
+        }
+        if (isset($data['description'])) {
+            $updateData['description'] = $data['description'];
+        }
+        if (isset($data['order'])) {
+            $updateData['order'] = $data['order'];
+        }
+        // Handle selection_limit update (support both snake_case and camelCase)
+        if (array_key_exists('selection_limit', $data) || array_key_exists('selectionLimit', $data)) {
+            $limit = $data['selection_limit'] ?? $data['selectionLimit'] ?? null;
+            if ($limit === null || $limit === '' || $limit === 0) {
+                $updateData['selection_limit'] = null;
+            } else {
+                $updateData['selection_limit'] = (int) $limit;
+            }
+        }
+
+        $set->update($updateData);
+
+        return $set->fresh();
+    }
+
+    /**
+     * Delete a media set for raw file
+     */
+    public function deleteForRawFile(string $rawFileId, string $id): bool
+    {
+        $set = $this->findByRawFile($rawFileId, $id);
+
+        // Load media relationship if not already loaded
+        if (! $set->relationLoaded('media')) {
+            $set->load(['media.feedback.replies', 'media.file']);
+        }
+
+        // Soft delete all media in this set, then delete the set in a transaction
+        return DB::transaction(function () use ($set) {
+            // Soft delete all media in this set
+            foreach ($set->media as $media) {
+                $media->delete();
+            }
+
+            // Soft delete the set itself
+            return $set->delete();
+        });
+    }
+
+    /**
+     * Reorder media sets for raw file
+     */
+    public function reorderForRawFile(string $rawFileId, array $setUuids): bool
+    {
+        $user = Auth::user();
+        if (! $user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        // Verify user owns the raw file
+        $rawFile = \App\Domains\Memora\Models\MemoraRawFile::findOrFail($rawFileId);
+        if ($rawFile->user_uuid !== $user->uuid) {
+            throw new \Exception('Unauthorized: You do not own this raw file');
+        }
+
+        // Update all set orders in a transaction
+        return DB::transaction(function () use ($rawFileId, $setUuids) {
+            foreach ($setUuids as $order => $setUuid) {
+                MemoraMediaSet::where('raw_file_uuid', $rawFileId)
+                    ->where('uuid', $setUuid)
+                    ->update(['order' => $order]);
+            }
+
+            return true;
+        });
+    }
 }

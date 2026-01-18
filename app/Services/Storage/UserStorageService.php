@@ -430,38 +430,62 @@ class UserStorageService
                 'selection' => 'selection_uuid',
                 'proofing' => 'proof_uuid',
                 'collection' => 'collection_uuid',
+                'raw_file' => 'raw_file_uuid',
                 default => null,
             };
 
             if (! $column) {
+                \Illuminate\Support\Facades\Log::warning('Invalid phase type for storage calculation', [
+                    'phase_type' => $phaseType,
+                    'phase_id' => $phaseId,
+                ]);
+
                 return 0;
             }
 
             // Single optimized query: get all user file UUIDs for this phase
-            // Exclude soft-deleted media from the calculation
+            // Exclude soft-deleted media and media sets from the calculation
             $userFileUuids = \Illuminate\Support\Facades\DB::table('memora_media')
                 ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
                 ->where('memora_media_sets.'.$column, $phaseId)
                 ->whereNotNull('memora_media.user_file_uuid')
                 ->whereNull('memora_media.deleted_at')
+                ->whereNull('memora_media_sets.deleted_at')
                 ->distinct()
                 ->pluck('memora_media.user_file_uuid')
                 ->filter()
                 ->values();
 
             if ($userFileUuids->isEmpty()) {
+                \Illuminate\Support\Facades\Log::debug('No media files found for phase storage calculation', [
+                    'phase_id' => $phaseId,
+                    'phase_type' => $phaseType,
+                    'column' => $column,
+                ]);
+
                 return 0;
             }
 
             // Use the same calculation method as calculateAndCacheStorage for consistency
             // Exclude soft-deleted files from storage calculation
-            $totalSize = \Illuminate\Support\Facades\DB::table('user_files')
+            $userFiles = \Illuminate\Support\Facades\DB::table('user_files')
                 ->whereIn('uuid', $userFileUuids)
                 ->whereNull('deleted_at')
-                ->get()
-                ->sum(function ($file) {
-                    return $this->calculateFileSizeFromMetadata($file);
-                });
+                ->get();
+
+            $totalSize = $userFiles->sum(function ($file) {
+                return $this->calculateFileSizeFromMetadata($file);
+            });
+
+            // Log if total size is 0 but files exist (indicates calculation issue)
+            if ($totalSize === 0 && $userFiles->isNotEmpty()) {
+                \Illuminate\Support\Facades\Log::warning('Phase storage calculation returned 0 but files exist', [
+                    'phase_id' => $phaseId,
+                    'phase_type' => $phaseType,
+                    'file_count' => $userFiles->count(),
+                    'sample_file' => $userFiles->first(),
+                ]);
+            }
 
             return $totalSize;
         } catch (\Exception $e) {
@@ -469,6 +493,7 @@ class UserStorageService
                 'phase_id' => $phaseId,
                 'phase_type' => $phaseType,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return 0;

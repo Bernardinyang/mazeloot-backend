@@ -80,8 +80,24 @@ class UploadService
             );
         }
 
+        // Use media/camera file types for raw files
+        $purpose = $options['purpose'] ?? $options['domain'] ?? null;
+        $isRawFile = $purpose && (str_contains(strtolower($purpose), 'raw') || str_contains(strtolower($purpose), 'rawfile'));
+
         // Check allowed file types
-        if (isset($options['allowedTypes']) && is_array($options['allowedTypes'])) {
+        if ($isRawFile) {
+            // For raw files, use media/camera file types
+            $rawFileTypes = config('raw_file_media_types', []);
+            if (! empty($rawFileTypes)) {
+                $mimeType = $file->getMimeType();
+                if (! in_array($mimeType, $rawFileTypes, true)) {
+                    throw UploadException::invalidFile(
+                        "File type {$mimeType} is not allowed for raw files. Only media and camera recorder file types are allowed."
+                    );
+                }
+            }
+        } elseif (isset($options['allowedTypes']) && is_array($options['allowedTypes'])) {
+            // For other contexts, use provided allowed types
             $mimeType = $file->getMimeType();
             if (! in_array($mimeType, $options['allowedTypes'], true)) {
                 throw UploadException::invalidFile(

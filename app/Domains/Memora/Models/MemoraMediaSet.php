@@ -40,6 +40,7 @@ class MemoraMediaSet extends Model
         'user_uuid',
         'project_uuid',
         'selection_uuid',
+        'raw_file_uuid',
         'proof_uuid',
         'collection_uuid',
         'name',

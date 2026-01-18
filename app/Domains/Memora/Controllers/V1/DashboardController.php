@@ -7,6 +7,7 @@ use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraPreset;
 use App\Domains\Memora\Models\MemoraProject;
 use App\Domains\Memora\Models\MemoraProofing;
+use App\Domains\Memora\Models\MemoraRawFile;
 use App\Domains\Memora\Models\MemoraSelection;
 use App\Domains\Memora\Models\MemoraWatermark;
 use App\Support\Responses\ApiResponse;
@@ -62,6 +63,11 @@ class DashboardController extends Controller
         $watermarks = MemoraWatermark::where('user_uuid', $userId)->count();
         $activeWatermarks = $watermarks; // Watermarks don't have active/inactive status
 
+        $rawFiles = MemoraRawFile::where('user_uuid', $userId)->count();
+        $activeRawFiles = MemoraRawFile::where('user_uuid', $userId)
+            ->where('status', 'active')
+            ->count();
+
         // Activity data for last 7 days
         $activityData = $this->getActivityData($userId);
 
@@ -84,6 +90,8 @@ class DashboardController extends Controller
                 'activePresets' => $activePresets,
                 'watermarks' => $watermarks,
                 'activeWatermarks' => $activeWatermarks,
+                'rawFiles' => $rawFiles,
+                'activeRawFiles' => $activeRawFiles,
             ],
             'activity' => $activityData,
             'recentActivity' => $recentActivity,
@@ -114,6 +122,9 @@ class DashboardController extends Controller
                     ->whereBetween('created_at', [$date, $nextDate])
                     ->count(),
                 'proofing' => MemoraProofing::where('user_uuid', $userId)
+                    ->whereBetween('created_at', [$date, $nextDate])
+                    ->count(),
+                'rawFiles' => MemoraRawFile::where('user_uuid', $userId)
                     ->whereBetween('created_at', [$date, $nextDate])
                     ->count(),
             ];
@@ -188,6 +199,22 @@ class DashboardController extends Controller
                 'id' => "proofing-{$item->uuid}",
                 'type' => 'proofing',
                 'title' => 'Proofing created',
+                'description' => $item->name,
+                'date' => $item->created_at->toISOString(),
+            ];
+        }
+
+        // Raw Files
+        $rawFiles = MemoraRawFile::where('user_uuid', $userId)
+            ->orderBy('created_at', 'desc')
+            ->limit(3)
+            ->get(['uuid', 'name', 'created_at']);
+
+        foreach ($rawFiles as $item) {
+            $activities[] = [
+                'id' => "rawFile-{$item->uuid}",
+                'type' => 'rawFile',
+                'title' => 'Raw file created',
                 'description' => $item->name,
                 'date' => $item->created_at->toISOString(),
             ];

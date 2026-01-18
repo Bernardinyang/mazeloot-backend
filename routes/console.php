@@ -14,3 +14,10 @@ Schedule::command('selections:auto-delete')
     ->name('auto-delete-selections')
     ->withoutOverlapping()
     ->onOneServer();
+
+// Schedule auto-deletion of expired raw files to run daily at 2:30 AM
+Schedule::command('raw-files:auto-delete')
+    ->dailyAt('02:30')
+    ->name('auto-delete-raw-files')
+    ->withoutOverlapping()
+    ->onOneServer();

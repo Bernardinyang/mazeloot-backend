@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\GuestCollectionToken;
 use App\Models\GuestProofingToken;
+use App\Models\GuestRawFileToken;
 use App\Models\GuestSelectionToken;
 use App\Support\Responses\ApiResponse;
 use Closure;
@@ -35,6 +36,11 @@ class GuestTokenAuth
         // If not found, try proofing token
         if (! $guestToken) {
             $guestToken = GuestProofingToken::where('token', $token)->first();
+        }
+
+        // If not found, try raw file token
+        if (! $guestToken) {
+            $guestToken = GuestRawFileToken::where('token', $token)->first();
         }
 
         // If not found, try collection token

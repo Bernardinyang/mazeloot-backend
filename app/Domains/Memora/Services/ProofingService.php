@@ -7,6 +7,7 @@ use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraProject;
 use App\Domains\Memora\Models\MemoraProofing;
 use App\Domains\Memora\Resources\V1\ProofingResource;
+use App\Services\Notification\NotificationService;
 use App\Services\Pagination\PaginationService;
 use App\Services\Upload\UploadService;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,10 +21,13 @@ class ProofingService
 
     protected PaginationService $paginationService;
 
-    public function __construct(UploadService $uploadService, PaginationService $paginationService)
+    protected NotificationService $notificationService;
+
+    public function __construct(UploadService $uploadService, PaginationService $paginationService, NotificationService $notificationService)
     {
         $this->uploadService = $uploadService;
         $this->paginationService = $paginationService;
+        $this->notificationService = $notificationService;
     }
 
     /**
@@ -44,7 +48,7 @@ class ProofingService
             $project = MemoraProject::findOrFail($projectUuid);
         }
 
-        return MemoraProofing::create([
+        $proofing = MemoraProofing::create([
             'user_uuid' => $user->uuid,
             'project_uuid' => $projectUuid,
             'name' => $data['name'] ?? 'Proofing',
@@ -53,6 +57,18 @@ class ProofingService
             'status' => $data['status'] ?? 'draft',
             'color' => $data['color'] ?? $project?->color ?? '#F59E0B',
         ]);
+
+        $this->notificationService->create(
+            $user->uuid,
+            'memora',
+            'proofing_created',
+            'Proofing Created',
+            "Proofing '{$proofing->name}' has been created successfully.",
+            "Your new proofing '{$proofing->name}' is now available to use.",
+            $proofing->project_uuid ? "/memora/projects/{$proofing->project_uuid}/proofing/{$proofing->uuid}" : "/memora/proofing/{$proofing->uuid}"
+        );
+
+        return $proofing;
     }
 
     /**
@@ -585,6 +601,16 @@ class ProofingService
             'primary_email_after_save' => $updated->primary_email,
         ]);
 
+        $this->notificationService->create(
+            $user->uuid,
+            'memora',
+            'proofing_updated',
+            'Proofing Updated',
+            "Proofing '{$updated->name}' has been updated successfully.",
+            "Your proofing '{$updated->name}' settings have been saved.",
+            $updated->project_uuid ? "/memora/projects/{$updated->project_uuid}/proofing/{$updated->uuid}" : "/memora/proofing/{$updated->uuid}"
+        );
+
         return $updated;
     }
 
@@ -932,7 +958,9 @@ class ProofingService
         $mediaSets = $proofing->mediaSets;
 
         // Soft delete all media in all sets, then delete all sets, then delete proofing in a transaction
-        return DB::transaction(function () use ($mediaSets, $proofing) {
+        return DB::transaction(function () use ($mediaSets, $proofing, $user) {
+            $name = $proofing->name;
+
             // Soft delete all media in all sets, then delete all sets
             foreach ($mediaSets as $set) {
                 // Ensure media is loaded for this set
@@ -949,7 +977,21 @@ class ProofingService
             }
 
             // Soft delete the proofing itself
-            return $proofing->delete();
+            $deleted = $proofing->delete();
+
+            if ($deleted) {
+                $this->notificationService->create(
+                    $user->uuid,
+                    'memora',
+                    'proofing_deleted',
+                    'Proofing Deleted',
+                    "Proofing '{$name}' has been deleted.",
+                    "The proofing '{$name}' has been permanently removed.",
+                    $proofing->project_uuid ? "/memora/projects/{$proofing->project_uuid}/proofing" : '/memora/proofing'
+                );
+            }
+
+            return $deleted;
         });
     }
 

@@ -176,6 +176,21 @@ class User extends Authenticatable
         )->withTimestamps();
     }
 
+    /**
+     * Get the raw files starred by this user.
+     */
+    public function starredRawFiles(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            \App\Domains\Memora\Models\MemoraRawFile::class,
+            'user_starred_raw_files',
+            'user_uuid',
+            'raw_file_uuid',
+            'uuid',
+            'uuid'
+        )->withTimestamps();
+    }
+
     public function starredProofing(): BelongsToMany
     {
         return $this->belongsToMany(

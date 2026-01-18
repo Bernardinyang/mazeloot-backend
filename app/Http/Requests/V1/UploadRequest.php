@@ -23,14 +23,23 @@ class UploadRequest extends FormRequest
     public function rules(): array
     {
         $maxSize = config('upload.max_size', 262144000); // 250MB default
-        $allowedTypes = config('upload.allowed_types', []);
+        $purpose = $this->input('purpose');
+        $isRawFile = $purpose && (str_contains(strtolower($purpose), 'raw') || str_contains(strtolower($purpose), 'rawfile'));
 
-        // Build File rule with size and type constraints
+        // Build File rule with size constraint
         $fileRule = File::default()->max($maxSize / 1024); // Convert to KB
 
-        // Add MIME type validation using File::types() method
-        if (! empty($allowedTypes)) {
-            $fileRule = $fileRule->types($allowedTypes);
+        // Use media/camera file types for raw files, standard types for others
+        if ($isRawFile) {
+            $rawFileTypes = config('raw_file_media_types', []);
+            if (! empty($rawFileTypes)) {
+                $fileRule = $fileRule->types($rawFileTypes);
+            }
+        } else {
+            $allowedTypes = config('upload.allowed_types', []);
+            if (! empty($allowedTypes)) {
+                $fileRule = $fileRule->types($allowedTypes);
+            }
         }
 
         return [
@@ -50,18 +59,24 @@ class UploadRequest extends FormRequest
     public function messages(): array
     {
         $maxSizeMB = number_format((config('upload.max_size', 262144000) / 1024 / 1024), 0);
-        $allowedTypes = config('upload.allowed_types', []);
-        $allowedTypesStr = ! empty($allowedTypes) ? implode(', ', $allowedTypes) : 'image or video files';
+        $purpose = $this->input('purpose');
+        $isRawFile = $purpose && (str_contains(strtolower($purpose), 'raw') || str_contains(strtolower($purpose), 'rawfile'));
+        $allowedTypes = $isRawFile ? config('raw_file_media_types', []) : config('upload.allowed_types', []);
+        $allowedTypesStr = ! empty($allowedTypes) ? implode(', ', $allowedTypes) : ($isRawFile ? 'media or camera recorder file' : 'valid file');
 
         return [
             'file.required_without' => 'Please select a file to upload.',
             'file.max' => "The file must not exceed {$maxSizeMB}MB.",
-            'file.types' => "The file must be a valid {$allowedTypesStr} file. Your file type is not allowed.",
+            'file.types' => $isRawFile 
+                ? "The file must be a valid media or camera recorder file type. Your file type is not allowed."
+                : "The file must be a valid {$allowedTypesStr} file. Your file type is not allowed.",
             'files.required_without' => 'Please select at least one file to upload.',
             'files.array' => 'Files must be provided as an array.',
             'files.*.required' => 'Each file is required.',
             'files.*.max' => "Each file must not exceed {$maxSizeMB}MB.",
-            'files.*.types' => "Each file must be a valid {$allowedTypesStr} file.",
+            'files.*.types' => $isRawFile
+                ? "Each file must be a valid media or camera recorder file type."
+                : "Each file must be a valid {$allowedTypesStr} file.",
         ];
     }
 

@@ -3,6 +3,7 @@
 use App\Domains\Memora\Controllers\V1\ClosureRequestController;
 use App\Domains\Memora\Controllers\V1\CloudStorageOAuthController;
 use App\Domains\Memora\Controllers\V1\GuestProofingController;
+use App\Domains\Memora\Controllers\V1\GuestRawFileController;
 use App\Domains\Memora\Controllers\V1\GuestSelectionController;
 use App\Domains\Memora\Controllers\V1\ProofingApprovalRequestController;
 use App\Domains\Memora\Controllers\V1\PublicCollectionController;
@@ -10,6 +11,7 @@ use App\Domains\Memora\Controllers\V1\PublicMediaController;
 use App\Domains\Memora\Controllers\V1\PublicMediaSetController;
 use App\Domains\Memora\Controllers\V1\PublicProofingController;
 use App\Domains\Memora\Controllers\V1\PublicProofingMediaSetController;
+use App\Domains\Memora\Controllers\V1\PublicRawFileController;
 use App\Domains\Memora\Controllers\V1\PublicSelectionController;
 use App\Domains\Memora\Controllers\V1\PublicSettingsController;
 use Illuminate\Support\Facades\Route;
@@ -47,6 +49,40 @@ Route::prefix('public/selections')->group(function () {
         Route::get('/{id}/sets/{setId}/media', [PublicMediaController::class, 'getSetMedia']);
         Route::get('/{id}/filenames', [PublicSelectionController::class, 'getSelectedFilenames']);
         Route::post('/{id}/complete', [PublicSelectionController::class, 'complete']);
+        Route::patch('/{id}/media/{mediaId}/toggle-selected', [PublicMediaController::class, 'toggleSelected']);
+    });
+});
+
+// Public Raw File Routes (protected by guest token, not user authentication)
+Route::prefix('public/raw-files')->group(function () {
+    // Check raw file status (truly public - no authentication required)
+    Route::get('/{id}/status', [PublicRawFileController::class, 'checkStatus']);
+
+    // Verify password (truly public - no authentication required)
+    Route::post('/{id}/verify-password', [PublicRawFileController::class, 'verifyPassword']);
+
+    // Verify download PIN (truly public - no authentication required)
+    Route::post('/{id}/verify-download-pin', [PublicRawFileController::class, 'verifyDownloadPin']);
+
+    // Generate guest token (truly public - no authentication required)
+    Route::post('/{id}/token', [GuestRawFileController::class, 'generateToken']);
+
+    // Download media from raw file (public - no authentication required, but validates download PIN)
+    Route::get('/{id}/media/{mediaId}/download', [PublicMediaController::class, 'downloadRawFileMedia']);
+
+    // ZIP download routes
+    Route::post('/{id}/download/zip', [PublicRawFileController::class, 'initiateZipDownload']);
+    Route::get('/{id}/download/zip/{token}/status', [PublicRawFileController::class, 'getZipDownloadStatus']);
+    Route::get('/{id}/download/zip/{token}', [PublicRawFileController::class, 'downloadZip']);
+
+    // Guest Raw File Routes (protected by guest token middleware)
+    Route::middleware(['guest.token'])->group(function () {
+        Route::get('/{id}', [PublicRawFileController::class, 'show']);
+        Route::get('/{id}/sets', [PublicMediaSetController::class, 'index']);
+        Route::get('/{id}/sets/{setId}', [PublicMediaSetController::class, 'show']);
+        Route::get('/{id}/sets/{setId}/media', [PublicMediaController::class, 'getSetMedia']);
+        Route::get('/{id}/filenames', [PublicRawFileController::class, 'getSelectedFilenames']);
+        Route::post('/{id}/complete', [PublicRawFileController::class, 'complete']);
         Route::patch('/{id}/media/{mediaId}/toggle-selected', [PublicMediaController::class, 'toggleSelected']);
     });
 });

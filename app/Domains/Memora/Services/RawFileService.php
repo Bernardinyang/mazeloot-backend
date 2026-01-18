@@ -5,8 +5,8 @@ namespace App\Domains\Memora\Services;
 use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraProject;
-use App\Domains\Memora\Models\MemoraSelection;
-use App\Domains\Memora\Resources\V1\SelectionResource;
+use App\Domains\Memora\Models\MemoraRawFile;
+use App\Domains\Memora\Resources\V1\RawFileResource;
 use App\Services\Notification\NotificationService;
 use App\Services\Pagination\PaginationService;
 use Illuminate\Database\Eloquent\Builder;
@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-class SelectionService
+class RawFileService
 {
     protected PaginationService $paginationService;
 
@@ -30,9 +30,9 @@ class SelectionService
     }
 
     /**
-     * Create a selection (standalone or project-based based on project_uuid in data)
+     * Create a raw file (standalone or project-based based on project_uuid in data)
      */
-    public function create(array $data): SelectionResource
+    public function create(array $data): RawFileResource
     {
         $projectUuid = $data['project_uuid'] ?? null;
 
@@ -40,7 +40,7 @@ class SelectionService
             MemoraProject::query()->findOrFail($projectUuid);
         }
 
-        $selectionData = [
+        $rawFileData = [
             'user_uuid' => Auth::user()->uuid,
             'project_uuid' => $projectUuid,
             'name' => $data['name'],
@@ -49,42 +49,42 @@ class SelectionService
         ];
 
         if (! empty($data['password'])) {
-            $selectionData['password'] = $data['password'];
+            $rawFileData['password'] = $data['password'];
         }
 
-        if (isset($data['selection_limit']) || isset($data['selectionLimit'])) {
-            $selectionData['selection_limit'] = $data['selection_limit'] ?? $data['selectionLimit'] ?? null;
+        if (isset($data['raw_file_limit']) || isset($data['rawFileLimit'])) {
+            $rawFileData['raw_file_limit'] = $data['raw_file_limit'] ?? $data['rawFileLimit'] ?? null;
         }
 
-        $selection = MemoraSelection::query()->create($selectionData);
+        $rawFile = MemoraRawFile::query()->create($rawFileData);
 
         $user = Auth::user();
         $this->notificationService->create(
             $user->uuid,
             'memora',
-            'selection_created',
-            'Selection Created',
-            "Selection '{$selection->name}' has been created successfully.",
-            "Your new selection '{$selection->name}' is now available to use.",
-            $selection->project_uuid ? "/memora/projects/{$selection->project_uuid}/selections/{$selection->uuid}" : "/memora/selections/{$selection->uuid}"
+            'raw_file_created',
+            'Raw File Created',
+            "Raw File '{$rawFile->name}' has been created successfully.",
+            "Your new raw file '{$rawFile->name}' is now available to use.",
+            $rawFile->project_uuid ? "/memora/projects/{$rawFile->project_uuid}/raw-files/{$rawFile->uuid}" : "/memora/raw-files/{$rawFile->uuid}"
         );
 
-        return new SelectionResource($this->findModel($selection->uuid));
+        return new RawFileResource($this->findModel($rawFile->uuid));
     }
 
     /**
-     * Get a selection model by ID (internal use)
+     * Get a raw file model by ID (internal use)
      *
-     * @param  string  $id  Selection UUID
+     * @param  string  $id  Raw File UUID
      */
-    protected function findModel(string $id): MemoraSelection
+    protected function findModel(string $id): MemoraRawFile
     {
         $user = Auth::user();
         if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
-        $selection = MemoraSelection::query()->where('user_uuid', $user->uuid)
+        $rawFile = MemoraRawFile::query()->where('user_uuid', $user->uuid)
             ->where('uuid', $id)
             ->with(['mediaSets' => function ($query) {
                 $query->withCount('media')->orderBy('order');
@@ -96,25 +96,25 @@ class SelectionService
             ->addSelect([
                 'media_count' => MemoraMedia::query()->selectRaw('COUNT(*)')
                     ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
-                    ->whereColumn('memora_media_sets.selection_uuid', 'memora_selections.uuid')
+                    ->whereColumn('memora_media_sets.raw_file_uuid', 'memora_raw_files.uuid')
                     ->limit(1),
                 'selected_count' => MemoraMedia::query()->selectRaw('COUNT(*)')
                     ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
-                    ->whereColumn('memora_media_sets.selection_uuid', 'memora_selections.uuid')
+                    ->whereColumn('memora_media_sets.raw_file_uuid', 'memora_raw_files.uuid')
                     ->where('memora_media.is_selected', true)
                     ->limit(1),
             ])
             ->firstOrFail();
 
         // Map the subquery results to the expected attribute names
-        $selection->setAttribute('media_count', (int) ($selection->media_count ?? 0));
-        $selection->setAttribute('selected_count', (int) ($selection->selected_count ?? 0));
+        $rawFile->setAttribute('media_count', (int) ($rawFile->media_count ?? 0));
+        $rawFile->setAttribute('selected_count', (int) ($rawFile->selected_count ?? 0));
 
-        return $selection;
+        return $rawFile;
     }
 
     /**
-     * Get all selections with optional search, sort, filter, and pagination parameters
+     * Get all raw files with optional search, sort, filter, and pagination parameters
      *
      * @param  string|null  $projectUuid  Filter by project UUID
      * @param  string|null  $search  Search query (searches in name)
@@ -134,7 +134,7 @@ class SelectionService
         int $page = 1,
         int $perPage = 10
     ): array {
-        $query = MemoraSelection::query()->where('user_uuid', Auth::user()->uuid)
+        $query = MemoraRawFile::query()->where('user_uuid', Auth::user()->uuid)
             ->with(['project'])
             ->with(['mediaSets' => function ($query) {
                 $query->withCount('media')->orderBy('order');
@@ -146,11 +146,11 @@ class SelectionService
             ->addSelect([
                 'media_count' => MemoraMedia::query()->selectRaw('COALESCE(COUNT(*), 0)')
                     ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
-                    ->whereColumn('memora_media_sets.selection_uuid', 'memora_selections.uuid')
+                    ->whereColumn('memora_media_sets.raw_file_uuid', 'memora_raw_files.uuid')
                     ->limit(1),
                 'selected_count' => MemoraMedia::query()->selectRaw('COALESCE(COUNT(*), 0)')
                     ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
-                    ->whereColumn('memora_media_sets.selection_uuid', 'memora_selections.uuid')
+                    ->whereColumn('memora_media_sets.raw_file_uuid', 'memora_raw_files.uuid')
                     ->where('memora_media.is_selected', true)
                     ->limit(1),
             ]);
@@ -173,12 +173,12 @@ class SelectionService
         // Filter by starred status
         if ($starred !== null) {
             if ($starred) {
-                // Only get selections that are starred by the current user
+                // Only get rawFiles that are starred by the current user
                 $query->whereHas('starredByUsers', function ($q) {
                     $q->where('user_uuid', Auth::user()->uuid);
                 });
             } else {
-                // Only get selections that are NOT starred by the current user
+                // Only get rawFiles that are NOT starred by the current user
                 $query->whereDoesntHave('starredByUsers', function ($q) {
                     $q->where('user_uuid', Auth::user()->uuid);
                 });
@@ -197,13 +197,13 @@ class SelectionService
         $paginator = $this->paginationService->paginate($query, $perPage, $page);
 
         // Map the subquery results to the expected attribute names
-        foreach ($paginator->items() as $selection) {
-            $selection->setAttribute('media_count', (int) ($selection->media_count ?? 0));
-            $selection->setAttribute('selected_count', (int) ($selection->selected_count ?? 0));
+        foreach ($paginator->items() as $rawFile) {
+            $rawFile->setAttribute('media_count', (int) ($rawFile->media_count ?? 0));
+            $rawFile->setAttribute('selected_count', (int) ($rawFile->selected_count ?? 0));
         }
 
         // Transform items to resources
-        $data = SelectionResource::collection($paginator->items());
+        $data = RawFileResource::collection($paginator->items());
 
         // Format response with pagination metadata
         return [
@@ -245,18 +245,18 @@ class SelectionService
         $query->orderBy($dbField, $direction);
     }
 
-    public function publish(string $id): SelectionResource
+    public function publish(string $id): RawFileResource
     {
         $user = Auth::user();
         if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
-        $selection = MemoraSelection::where('user_uuid', $user->uuid)
+        $rawFile = MemoraRawFile::where('user_uuid', $user->uuid)
             ->where('uuid', $id)
             ->firstOrFail();
 
-        $newStatus = match ($selection->status->value) {
+        $newStatus = match ($rawFile->status->value) {
             'draft' => 'active',
             'active' => 'draft',
             'completed' => 'active',
@@ -265,56 +265,56 @@ class SelectionService
 
         // Validate that at least one email is in allowed_emails before publishing to active
         if ($newStatus === 'active') {
-            $allowedEmails = $selection->allowed_emails ?? [];
+            $allowedEmails = $rawFile->allowed_emails ?? [];
             if (empty($allowedEmails) || ! is_array($allowedEmails) || count(array_filter($allowedEmails)) === 0) {
                 throw new \Illuminate\Validation\ValidationException(
                     validator([], []),
-                    ['allowed_emails' => ['At least one email address must be added to "Allowed Emails" before publishing the selection.']]
+                    ['allowed_emails' => ['At least one email address must be added to "Allowed Emails" before publishing the rawFile.']]
                 );
             }
         }
 
-        $wasCompleted = $selection->status->value === 'completed';
-        $selection->update(['status' => $newStatus]);
+        $wasCompleted = $rawFile->status->value === 'completed';
+        $rawFile->update(['status' => $newStatus]);
 
-        $selection->refresh();
-        $selection->load(['mediaSets' => function ($query) {
+        $rawFile->refresh();
+        $rawFile->load(['mediaSets' => function ($query) {
             $query->withCount('media')->orderBy('order');
         }]);
-        $selection->load(['starredByUsers' => function ($query) use ($user) {
+        $rawFile->load(['starredByUsers' => function ($query) use ($user) {
             $query->where('user_uuid', $user->uuid);
         }]);
 
-        // Notify the selection owner when republishing a completed selection
+        // Notify the rawFile owner when republishing a completed rawFile
         if ($wasCompleted && $newStatus === 'active') {
             try {
                 $this->notificationService->create(
                     $user->uuid,
                     'memora',
-                    'selection_republished',
-                    'Selection Republished',
-                    "Selection '{$selection->name}' has been republished.",
-                    "Selection '{$selection->name}' has been republished and is now available to clients.",
-                    "/memora/selections/{$selection->uuid}"
+                    'raw_file_republished',
+                    'Raw File Republished',
+                    "RawFile '{$rawFile->name}' has been republished.",
+                    "RawFile '{$rawFile->name}' has been republished and is now available to clients.",
+                    "/memora/rawFiles/{$rawFile->uuid}"
                 );
             } catch (\Exception $e) {
-                Log::error('Failed to send selection republish notification', [
-                    'selection_uuid' => $selection->uuid,
+                Log::error('Failed to send rawFile republish notification', [
+                    'raw_file_uuid' => $rawFile->uuid,
                     'user_uuid' => $user->uuid,
                     'error' => $e->getMessage(),
                 ]);
             }
         }
 
-        return new SelectionResource($selection);
+        return new RawFileResource($rawFile);
     }
 
     /**
-     * Update a selection
+     * Update a rawFile
      */
-    public function update(string $id, array $data): SelectionResource
+    public function update(string $id, array $data): RawFileResource
     {
-        $selection = MemoraSelection::query()->where('user_uuid', Auth::user()->uuid)
+        $rawFile = MemoraRawFile::query()->where('user_uuid', Auth::user()->uuid)
             ->where('uuid', $id)
             ->firstOrFail();
 
@@ -371,10 +371,10 @@ class SelectionService
             $updateData['allowed_emails'] = ! empty($emails) ? array_values($emails) : null;
         }
 
-        // Handle selection_limit update (support both snake_case and camelCase)
-        if (array_key_exists('selection_limit', $data) || array_key_exists('selectionLimit', $data)) {
-            $limit = $data['selection_limit'] ?? $data['selectionLimit'] ?? null;
-            $updateData['selection_limit'] = $limit !== null ? (int) $limit : null;
+        // Handle raw_file_limit update (support both snake_case and camelCase)
+        if (array_key_exists('raw_file_limit', $data) || array_key_exists('rawFileLimit', $data)) {
+            $limit = $data['raw_file_limit'] ?? $data['rawFileLimit'] ?? null;
+            $updateData['raw_file_limit'] = $limit !== null ? (int) $limit : null;
         }
 
         // Handle auto_delete_date update
@@ -385,7 +385,7 @@ class SelectionService
         // Handle settings updates (typographyDesign and galleryAssist)
         $needsSettingsUpdate = false;
         // Always start with existing settings to preserve all existing values
-        $settings = $selection->settings ?? [];
+        $settings = $rawFile->settings ?? [];
 
         // Handle typographyDesign - always merge with defaults
         if (isset($data['typographyDesign'])) {
@@ -411,35 +411,55 @@ class SelectionService
             $needsSettingsUpdate = true;
         }
 
+        // Handle download settings
+        if (isset($data['download']) && is_array($data['download'])) {
+            $downloadSettings = $data['download'];
+            $settings['download'] = [
+                'downloadEnabled' => $downloadSettings['downloadEnabled'] ?? true,
+                'downloadPinEnabled' => $downloadSettings['downloadPinEnabled'] ?? false,
+                'downloadPin' => $downloadSettings['downloadPin'] ?? null,
+            ];
+            $needsSettingsUpdate = true;
+        }
+
+        // Handle top-level downloadEnabled for backward compatibility
+        if (isset($data['downloadEnabled'])) {
+            if (!isset($settings['download'])) {
+                $settings['download'] = [];
+            }
+            $settings['download']['downloadEnabled'] = (bool) $data['downloadEnabled'];
+            $needsSettingsUpdate = true;
+        }
+
         if ($needsSettingsUpdate) {
             $updateData['settings'] = $settings;
         }
 
         // Validate that at least one email is in allowed_emails before changing status to active
-        $newStatus = $updateData['status'] ?? $selection->status->value;
+        $newStatus = $updateData['status'] ?? $rawFile->status->value;
         if ($newStatus === 'active') {
-            // Get the current allowed_emails (either from update data or existing selection)
-            $allowedEmails = $updateData['allowed_emails'] ?? $selection->allowed_emails ?? [];
+            // Get the current allowed_emails (either from update data or existing rawFile)
+            $allowedEmails = $updateData['allowed_emails'] ?? $rawFile->allowed_emails ?? [];
             if (empty($allowedEmails) || ! is_array($allowedEmails) || count(array_filter($allowedEmails)) === 0) {
                 throw new \Illuminate\Validation\ValidationException(
                     validator([], []),
-                    ['allowed_emails' => ['At least one email address must be added to "Allowed Emails" before publishing the selection.']]
+                    ['allowed_emails' => ['At least one email address must be added to "Allowed Emails" before publishing the rawFile.']]
                 );
             }
         }
 
-        $selection->update($updateData);
-        $selection->refresh();
+        $rawFile->update($updateData);
+        $rawFile->refresh();
 
         $user = Auth::user();
         $this->notificationService->create(
             $user->uuid,
             'memora',
-            'selection_updated',
-            'Selection Updated',
-            "Selection '{$selection->name}' has been updated successfully.",
-            "Your selection '{$selection->name}' settings have been saved.",
-            $selection->project_uuid ? "/memora/projects/{$selection->project_uuid}/selections/{$selection->uuid}" : "/memora/selections/{$selection->uuid}"
+            'raw_file_updated',
+            'Raw File Updated',
+            "Raw File '{$rawFile->name}' has been updated successfully.",
+            "Your raw file '{$rawFile->name}' settings have been saved.",
+            $rawFile->project_uuid ? "/memora/projects/{$rawFile->project_uuid}/raw-files/{$rawFile->uuid}" : "/memora/raw-files/{$rawFile->uuid}"
         );
 
         // Return with calculated counts
@@ -447,21 +467,21 @@ class SelectionService
     }
 
     /**
-     * Get a selection by ID (works for both standalone and project-based)
+     * Get a rawFile by ID (works for both standalone and project-based)
      * Returns a resource for API responses
      */
-    public function find(string $id): SelectionResource
+    public function find(string $id): RawFileResource
     {
-        return new SelectionResource($this->findModel($id));
+        return new RawFileResource($this->findModel($id));
     }
 
     /**
-     * Complete a selection (only for guests)
+     * Complete a raw file (only for guests)
      * Marks the provided media UUIDs as selected when completing
      */
-    public function complete(string $id, array $mediaIds, ?string $completedByEmail = null): SelectionResource
+    public function complete(string $id, array $mediaIds, ?string $completedByEmail = null): RawFileResource
     {
-        $query = MemoraSelection::query()->where('uuid', $id)
+        $query = MemoraRawFile::query()->where('uuid', $id)
             ->with(['mediaSets' => function ($query) {
                 $query->withCount('media')->orderBy('order');
             }]);
@@ -473,13 +493,13 @@ class SelectionService
             }]);
         }
 
-        $selection = $query->firstOrFail();
+        $rawFile = $query->firstOrFail();
 
-        // Mark media as selected and update selection status in a transaction
-        return DB::transaction(function () use ($selection, $id, $mediaIds, $completedByEmail, $user) {
+        // Mark media as selected and update rawFile status in a transaction
+        return DB::transaction(function () use ($rawFile, $id, $mediaIds, $completedByEmail, $user) {
             // Mark the provided media as selected
             MemoraMedia::query()->whereHas('mediaSet', function ($query) use ($id) {
-                $query->where('selection_uuid', $id);
+                $query->where('raw_file_uuid', $id);
             })
                 ->whereIn('uuid', $mediaIds)
                 ->update([
@@ -487,46 +507,46 @@ class SelectionService
                     'selected_at' => now(),
                 ]);
 
-            $selection->update([
+            $rawFile->update([
                 'status' => 'completed',
-                'selection_completed_at' => now(),
+                'raw_file_completed_at' => now(),
                 'completed_by_email' => $completedByEmail,
                 'auto_delete_date' => now()->addDays(30),
             ]);
 
-            $selection->refresh();
-            $selection->load(['mediaSets' => function ($query) {
+            $rawFile->refresh();
+            $rawFile->load(['mediaSets' => function ($query) {
                 $query->withCount('media')->orderBy('order');
             }]);
 
             if ($user) {
-                $selection->load(['starredByUsers' => function ($q) use ($user) {
+                $rawFile->load(['starredByUsers' => function ($q) use ($user) {
                     $q->where('user_uuid', $user->uuid);
                 }]);
             }
 
-            // Notify the selection owner when a client completes the selection
+            // Notify the rawFile owner when a client completes the rawFile
             try {
                 $this->notificationService->create(
-                    $selection->user_uuid,
+                    $rawFile->user_uuid,
                     'memora',
-                    'selection_completed',
-                    'Selection Completed',
-                    "Selection '{$selection->name}' has been completed by a client.",
+                    'raw_file_completed',
+                    'Raw File Completed',
+                    "Raw file '{$rawFile->name}' has been completed by a client.",
                     $completedByEmail
-                        ? "Selection '{$selection->name}' has been completed by {$completedByEmail}."
-                        : "Selection '{$selection->name}' has been completed.",
-                    "/memora/selections/{$selection->uuid}"
+                        ? "Raw file '{$rawFile->name}' has been completed by {$completedByEmail}."
+                        : "Raw file '{$rawFile->name}' has been completed.",
+                    "/memora/raw-files/{$rawFile->uuid}"
                 );
             } catch (\Exception $e) {
-                Log::error('Failed to send selection completion notification', [
-                    'selection_uuid' => $selection->uuid,
-                    'user_uuid' => $selection->user_uuid,
+                Log::error('Failed to send rawFile completion notification', [
+                    'raw_file_uuid' => $rawFile->uuid,
+                    'user_uuid' => $rawFile->user_uuid,
                     'error' => $e->getMessage(),
                 ]);
             }
 
-            return new SelectionResource($selection);
+            return new RawFileResource($rawFile);
         });
     }
 
@@ -535,10 +555,10 @@ class SelectionService
      */
     public function recover(string $id, array $mediaIds): array
     {
-        $selection = $this->findModel($id);
+        $rawFile = $this->findModel($id);
 
         $recovered = MemoraMedia::query()->whereHas('mediaSet', function ($query) use ($id) {
-            $query->where('selection_uuid', $id);
+            $query->where('raw_file_uuid', $id);
         })
             ->whereIn('uuid', $mediaIds)
             ->withTrashed() // If soft deletes are enabled
@@ -555,7 +575,7 @@ class SelectionService
     public function getSelectedMedia(string $id, ?string $setUuid = null): Collection
     {
         $query = MemoraMedia::query()->whereHas('mediaSet', function ($query) use ($id) {
-            $query->where('selection_uuid', $id);
+            $query->where('raw_file_uuid', $id);
         })
             ->where('is_selected', true)
             ->with(['file'])
@@ -575,7 +595,7 @@ class SelectionService
     {
         $query = MemoraMedia::query()
             ->whereHas('mediaSet', function ($q) use ($id, $setId) {
-                $q->where('selection_uuid', $id);
+                $q->where('raw_file_uuid', $id);
                 if ($setId) {
                     $q->where('uuid', $setId);
                 }
@@ -600,21 +620,21 @@ class SelectionService
     }
 
     /**
-     * Reset selection limit
+     * Reset raw file limit
      */
-    public function resetSelectionLimit(string $id): SelectionResource
+    public function resetRawFileLimit(string $id): RawFileResource
     {
-        $selection = MemoraSelection::query()->where('user_uuid', Auth::user()->uuid)
+        $rawFile = MemoraRawFile::query()->where('user_uuid', Auth::user()->uuid)
             ->where('uuid', $id)
             ->firstOrFail();
 
-        // Only allow reset if selection is completed
-        if ($selection->status->value !== 'completed') {
-            throw new \RuntimeException('Selection limit can only be reset for completed selections');
+        // Only allow reset if raw file is completed
+        if ($rawFile->status->value !== 'completed') {
+            throw new \RuntimeException('Raw file limit can only be reset for completed raw files');
         }
 
-        $selection->update([
-            'reset_selection_limit_at' => now(),
+        $rawFile->update([
+            'reset_raw_file_limit_at' => now(),
         ]);
 
         return $this->find($id);
@@ -623,21 +643,21 @@ class SelectionService
     /**
      * Set cover photo from media thumbnail URL
      */
-    public function setCoverPhotoFromMedia(string $selectionId, string $mediaUuid, ?array $focalPoint = null): SelectionResource
+    public function setCoverPhotoFromMedia(string $rawFileId, string $mediaUuid, ?array $focalPoint = null): RawFileResource
     {
-        // Find the selection and verify ownership
-        $selection = MemoraSelection::query()
-            ->where('uuid', $selectionId)
+        // Find the rawFile and verify ownership
+        $rawFile = MemoraRawFile::query()
+            ->where('uuid', $rawFileId)
             ->where('user_uuid', Auth::user()->uuid)
             ->firstOrFail();
 
-        // Find the media and verify it belongs to this selection
+        // Find the media and verify it belongs to this rawFile
         $media = MemoraMedia::query()
             ->where('uuid', $mediaUuid)
             ->where('user_uuid', Auth::user()->uuid)
             ->with('file')
-            ->whereHas('mediaSet', function ($query) use ($selectionId) {
-                $query->where('selection_uuid', $selectionId);
+            ->whereHas('mediaSet', function ($query) use ($rawFileId) {
+                $query->where('raw_file_uuid', $rawFileId);
             })
             ->firstOrFail();
 
@@ -689,30 +709,30 @@ class SelectionService
             $updateData['cover_focal_point'] = $focalPoint;
         }
 
-        // Update selection with cover photo URL and optional focal point
+        // Update rawFile with cover photo URL and optional focal point
         // For videos, this will be the video URL; for images, it will be the thumbnail URL
-        $selection->update($updateData);
+        $rawFile->update($updateData);
 
-        // Return updated selection
-        return $this->find($selectionId);
+        // Return updated rawFile
+        return $this->find($rawFileId);
     }
 
     /**
-     * Toggle star status for a selection
+     * Toggle star status for a rawFile
      *
-     * @param  string  $id  Selection UUID
-     * @return array{starred: bool} Returns whether the selection is now starred
+     * @param  string  $id  RawFile UUID
+     * @return array{starred: bool} Returns whether the rawFile is now starred
      */
     public function toggleStar(string $id): array
     {
-        $selection = $this->findModel($id);
+        $rawFile = $this->findModel($id);
         $user = Auth::user();
 
         // Toggle the star relationship
-        $user->starredSelections()->toggle($selection->uuid);
+        $user->starredRawFiles()->toggle($rawFile->uuid);
 
         // Check if it's now starred
-        $isStarred = $user->starredSelections()->where('selection_uuid', $selection->uuid)->exists();
+        $isStarred = $user->starredRawFiles()->where('raw_file_uuid', $rawFile->uuid)->exists();
 
         return [
             'starred' => $isStarred,
@@ -720,26 +740,26 @@ class SelectionService
     }
 
     /**
-     * Auto-delete selections that have passed their auto_delete_date
-     * Only deletes unselected media (is_selected = false), keeping selected media and selection intact
+     * Auto-delete rawFiles that have passed their auto_delete_date
+     * Only deletes unselected media (is_selected = false), keeping selected media and rawFile intact
      *
      * @return array{unselected_media_deleted: int}
      */
-    public function autoDeleteExpiredSelections(): array
+    public function autoDeleteExpiredRawFiles(): array
     {
-        $expiredSelections = MemoraSelection::query()
+        $expiredRawFiles = MemoraRawFile::query()
             ->whereNotNull('auto_delete_date')
             ->where('auto_delete_date', '<=', now())
             ->get();
 
         $unselectedMediaDeleted = 0;
 
-        foreach ($expiredSelections as $selection) {
+        foreach ($expiredRawFiles as $rawFile) {
             try {
-                // Get all unselected media in this selection (only where is_selected = false)
+                // Get all unselected media in this rawFile (only where is_selected = false)
                 $unselectedMedia = MemoraMedia::query()
-                    ->whereHas('mediaSet', function ($query) use ($selection) {
-                        $query->where('selection_uuid', $selection->uuid);
+                    ->whereHas('mediaSet', function ($query) use ($rawFile) {
+                        $query->where('raw_file_uuid', $rawFile->uuid);
                     })
                     ->where('is_selected', false)
                     ->get();
@@ -758,12 +778,12 @@ class SelectionService
 
                 // Clear the auto_delete_date since we've processed the unselected media
                 // This prevents it from being processed again
-                // The selection remains intact regardless of remaining media
-                $selection->update(['auto_delete_date' => null]);
+                // The rawFile remains intact regardless of remaining media
+                $rawFile->update(['auto_delete_date' => null]);
             } catch (\Exception $e) {
-                // Log error but continue with other selections
+                // Log error but continue with other rawFiles
                 Log::error(
-                    "Failed to auto-delete expired selection {$selection->uuid}: ".$e->getMessage()
+                    "Failed to auto-delete expired rawFile {$rawFile->uuid}: ".$e->getMessage()
                 );
             }
         }
@@ -774,20 +794,20 @@ class SelectionService
     }
 
     /**
-     * Duplicate a selection with all settings, media sets, and media
+     * Duplicate a rawFile with all settings, media sets, and media
      *
-     * @param  string  $id  Selection UUID
-     * @return SelectionResource The duplicated selection
+     * @param  string  $id  RawFile UUID
+     * @return RawFileResource The duplicated rawFile
      */
-    public function duplicate(string $id): SelectionResource
+    public function duplicate(string $id): RawFileResource
     {
         $user = Auth::user();
         if (! $user) {
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
-        // Load the original selection with all relationships
-        $original = MemoraSelection::where('uuid', $id)
+        // Load the original rawFile with all relationships
+        $original = MemoraRawFile::where('uuid', $id)
             ->where('user_uuid', $user->uuid)
             ->with([
                 'mediaSets' => function ($query) {
@@ -798,8 +818,8 @@ class SelectionService
             ])
             ->firstOrFail();
 
-        // Create the duplicated selection
-        $duplicated = MemoraSelection::create([
+        // Create the duplicated rawFile
+        $duplicated = MemoraRawFile::create([
             'user_uuid' => $user->uuid,
             'project_uuid' => $original->project_uuid,
             'name' => $original->name.' (Copy)',
@@ -808,7 +828,7 @@ class SelectionService
             'color' => $original->color,
             'password' => $original->password,
             'allowed_emails' => $original->allowed_emails,
-            'selection_limit' => $original->selection_limit,
+            'raw_file_limit' => $original->raw_file_limit,
             'settings' => $original->settings,
             'auto_delete_enabled' => false, // Reset auto-delete
             'auto_delete_days' => null,
@@ -819,12 +839,12 @@ class SelectionService
         foreach ($original->mediaSets as $originalSet) {
             $newSet = MemoraMediaSet::create([
                 'user_uuid' => $user->uuid,
-                'selection_uuid' => $duplicated->uuid,
+                'raw_file_uuid' => $duplicated->uuid,
                 'project_uuid' => $originalSet->project_uuid,
                 'name' => $originalSet->name,
                 'description' => $originalSet->description,
                 'order' => $originalSet->order,
-                'selection_limit' => $originalSet->selection_limit,
+                'raw_file_limit' => $originalSet->raw_file_limit,
             ]);
             $newSet->refresh(); // Ensure UUID is loaded from database
             $newSetUuid = $newSet->uuid;
@@ -838,34 +858,34 @@ class SelectionService
                     'original_file_uuid' => $originalMedia->original_file_uuid,
                     'watermark_uuid' => $originalMedia->watermark_uuid,
                     'order' => $originalMedia->order,
-                    'is_selected' => false, // Reset selection status
+                    'is_selected' => false, // Reset rawFile status
                     'is_private' => false, // Reset private status
                 ]);
             }
         }
 
-        return new SelectionResource($this->findModel($duplicated->uuid));
+        return new RawFileResource($this->findModel($duplicated->uuid));
     }
 
     /**
-     * Delete a selection and all its sets and media
+     * Delete a rawFile and all its sets and media
      */
     public function delete(string $id): bool
     {
-        $selection = $this->findModel($id);
+        $rawFile = $this->findModel($id);
 
         // Load media sets relationship if not already loaded
-        if (! $selection->relationLoaded('mediaSets')) {
-            $selection->load('mediaSets.media');
+        if (! $rawFile->relationLoaded('mediaSets')) {
+            $rawFile->load('mediaSets.media');
         }
 
-        // Get all media sets for this selection
-        $mediaSets = $selection->mediaSets;
+        // Get all media sets for this rawFile
+        $mediaSets = $rawFile->mediaSets;
 
-        // Soft delete all media in all sets, then delete all sets, then delete selection in a transaction
-        return DB::transaction(function () use ($mediaSets, $selection) {
+        // Soft delete all media in all sets, then delete all sets, then delete rawFile in a transaction
+        return DB::transaction(function () use ($mediaSets, $rawFile) {
             $user = Auth::user();
-            $name = $selection->name;
+            $name = $rawFile->name;
 
             // Soft delete all media in all sets, then delete all sets
             foreach ($mediaSets as $set) {
@@ -883,19 +903,19 @@ class SelectionService
                 $set->delete();
             }
 
-            // Soft delete the selection itself
-            $deleted = $selection->delete();
+            // Soft delete the rawFile itself
+            $deleted = $rawFile->delete();
 
             // Create notification if user is authenticated and deletion was successful
             if ($deleted && $user) {
                 $this->notificationService->create(
                     $user->uuid,
                     'memora',
-                    'selection_deleted',
-                    'Selection Deleted',
-                    "Selection '{$name}' has been deleted.",
-                    "The selection '{$name}' has been permanently removed.",
-                    '/memora/selections'
+                    'raw_file_deleted',
+                    'Raw File Deleted',
+                    "RawFile '{$name}' has been deleted.",
+                    "The rawFile '{$name}' has been permanently removed.",
+                    '/memora/rawFiles'
                 );
             }
 

@@ -723,7 +723,48 @@ class MediaController extends Controller
         try {
             Log::info('Download request started', ['media_uuid' => $mediaUuid]);
 
-            $media = $this->mediaService->getMediaForDownload($mediaUuid);
+            // First check if media belongs to raw file and if download PIN is needed
+            // We need to load mediaSet separately to avoid ownership check blocking non-owners with PIN
+            $media = \App\Domains\Memora\Models\MemoraMedia::where('uuid', $mediaUuid)
+                ->with(['file', 'mediaSet'])
+                ->firstOrFail();
+            
+            $mediaSet = $media->mediaSet;
+            $requiresPinCheck = false;
+            
+            if ($mediaSet && $mediaSet->raw_file_uuid) {
+                $rawFile = \App\Domains\Memora\Models\MemoraRawFile::where('uuid', $mediaSet->raw_file_uuid)->first();
+                if ($rawFile) {
+                    $isOwner = auth()->check() && auth()->user()->uuid === $rawFile->user_uuid;
+                    
+                    // Check download PIN for non-owners
+                    if (!$isOwner) {
+                        $settings = $rawFile->settings ?? [];
+                        $downloadSettings = $settings['download'] ?? [];
+                        $downloadPinEnabled = $downloadSettings['downloadPinEnabled'] ?? !empty($settings['downloadPin'] ?? null);
+                        $downloadPin = $downloadSettings['downloadPin'] ?? $settings['downloadPin'] ?? null;
+                        
+                        if ($downloadPinEnabled && $downloadPin) {
+                            $requiresPinCheck = true;
+                            $providedPin = request()->header('X-Download-PIN');
+                            if (!$providedPin || $providedPin !== $downloadPin) {
+                                return ApiResponse::error('Download PIN required', 'DOWNLOAD_PIN_REQUIRED', 401);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // For owners or if PIN check passed, verify ownership via service (unless PIN was used for raw file)
+            if (!$requiresPinCheck) {
+                $media = $this->mediaService->getMediaForDownload($mediaUuid);
+            } else {
+                // PIN check passed for non-owner, just verify file exists
+                if (!$media->file) {
+                    throw new \RuntimeException('File not found for this media');
+                }
+            }
+            
             $file = $media->file;
 
             if (! $file) {
@@ -1170,6 +1211,7 @@ class MediaController extends Controller
 
     /**
      * Toggle recommended status for media in a selection set
+     * Only allowed for selections, not raw files, proofing, or collections
      */
     public function toggleRecommended(string $selectionId, string $setId, string $mediaId): JsonResponse
     {
@@ -1182,7 +1224,19 @@ class MediaController extends Controller
             $media = MemoraMedia::where('uuid', $mediaId)
                 ->where('user_uuid', Auth::user()->uuid)
                 ->where('media_set_uuid', $setId)
+                ->with('mediaSet')
                 ->firstOrFail();
+
+            // Verify media belongs to a selection phase (not raw file, proofing, or collection)
+            $mediaSet = $media->mediaSet;
+            if (! $mediaSet || ! $mediaSet->selection_uuid || $mediaSet->raw_file_uuid || $mediaSet->proof_uuid || $mediaSet->collection_uuid) {
+                return ApiResponse::error('Recommended status is only available for selection phase', 'INVALID_PHASE', 403);
+            }
+
+            // Verify selection ID matches
+            if ($mediaSet->selection_uuid !== $selectionId) {
+                return ApiResponse::error('Media does not belong to this selection', 'INVALID_SELECTION', 403);
+            }
 
             $isRecommended = ! $media->is_recommended;
 

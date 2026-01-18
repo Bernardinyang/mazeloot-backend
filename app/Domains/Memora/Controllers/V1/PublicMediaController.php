@@ -7,6 +7,7 @@ use App\Domains\Memora\Models\MemoraCollectionDownload;
 use App\Domains\Memora\Models\MemoraCollectionFavourite;
 use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraProofing;
+use App\Domains\Memora\Models\MemoraRawFile;
 use App\Domains\Memora\Models\MemoraSelection;
 use App\Domains\Memora\Requests\V1\AddMediaFeedbackRequest;
 use App\Domains\Memora\Resources\V1\MediaFeedbackResource;
@@ -37,20 +38,61 @@ class PublicMediaController extends Controller
 
     /**
      * Get media for a specific set (protected by guest token) with optional sorting
+     * Handles selections, proofing, and raw files
      */
     public function getSetMedia(Request $request, string $id, string $setUuid): JsonResponse
     {
         $guestToken = $request->attributes->get('guest_token');
 
-        // Verify the token belongs to this selection
-        if ($guestToken->selection_uuid !== $id) {
-            return ApiResponse::error('Token does not match selection', 'INVALID_TOKEN', 403);
+        // Check token type and verify it belongs to the correct phase
+        $isValid = false;
+        $phase = null;
+
+        // Check for raw file token
+        if (isset($guestToken->raw_file_uuid)) {
+            if ($guestToken->raw_file_uuid !== $id) {
+                return ApiResponse::error('Token does not match raw file', 'INVALID_TOKEN', 403);
+            }
+            $phase = 'rawFile';
+            $isValid = true;
+        }
+        // Check for proofing token
+        elseif (isset($guestToken->proofing_uuid)) {
+            if ($guestToken->proofing_uuid !== $id) {
+                return ApiResponse::error('Token does not match proofing', 'INVALID_TOKEN', 403);
+            }
+            $phase = 'proofing';
+            $isValid = true;
+        }
+        // Check for selection token (default)
+        elseif (isset($guestToken->selection_uuid)) {
+            if ($guestToken->selection_uuid !== $id) {
+                return ApiResponse::error('Token does not match selection', 'INVALID_TOKEN', 403);
+            }
+            $phase = 'selection';
+            $isValid = true;
         }
 
-        // Allow access if selection status is 'active' or 'completed' (view-only for completed)
-        $selection = MemoraSelection::query()->where('uuid', $id)->firstOrFail();
-        if (! in_array($selection->status->value, ['active', 'completed'])) {
-            return ApiResponse::error('Selection is not accessible', 'SELECTION_NOT_ACCESSIBLE', 403);
+        if (! $isValid) {
+            return ApiResponse::error('Invalid guest token', 'INVALID_TOKEN', 403);
+        }
+
+        // Verify phase is accessible based on type
+        if ($phase === 'rawFile') {
+            $rawFile = MemoraRawFile::query()->where('uuid', $id)->firstOrFail();
+            if (! in_array($rawFile->status->value, ['active', 'completed'])) {
+                return ApiResponse::error('Raw file is not accessible', 'RAW_FILE_NOT_ACCESSIBLE', 403);
+            }
+        } elseif ($phase === 'proofing') {
+            $proofing = MemoraProofing::query()->where('uuid', $id)->firstOrFail();
+            if (! in_array($proofing->status->value, ['active', 'completed'])) {
+                return ApiResponse::error('Proofing is not accessible', 'PROOFING_NOT_ACCESSIBLE', 403);
+            }
+        } else {
+            $selection = MemoraSelection::query()->where('uuid', $id)->firstOrFail();
+            if (! in_array($selection->status->value, ['active', 'completed'])) {
+                return ApiResponse::error('Selection is not accessible', 'SELECTION_NOT_ACCESSIBLE', 403);
+            }
         }
 
         $sortBy = $request->query('sort_by');
@@ -61,20 +103,61 @@ class PublicMediaController extends Controller
 
     /**
      * Toggle selected status for a media item (protected by guest token)
+     * Handles selections, proofing, and raw files
      */
     public function toggleSelected(Request $request, string $id, string $mediaId): JsonResponse
     {
         $guestToken = $request->attributes->get('guest_token');
 
-        // Verify the token belongs to this selection
-        if ($guestToken->selection_uuid !== $id) {
-            return ApiResponse::error('Token does not match selection', 'INVALID_TOKEN', 403);
+        // Check token type and verify it belongs to the correct phase
+        $isValid = false;
+        $phase = null;
+
+        // Check for raw file token
+        if (isset($guestToken->raw_file_uuid)) {
+            if ($guestToken->raw_file_uuid !== $id) {
+                return ApiResponse::error('Token does not match raw file', 'INVALID_TOKEN', 403);
+            }
+            $phase = 'rawFile';
+            $isValid = true;
+        }
+        // Check for proofing token
+        elseif (isset($guestToken->proofing_uuid)) {
+            if ($guestToken->proofing_uuid !== $id) {
+                return ApiResponse::error('Token does not match proofing', 'INVALID_TOKEN', 403);
+            }
+            $phase = 'proofing';
+            $isValid = true;
+        }
+        // Check for selection token (default)
+        elseif (isset($guestToken->selection_uuid)) {
+            if ($guestToken->selection_uuid !== $id) {
+                return ApiResponse::error('Token does not match selection', 'INVALID_TOKEN', 403);
+            }
+            $phase = 'selection';
+            $isValid = true;
         }
 
-        // Verify selection is active
-        $selection = MemoraSelection::query()->where('uuid', $id)->firstOrFail();
-        if ($selection->status->value !== 'active') {
-            return ApiResponse::error('Selection is not active', 'SELECTION_NOT_ACTIVE', 403);
+        if (! $isValid) {
+            return ApiResponse::error('Invalid guest token', 'INVALID_TOKEN', 403);
+        }
+
+        // Verify phase is active based on type
+        if ($phase === 'rawFile') {
+            $rawFile = MemoraRawFile::query()->where('uuid', $id)->firstOrFail();
+            if ($rawFile->status->value !== 'active') {
+                return ApiResponse::error('Raw file is not active', 'RAW_FILE_NOT_ACTIVE', 403);
+            }
+        } elseif ($phase === 'proofing') {
+            $proofing = MemoraProofing::query()->where('uuid', $id)->firstOrFail();
+            if ($proofing->status->value !== 'active') {
+                return ApiResponse::error('Proofing is not active', 'PROOFING_NOT_ACTIVE', 403);
+            }
+        } else {
+            $selection = MemoraSelection::query()->where('uuid', $id)->firstOrFail();
+            if ($selection->status->value !== 'active') {
+                return ApiResponse::error('Selection is not active', 'SELECTION_NOT_ACTIVE', 403);
+            }
         }
 
         try {
@@ -726,6 +809,158 @@ class PublicMediaController extends Controller
         } catch (\Exception $e) {
             Log::error('Failed to download collection media', [
                 'collection_id' => $collectionId,
+                'media_id' => $mediaId,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return ApiResponse::error('Failed to download media', 'DOWNLOAD_FAILED', 500);
+        }
+    }
+
+    /**
+     * Download media from a raw file (public endpoint - validates download PIN)
+     */
+    public function downloadRawFileMedia(Request $request, string $rawFileId, string $mediaId): \Symfony\Component\HttpFoundation\StreamedResponse|\Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse|\Illuminate\Http\Response
+    {
+        try {
+            $rawFile = MemoraRawFile::query()
+                ->where('uuid', $rawFileId)
+                ->firstOrFail();
+
+            $status = $rawFile->status?->value ?? $rawFile->status;
+
+            // Allow access if raw file is active or completed
+            if (!in_array($status, ['active', 'completed'])) {
+                return ApiResponse::error('Raw file is not accessible', 'RAW_FILE_NOT_ACCESSIBLE', 403);
+            }
+
+            $settings = $rawFile->settings ?? [];
+            $downloadSettings = $settings['download'] ?? [];
+            
+            // Check download PIN
+            $downloadPinEnabled = $downloadSettings['downloadPinEnabled'] ?? !empty($downloadSettings['downloadPin'] ?? null);
+            $downloadPin = $downloadSettings['downloadPin'] ?? $settings['downloadPin'] ?? null;
+            
+            if ($downloadPinEnabled && $downloadPin) {
+                $providedPin = $request->header('X-Download-PIN');
+                if (!$providedPin || $providedPin !== $downloadPin) {
+                    return ApiResponse::error('Download PIN required', 'DOWNLOAD_PIN_REQUIRED', 401);
+                }
+            }
+
+            // Verify media belongs to raw file
+            $media = MemoraMedia::where('uuid', $mediaId)->with('file', 'mediaSet')->firstOrFail();
+            $mediaSet = $media->mediaSet;
+            if (!$mediaSet || $mediaSet->raw_file_uuid !== $rawFileId) {
+                return ApiResponse::error('Media does not belong to this raw file', 'MEDIA_NOT_IN_RAW_FILE', 403);
+            }
+
+            $file = $media->file;
+            if (!$file) {
+                return ApiResponse::error('File not found for this media', 'FILE_NOT_FOUND', 404);
+            }
+
+            $filePath = $file->path;
+            $fileUrl = $file->url;
+
+            // Download logic (same as collection)
+            if ($fileUrl && (str_starts_with($fileUrl, 'http://') || str_starts_with($fileUrl, 'https://'))) {
+                $isCloudStorage = str_contains($fileUrl, 'amazonaws.com') ||
+                    str_contains($fileUrl, 'r2.cloudflarestorage.com') ||
+                    str_contains($fileUrl, 'r2.dev') ||
+                    str_contains($fileUrl, 'cloudflare') ||
+                    str_contains($fileUrl, 's3.') ||
+                    str_contains($fileUrl, '.s3.');
+
+                if ($isCloudStorage) {
+                    try {
+                        $fileContents = file_get_contents($fileUrl);
+                        if ($fileContents === false) {
+                            throw new \RuntimeException('Failed to download file from cloud storage');
+                        }
+
+                        $filename = $file->filename ?? 'download';
+                        if (!pathinfo($filename, PATHINFO_EXTENSION)) {
+                            $extension = match ($file->mime_type) {
+                                'image/jpeg', 'image/jpg' => 'jpg',
+                                'image/png' => 'png',
+                                'image/gif' => 'gif',
+                                'image/webp' => 'webp',
+                                'video/mp4' => 'mp4',
+                                'video/mpeg' => 'mpeg',
+                                default => 'bin',
+                            };
+                            $filename .= '.'.$extension;
+                        }
+
+                        return response($fileContents)
+                            ->header('Content-Type', $file->mime_type ?? 'application/octet-stream')
+                            ->header('Content-Disposition', 'attachment; filename="'.$filename.'"')
+                            ->header('Content-Length', strlen($fileContents));
+                    } catch (\Exception $e) {
+                        Log::error('Failed to download from cloud storage', [
+                            'raw_file_id' => $rawFileId,
+                            'media_id' => $mediaId,
+                            'url' => $fileUrl,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+            }
+
+            // Try storage disk
+            if ($filePath) {
+                $disks = ['s3', 'r2', 'local'];
+                $foundDisk = null;
+
+                foreach ($disks as $disk) {
+                    if (\Illuminate\Support\Facades\Storage::disk($disk)->exists($filePath)) {
+                        $foundDisk = $disk;
+                        break;
+                    }
+                }
+
+                if ($foundDisk) {
+                    $filename = $file->filename ?? 'download';
+                    if (!pathinfo($filename, PATHINFO_EXTENSION)) {
+                        $extension = match ($file->mime_type) {
+                            'image/jpeg', 'image/jpg' => 'jpg',
+                            'image/png' => 'png',
+                            'image/gif' => 'gif',
+                            'image/webp' => 'webp',
+                            'video/mp4' => 'mp4',
+                            'video/mpeg' => 'mpeg',
+                            default => 'bin',
+                        };
+                        $filename .= '.'.$extension;
+                    }
+
+                    try {
+                        return \Illuminate\Support\Facades\Storage::disk($foundDisk)->download($filePath, $filename, [
+                            'Content-Type' => $file->mime_type ?? 'application/octet-stream',
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::error('Failed to download from storage', [
+                            'raw_file_id' => $rawFileId,
+                            'media_id' => $mediaId,
+                            'disk' => $foundDisk,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+            }
+
+            // Fallback: redirect to file URL
+            if ($fileUrl) {
+                return redirect($fileUrl);
+            }
+
+            return ApiResponse::error('File not available for download', 'FILE_NOT_AVAILABLE', 404);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ApiResponse::error('Raw file or media not found', 'NOT_FOUND', 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to download raw file media', [
+                'raw_file_id' => $rawFileId,
                 'media_id' => $mediaId,
                 'exception' => $e->getMessage(),
             ]);

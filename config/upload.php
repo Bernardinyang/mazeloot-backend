@@ -77,6 +77,17 @@ return [
         'application/pdf',
         'application/msword',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/zip',
+        'application/x-zip-compressed',
+        'application/x-zip',
+        'application/x-rar-compressed',
+        'application/x-rar',
+        'application/x-7z-compressed',
+        'application/x-tar',
+        'application/gzip',
+        'application/x-gzip',
+        'application/x-compress',
+        'application/x-compressed',
     ],
 
     /*
