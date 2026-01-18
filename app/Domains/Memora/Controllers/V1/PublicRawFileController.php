@@ -177,15 +177,15 @@ class PublicRawFileController extends Controller
             $status = $rawFile->status?->value ?? $rawFile->status;
 
             // Only allow access if raw file is active or completed
-            if (!in_array($status, ['active', 'completed'])) {
+            if (! in_array($status, ['active', 'completed'])) {
                 return ApiResponse::error('Raw file is not accessible', 'RAW_FILE_NOT_ACCESSIBLE', 403);
             }
 
             $settings = $rawFile->settings ?? [];
             $downloadPin = $settings['download']['downloadPin'] ?? $settings['downloadPin'] ?? null;
-            $downloadPinEnabled = $settings['download']['downloadPinEnabled'] ?? !empty($downloadPin);
+            $downloadPinEnabled = $settings['download']['downloadPinEnabled'] ?? ! empty($downloadPin);
 
-            if (!$downloadPinEnabled || !$downloadPin) {
+            if (! $downloadPinEnabled || ! $downloadPin) {
                 return ApiResponse::success(['verified' => true]);
             }
 
@@ -263,7 +263,7 @@ class PublicRawFileController extends Controller
             $rawFile = MemoraRawFile::where('uuid', $id)->firstOrFail();
 
             $status = $rawFile->status?->value ?? $rawFile->status;
-            if (!in_array($status, ['active', 'completed'])) {
+            if (! in_array($status, ['active', 'completed'])) {
                 return ApiResponse::error('Raw file is not accessible', 'RAW_FILE_NOT_ACCESSIBLE', 403);
             }
 
@@ -271,7 +271,7 @@ class PublicRawFileController extends Controller
             $downloadSettings = $settings['download'] ?? [];
 
             // Check download PIN
-            $downloadPinEnabled = $downloadSettings['downloadPinEnabled'] ?? !empty($downloadSettings['downloadPin'] ?? null);
+            $downloadPinEnabled = $downloadSettings['downloadPinEnabled'] ?? ! empty($downloadSettings['downloadPin'] ?? null);
             $downloadPin = $downloadSettings['downloadPin'] ?? $settings['downloadPin'] ?? null;
 
             $isOwner = false;
@@ -280,9 +280,9 @@ class PublicRawFileController extends Controller
                 $isOwner = $rawFile->user_uuid === $userUuid;
             }
 
-            if ($downloadPinEnabled && $downloadPin && !$isOwner) {
+            if ($downloadPinEnabled && $downloadPin && ! $isOwner) {
                 $providedPin = $request->header('X-Download-PIN');
-                if (!$providedPin || $providedPin !== $downloadPin) {
+                if (! $providedPin || $providedPin !== $downloadPin) {
                     return ApiResponse::error('Download PIN required', 'DOWNLOAD_PIN_REQUIRED', 401);
                 }
             }
@@ -352,7 +352,7 @@ class PublicRawFileController extends Controller
             $settings = $rawFile->settings ?? [];
             $downloadSettings = $settings['download'] ?? [];
 
-            $downloadPinEnabled = $downloadSettings['downloadPinEnabled'] ?? !empty($downloadSettings['downloadPin'] ?? null);
+            $downloadPinEnabled = $downloadSettings['downloadPinEnabled'] ?? ! empty($downloadSettings['downloadPin'] ?? null);
             $downloadPin = $downloadSettings['downloadPin'] ?? $settings['downloadPin'] ?? null;
 
             $isOwner = false;
@@ -361,16 +361,16 @@ class PublicRawFileController extends Controller
                 $isOwner = $rawFile->user_uuid === $userUuid;
             }
 
-            if ($downloadPinEnabled && $downloadPin && !$isOwner) {
+            if ($downloadPinEnabled && $downloadPin && ! $isOwner) {
                 $providedPin = $request->header('X-Download-PIN');
-                if (!$providedPin || $providedPin !== $downloadPin) {
+                if (! $providedPin || $providedPin !== $downloadPin) {
                     return ApiResponse::error('Download PIN required', 'DOWNLOAD_PIN_REQUIRED', 401);
                 }
             }
 
             $zipTask = \Illuminate\Support\Facades\Cache::get("raw_file_zip_download_{$token}");
 
-            if (!$zipTask) {
+            if (! $zipTask) {
                 return ApiResponse::error('Download not found', 'NOT_FOUND', 404);
             }
 
@@ -403,7 +403,7 @@ class PublicRawFileController extends Controller
             $settings = $rawFile->settings ?? [];
             $downloadSettings = $settings['download'] ?? [];
 
-            $downloadPinEnabled = $downloadSettings['downloadPinEnabled'] ?? !empty($downloadSettings['downloadPin'] ?? null);
+            $downloadPinEnabled = $downloadSettings['downloadPinEnabled'] ?? ! empty($downloadSettings['downloadPin'] ?? null);
             $downloadPin = $downloadSettings['downloadPin'] ?? $settings['downloadPin'] ?? null;
 
             $isOwner = false;
@@ -412,16 +412,16 @@ class PublicRawFileController extends Controller
                 $isOwner = $rawFile->user_uuid === $userUuid;
             }
 
-            if ($downloadPinEnabled && $downloadPin && !$isOwner) {
+            if ($downloadPinEnabled && $downloadPin && ! $isOwner) {
                 $providedPin = $request->header('X-Download-PIN');
-                if (!$providedPin || $providedPin !== $downloadPin) {
+                if (! $providedPin || $providedPin !== $downloadPin) {
                     return ApiResponse::error('Download PIN required', 'DOWNLOAD_PIN_REQUIRED', 401);
                 }
             }
 
             $zipTask = \Illuminate\Support\Facades\Cache::get("raw_file_zip_download_{$token}");
 
-            if (!$zipTask) {
+            if (! $zipTask) {
                 return ApiResponse::error('Download not found', 'NOT_FOUND', 404);
             }
 
@@ -435,7 +435,7 @@ class PublicRawFileController extends Controller
 
             $filePath = storage_path("app/{$zipTask['file_path']}");
 
-            if (!file_exists($filePath)) {
+            if (! file_exists($filePath)) {
                 return ApiResponse::error('File not found', 'FILE_NOT_FOUND', 404);
             }
 

@@ -2,9 +2,9 @@
 
 namespace App\Domains\Memora\Jobs;
 
-use App\Domains\Memora\Models\MemoraRawFile;
 use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraMediaSet;
+use App\Domains\Memora\Models\MemoraRawFile;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;

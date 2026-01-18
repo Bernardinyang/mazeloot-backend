@@ -17,6 +17,7 @@ class CollectionServicePresetTest extends TestCase
     use RefreshDatabase;
 
     protected CollectionService $collectionService;
+
     protected PresetService $presetService;
 
     protected function setUp(): void
@@ -24,9 +25,9 @@ class CollectionServicePresetTest extends TestCase
         parent::setUp();
         $mockPaginationService = \Mockery::mock(PaginationService::class);
         $mockNotificationService = \Mockery::mock(\App\Services\Notification\NotificationService::class);
-        $mockNotification = new \App\Models\Notification();
+        $mockNotification = new \App\Models\Notification;
         $mockNotificationService->shouldReceive('create')->andReturn($mockNotification);
-        
+
         $this->collectionService = new CollectionService($mockPaginationService, $mockNotificationService);
         $this->presetService = new PresetService($mockNotificationService);
     }
@@ -55,7 +56,7 @@ class CollectionServicePresetTest extends TestCase
         ]);
 
         $this->assertEquals($preset->uuid, $collection->preset_uuid);
-        
+
         $settings = $collection->settings;
         $this->assertTrue($settings['general']['emailRegistration']);
         $this->assertTrue($settings['general']['galleryAssist']);
@@ -97,7 +98,7 @@ class CollectionServicePresetTest extends TestCase
         ]);
 
         $this->assertEquals($preset->uuid, $updated->preset_uuid);
-        
+
         $updated->refresh();
         $settings = $updated->settings;
         // Preset defaults are applied, then merged with existing: array_merge($presetDefaults, $settings)
@@ -136,7 +137,7 @@ class CollectionServicePresetTest extends TestCase
         $updated = $this->presetService->applyToCollection($preset->uuid, $collection->uuid);
 
         $this->assertEquals($preset->uuid, $updated->preset_uuid);
-        
+
         $updated->refresh();
         $settings = $updated->settings;
         // applyPresetToCollection merges flattened settings

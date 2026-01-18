@@ -144,9 +144,10 @@ class RawFileResource extends JsonResource
         if (isset($settings['download']) && is_array($settings['download'])) {
             $downloadSettings = $settings['download'];
             // Only include downloadPin if owner
-            if (!$isOwner) {
+            if (! $isOwner) {
                 unset($downloadSettings['downloadPin']);
             }
+
             return $downloadSettings;
         }
 
@@ -162,7 +163,7 @@ class RawFileResource extends JsonResource
                 'size' => $settings['webSize'] ?? '1024px',
             ],
             'videoDownload' => $settings['videoDownload'] ?? false,
-            'downloadPinEnabled' => !empty($settings['downloadPin'] ?? null),
+            'downloadPinEnabled' => ! empty($settings['downloadPin'] ?? null),
             'limitDownloads' => $settings['limitDownloads'] ?? false,
             'downloadLimit' => $settings['downloadLimit'] ?? 1,
             'restrictToContacts' => $settings['restrictToContacts'] ?? false,

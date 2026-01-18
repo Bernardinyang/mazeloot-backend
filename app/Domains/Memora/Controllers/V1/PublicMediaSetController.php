@@ -66,6 +66,7 @@ class PublicMediaSetController extends Controller
                 return ApiResponse::error('Raw file is not accessible', 'RAW_FILE_NOT_ACCESSIBLE', 403);
             }
             $result = $this->mediaSetService->getByRawFile($id);
+
             return ApiResponse::success(MediaSetResource::collection($result['data'] ?? $result));
         } else {
             $selection = MemoraSelection::query()->where('uuid', $id)->firstOrFail();
@@ -73,6 +74,7 @@ class PublicMediaSetController extends Controller
                 return ApiResponse::error('Selection is not accessible', 'SELECTION_NOT_ACCESSIBLE', 403);
             }
             $sets = $this->mediaSetService->getBySelection($id);
+
             return ApiResponse::success(MediaSetResource::collection($sets));
         }
     }

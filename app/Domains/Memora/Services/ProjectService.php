@@ -290,7 +290,7 @@ class ProjectService
         }
 
         $project->load('mediaSets');
-        
+
         $this->notificationService->create(
             $userUuid,
             'memora',
@@ -507,7 +507,7 @@ class ProjectService
         }
 
         $project->load('mediaSets');
-        
+
         $this->notificationService->create(
             $user->uuid,
             'memora',

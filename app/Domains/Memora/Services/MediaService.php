@@ -222,19 +222,19 @@ class MediaService
         // Load media set with appropriate parent relationship (selection, rawFile, proof, or collection)
         $media->load('mediaSet');
         $set = $media->mediaSet;
-        
-        if (!$set) {
+
+        if (! $set) {
             throw new \RuntimeException('Media set not found for this media item.');
         }
 
         // If marking as selected, validate against limits based on parent type
         if ($isSelected) {
             $setId = $set->uuid;
-            
+
             // Check if media set belongs to a raw file
             if ($set->raw_file_uuid) {
                 $rawFileLimitService = app(\App\Domains\Memora\Services\RawFileLimitService::class);
-                
+
                 // Get current selected count for this set
                 $currentCount = \App\Domains\Memora\Models\MemoraMedia::query()
                     ->join('memora_media_sets', 'memora_media.media_set_uuid', '=', 'memora_media_sets.uuid')
@@ -244,14 +244,14 @@ class MediaService
                     ->count();
 
                 // Check if selection is allowed
-                if (!$rawFileLimitService->checkRawFileLimit($set->raw_file_uuid, $setId, $currentCount)) {
+                if (! $rawFileLimitService->checkRawFileLimit($set->raw_file_uuid, $setId, $currentCount)) {
                     throw new \RuntimeException('Raw file limit reached. Cannot select more items.');
                 }
             } elseif ($set->selection_uuid) {
                 // Check if media set belongs to a selection
                 $media->load('mediaSet.selection');
                 $selection = $set->selection;
-                
+
                 if ($selection) {
                     $selectionLimitService = app(\App\Domains\Memora\Services\SelectionLimitService::class);
                     $selectionId = $selection->uuid;
@@ -265,7 +265,7 @@ class MediaService
                         ->count();
 
                     // Check if selection is allowed
-                    if (!$selectionLimitService->checkSelectionLimit($selectionId, $setId, $currentCount)) {
+                    if (! $selectionLimitService->checkSelectionLimit($selectionId, $setId, $currentCount)) {
                         throw new \RuntimeException('Selection limit reached. Cannot select more items.');
                     }
                 }

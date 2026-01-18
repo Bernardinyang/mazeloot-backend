@@ -728,43 +728,43 @@ class MediaController extends Controller
             $media = \App\Domains\Memora\Models\MemoraMedia::where('uuid', $mediaUuid)
                 ->with(['file', 'mediaSet'])
                 ->firstOrFail();
-            
+
             $mediaSet = $media->mediaSet;
             $requiresPinCheck = false;
-            
+
             if ($mediaSet && $mediaSet->raw_file_uuid) {
                 $rawFile = \App\Domains\Memora\Models\MemoraRawFile::where('uuid', $mediaSet->raw_file_uuid)->first();
                 if ($rawFile) {
                     $isOwner = auth()->check() && auth()->user()->uuid === $rawFile->user_uuid;
-                    
+
                     // Check download PIN for non-owners
-                    if (!$isOwner) {
+                    if (! $isOwner) {
                         $settings = $rawFile->settings ?? [];
                         $downloadSettings = $settings['download'] ?? [];
-                        $downloadPinEnabled = $downloadSettings['downloadPinEnabled'] ?? !empty($settings['downloadPin'] ?? null);
+                        $downloadPinEnabled = $downloadSettings['downloadPinEnabled'] ?? ! empty($settings['downloadPin'] ?? null);
                         $downloadPin = $downloadSettings['downloadPin'] ?? $settings['downloadPin'] ?? null;
-                        
+
                         if ($downloadPinEnabled && $downloadPin) {
                             $requiresPinCheck = true;
                             $providedPin = request()->header('X-Download-PIN');
-                            if (!$providedPin || $providedPin !== $downloadPin) {
+                            if (! $providedPin || $providedPin !== $downloadPin) {
                                 return ApiResponse::error('Download PIN required', 'DOWNLOAD_PIN_REQUIRED', 401);
                             }
                         }
                     }
                 }
             }
-            
+
             // For owners or if PIN check passed, verify ownership via service (unless PIN was used for raw file)
-            if (!$requiresPinCheck) {
+            if (! $requiresPinCheck) {
                 $media = $this->mediaService->getMediaForDownload($mediaUuid);
             } else {
                 // PIN check passed for non-owner, just verify file exists
-                if (!$media->file) {
+                if (! $media->file) {
                     throw new \RuntimeException('File not found for this media');
                 }
             }
-            
+
             $file = $media->file;
 
             if (! $file) {

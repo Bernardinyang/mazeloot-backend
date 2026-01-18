@@ -67,15 +67,15 @@ class UploadRequest extends FormRequest
         return [
             'file.required_without' => 'Please select a file to upload.',
             'file.max' => "The file must not exceed {$maxSizeMB}MB.",
-            'file.types' => $isRawFile 
-                ? "The file must be a valid media or camera recorder file type. Your file type is not allowed."
+            'file.types' => $isRawFile
+                ? 'The file must be a valid media or camera recorder file type. Your file type is not allowed.'
                 : "The file must be a valid {$allowedTypesStr} file. Your file type is not allowed.",
             'files.required_without' => 'Please select at least one file to upload.',
             'files.array' => 'Files must be provided as an array.',
             'files.*.required' => 'Each file is required.',
             'files.*.max' => "Each file must not exceed {$maxSizeMB}MB.",
             'files.*.types' => $isRawFile
-                ? "Each file must be a valid media or camera recorder file type."
+                ? 'Each file must be a valid media or camera recorder file type.'
                 : "Each file must be a valid {$allowedTypesStr} file.",
         ];
     }

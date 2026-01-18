@@ -830,20 +830,20 @@ class PublicMediaController extends Controller
             $status = $rawFile->status?->value ?? $rawFile->status;
 
             // Allow access if raw file is active or completed
-            if (!in_array($status, ['active', 'completed'])) {
+            if (! in_array($status, ['active', 'completed'])) {
                 return ApiResponse::error('Raw file is not accessible', 'RAW_FILE_NOT_ACCESSIBLE', 403);
             }
 
             $settings = $rawFile->settings ?? [];
             $downloadSettings = $settings['download'] ?? [];
-            
+
             // Check download PIN
-            $downloadPinEnabled = $downloadSettings['downloadPinEnabled'] ?? !empty($downloadSettings['downloadPin'] ?? null);
+            $downloadPinEnabled = $downloadSettings['downloadPinEnabled'] ?? ! empty($downloadSettings['downloadPin'] ?? null);
             $downloadPin = $downloadSettings['downloadPin'] ?? $settings['downloadPin'] ?? null;
-            
+
             if ($downloadPinEnabled && $downloadPin) {
                 $providedPin = $request->header('X-Download-PIN');
-                if (!$providedPin || $providedPin !== $downloadPin) {
+                if (! $providedPin || $providedPin !== $downloadPin) {
                     return ApiResponse::error('Download PIN required', 'DOWNLOAD_PIN_REQUIRED', 401);
                 }
             }
@@ -851,12 +851,12 @@ class PublicMediaController extends Controller
             // Verify media belongs to raw file
             $media = MemoraMedia::where('uuid', $mediaId)->with('file', 'mediaSet')->firstOrFail();
             $mediaSet = $media->mediaSet;
-            if (!$mediaSet || $mediaSet->raw_file_uuid !== $rawFileId) {
+            if (! $mediaSet || $mediaSet->raw_file_uuid !== $rawFileId) {
                 return ApiResponse::error('Media does not belong to this raw file', 'MEDIA_NOT_IN_RAW_FILE', 403);
             }
 
             $file = $media->file;
-            if (!$file) {
+            if (! $file) {
                 return ApiResponse::error('File not found for this media', 'FILE_NOT_FOUND', 404);
             }
 
@@ -880,7 +880,7 @@ class PublicMediaController extends Controller
                         }
 
                         $filename = $file->filename ?? 'download';
-                        if (!pathinfo($filename, PATHINFO_EXTENSION)) {
+                        if (! pathinfo($filename, PATHINFO_EXTENSION)) {
                             $extension = match ($file->mime_type) {
                                 'image/jpeg', 'image/jpg' => 'jpg',
                                 'image/png' => 'png',
@@ -922,7 +922,7 @@ class PublicMediaController extends Controller
 
                 if ($foundDisk) {
                     $filename = $file->filename ?? 'download';
-                    if (!pathinfo($filename, PATHINFO_EXTENSION)) {
+                    if (! pathinfo($filename, PATHINFO_EXTENSION)) {
                         $extension = match ($file->mime_type) {
                             'image/jpeg', 'image/jpg' => 'jpg',
                             'image/png' => 'png',

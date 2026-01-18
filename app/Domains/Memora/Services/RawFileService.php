@@ -424,7 +424,7 @@ class RawFileService
 
         // Handle top-level downloadEnabled for backward compatibility
         if (isset($data['downloadEnabled'])) {
-            if (!isset($settings['download'])) {
+            if (! isset($settings['download'])) {
                 $settings['download'] = [];
             }
             $settings['download']['downloadEnabled'] = (bool) $data['downloadEnabled'];
