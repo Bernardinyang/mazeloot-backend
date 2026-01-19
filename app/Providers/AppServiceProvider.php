@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Policies\UserPolicy;
 use App\Session\DatabaseSessionHandler;
 use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\ServiceProvider;
@@ -38,6 +39,24 @@ class AppServiceProvider extends ServiceProvider
             $minutes = $app['config']['session.lifetime'];
 
             return new DatabaseSessionHandler($connection, $table, $minutes, $app);
+        });
+
+        // Close idle database connections after each request to prevent connection exhaustion
+        $this->app->terminating(function () {
+            try {
+                // Disconnect all database connections to free them up
+                foreach (array_keys(config('database.connections')) as $connection) {
+                    DB::connection($connection)->disconnect();
+                }
+            } catch (\Exception $e) {
+                // Silently fail if disconnection fails
+                // Log only in debug mode
+                if (config('app.debug')) {
+                    \Illuminate\Support\Facades\Log::debug('Failed to disconnect database connection', [
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
         });
     }
 }

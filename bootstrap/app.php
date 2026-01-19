@@ -20,8 +20,48 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'broadcasting/auth',
         ]);
+
+        // Ensure CORS middleware handles OPTIONS requests
+        // Apply globally to handle both API and broadcasting routes
+        $middleware->api(prepend: [
+            \Illuminate\Http\Middleware\HandleCors::class,
+            \App\Http\Middleware\CacheSanctumToken::class,
+        ]);
+        
+        $middleware->web(prepend: [
+            \Illuminate\Http\Middleware\HandleCors::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Handle database connection limit errors (MySQL error 1203)
+        $exceptions->render(function (\Illuminate\Database\QueryException $e, \Illuminate\Http\Request $request) {
+            $errorCode = $e->getCode();
+            $errorMessage = $e->getMessage();
+
+            // Check if it's MySQL error 1203 (connection limit)
+            if ($errorCode === '42000' && (
+                str_contains($errorMessage, '1203') ||
+                str_contains($errorMessage, 'max_user_connections') ||
+                str_contains($errorMessage, 'User already has more than')
+            )) {
+                \Illuminate\Support\Facades\Log::error('Database connection limit reached', [
+                    'error' => $errorMessage,
+                    'url' => $request->fullUrl(),
+                ]);
+
+                if ($request->is('api/*') || $request->expectsJson()) {
+                    return response()->json([
+                        'message' => 'Service temporarily unavailable. Please try again in a moment.',
+                        'status' => 503,
+                        'code' => 'SERVICE_UNAVAILABLE',
+                    ], 503)->header('Retry-After', '5');
+                }
+
+                return response('Service temporarily unavailable. Please try again in a moment.', 503)
+                    ->header('Retry-After', '5');
+            }
+        });
+
         // Ensure API routes always return JSON responses for validation errors
         // Return only the first error message instead of an array
         $exceptions->render(function (\Illuminate\Validation\ValidationException $e, \Illuminate\Http\Request $request) {

@@ -958,11 +958,14 @@ class MediaService
 
         $media = MemoraMedia::withTrashed()->with('file')->where('uuid', $mediaId)->firstOrFail();
 
-        // Verify user owns the phase (proofing, selection, or collection) that contains this media
+        // First check: verify user owns the media directly
+        $isAuthorized = ($media->user_uuid === $userId);
+        $ownsMediaDirectly = $isAuthorized;
+
+        // If not direct owner, check phase ownership
         $mediaSet = $media->mediaSet;
-        if ($mediaSet) {
+        if (! $isAuthorized && $mediaSet) {
             // Check ownership based on phase type
-            $isAuthorized = false;
             if ($mediaSet->proof_uuid) {
                 $proofing = $mediaSet->proofing;
                 if ($proofing && $proofing->user_uuid === $userId) {
@@ -979,20 +982,15 @@ class MediaService
                     $isAuthorized = true;
                 }
             }
+        }
 
-            if (! $isAuthorized) {
-                throw new \Exception('Unauthorized: You do not own this media');
-            }
+        if (! $isAuthorized) {
+            throw new \Exception('Unauthorized: You do not own this media');
+        }
 
-            // Check if phase is completed
-            if ($this->isPhaseCompleted($mediaSet)) {
-                throw new \RuntimeException('Cannot delete media from a completed phase');
-            }
-        } else {
-            // Fallback: verify user owns the media directly
-            if ($media->user_uuid !== $userId) {
-                throw new \Exception('Unauthorized: You do not own this media');
-            }
+        // Check if phase is completed (only if deleting via phase ownership, not direct ownership)
+        if ($mediaSet && ! $ownsMediaDirectly && $this->isPhaseCompleted($mediaSet)) {
+            throw new \RuntimeException('Cannot delete media from a completed phase');
         }
 
         // Delete files from storage if media has a file
@@ -3333,8 +3331,10 @@ class MediaService
             }
 
             // FFmpeg command to overlay watermark on video
+            $ffmpegPath = config('video.ffmpeg_path', 'ffmpeg');
             $command = sprintf(
-                'ffmpeg -i %s -i %s -filter_complex "[1:v]scale=%d:%d[wm];[0:v][wm]overlay=%d:%d" -c:a copy -c:v libx264 -preset medium -crf 23 %s 2>&1',
+                '%s -i %s -i %s -filter_complex "[1:v]scale=%d:%d[wm];[0:v][wm]overlay=%d:%d" -c:a copy -c:v libx264 -preset medium -crf 23 %s 2>&1',
+                escapeshellarg($ffmpegPath),
                 escapeshellarg($videoPath),
                 escapeshellarg($watermarkImagePath),
                 $scaledWidth,
@@ -3478,7 +3478,18 @@ class MediaService
      */
     protected function isFFmpegAvailable(): bool
     {
-        exec('ffmpeg -version 2>&1', $output, $returnCode);
+        // Check if video processing is disabled
+        if (! config('video.enabled', true)) {
+            return false;
+        }
+
+        // Check if exec() is disabled
+        if (! function_exists('exec')) {
+            return false;
+        }
+
+        $ffmpegPath = config('video.ffmpeg_path', 'ffmpeg');
+        exec("{$ffmpegPath} -version 2>&1", $output, $returnCode);
 
         return $returnCode === 0;
     }

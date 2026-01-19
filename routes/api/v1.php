@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\V1\AuthController;
+use App\Http\Controllers\V1\CacheController;
 use App\Http\Controllers\V1\ImageUploadController;
 use App\Http\Controllers\V1\NotificationController;
 use App\Http\Controllers\V1\UploadController;
@@ -14,6 +15,11 @@ use Illuminate\Support\Facades\Route;
 | Version 1 of the API routes. All routes here are prefixed with /api/v1
 |
 */
+
+// Cache management routes (public but protected by secret token)
+Route::prefix('cache')->group(function () {
+    Route::get('/clear-all', [CacheController::class, 'clearAll']);
+});
 
 // Auth routes (public - no authentication required)
 Route::prefix('auth')->group(function () {

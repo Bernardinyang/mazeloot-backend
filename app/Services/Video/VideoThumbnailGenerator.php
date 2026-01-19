@@ -36,10 +36,15 @@ class VideoThumbnailGenerator
         $thumbnailPath = $outputPath ?? sys_get_temp_dir().'/'.Str::uuid().'.jpg';
 
         try {
+            $ffmpegPath = config('video.ffmpeg_path', 'ffmpeg');
+            
             // Extract frame at 1 second (or first frame if video is shorter)
             // FFmpeg command: extract frame at 1s, resize to max 400px width, save as JPEG
+            // Using scale=400:-2 to ensure height is divisible by 2 (required for codecs)
+            // Using -pix_fmt yuvj420p for JPEG output and -threads 1 for shared hosting
             $command = sprintf(
-                'ffmpeg -i %s -ss 00:00:01 -vframes 1 -vf "scale=\'min(400,iw)\':-1" -q:v 2 %s 2>&1',
+                '%s -i %s -ss 00:00:01 -frames:v 1 -vf scale=400:-2 -pix_fmt yuvj420p -q:v 2 -threads 1 %s 2>&1',
+                escapeshellarg($ffmpegPath),
                 escapeshellarg($tempPath),
                 escapeshellarg($thumbnailPath)
             );
@@ -49,7 +54,8 @@ class VideoThumbnailGenerator
             if ($returnCode !== 0 || ! file_exists($thumbnailPath)) {
                 // Try extracting first frame if 1 second fails
                 $command = sprintf(
-                    'ffmpeg -i %s -vframes 1 -vf "scale=\'min(400,iw)\':-1" -q:v 2 %s 2>&1',
+                    '%s -i %s -frames:v 1 -vf scale=400:-2 -pix_fmt yuvj420p -q:v 2 -threads 1 %s 2>&1',
+                    escapeshellarg($ffmpegPath),
                     escapeshellarg($tempPath),
                     escapeshellarg($thumbnailPath)
                 );
@@ -119,7 +125,19 @@ class VideoThumbnailGenerator
      */
     protected function isFFmpegAvailable(): bool
     {
-        exec('ffmpeg -version 2>&1', $output, $returnCode);
+        // Check if video processing is disabled
+        if (! config('video.enabled', true)) {
+            return false;
+        }
+
+        // Check if exec() is disabled
+        if (! function_exists('exec')) {
+            Log::warning('exec() function is disabled. Video thumbnail generation unavailable.');
+            return false;
+        }
+
+        $ffmpegPath = config('video.ffmpeg_path', 'ffmpeg');
+        exec("{$ffmpegPath} -version 2>&1", $output, $returnCode);
 
         return $returnCode === 0;
     }
@@ -136,8 +154,10 @@ class VideoThumbnailGenerator
         }
 
         try {
+            $ffprobePath = config('video.ffprobe_path', 'ffprobe');
             $command = sprintf(
-                'ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of json %s',
+                '%s -v error -select_streams v:0 -show_entries stream=width,height -of json %s',
+                escapeshellarg($ffprobePath),
                 escapeshellarg($videoPath)
             );
 

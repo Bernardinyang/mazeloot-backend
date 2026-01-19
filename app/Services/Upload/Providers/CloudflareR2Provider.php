@@ -27,17 +27,23 @@ class CloudflareR2Provider implements UploadProviderInterface
      */
     protected function validateConfiguration(): void
     {
+        // Check config values instead of env() directly
+        // This works even when config is cached
+        $config = config('upload.providers.r2', []);
+        $filesystemConfig = config('filesystems.disks.r2', []);
+        
         $required = [
-            'R2_ACCESS_KEY_ID',
-            'R2_SECRET_ACCESS_KEY',
-            'R2_BUCKET',
-            'R2_ENDPOINT',
+            'key' => 'R2_ACCESS_KEY_ID',
+            'secret' => 'R2_SECRET_ACCESS_KEY',
+            'bucket' => 'R2_BUCKET',
+            'endpoint' => 'R2_ENDPOINT',
         ];
 
         $missing = [];
-        foreach ($required as $key) {
-            if (empty(env($key))) {
-                $missing[] = $key;
+        foreach ($required as $configKey => $envKey) {
+            $value = $config[$configKey] ?? $filesystemConfig[$configKey] ?? null;
+            if (empty($value)) {
+                $missing[] = $envKey;
             }
         }
 
