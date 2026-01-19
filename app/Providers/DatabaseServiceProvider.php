@@ -2,9 +2,9 @@
 
 namespace App\Providers;
 
-use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\Events\ConnectionEstablished;
 use Illuminate\Database\Events\ConnectionFailed;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
@@ -37,7 +37,7 @@ class DatabaseServiceProvider extends ServiceProvider
         if (config('app.debug')) {
             Event::listen(ConnectionEstablished::class, function (ConnectionEstablished $event) {
                 $connectionCount = $this->getActiveConnectionCount($event->connectionName);
-                
+
                 // Log warning if approaching connection limit (assuming 10 is typical for shared hosting)
                 if ($connectionCount >= 8) {
                     Log::warning('Approaching database connection limit', [
@@ -62,14 +62,12 @@ class DatabaseServiceProvider extends ServiceProvider
 
     /**
      * Get active connection count for a connection.
-     *
-     * @param  string  $connectionName
-     * @return int
      */
     protected function getActiveConnectionCount(string $connectionName): int
     {
         try {
             $result = DB::connection($connectionName)->select('SHOW PROCESSLIST');
+
             return count($result);
         } catch (\Exception $e) {
             // If we can't query, return 0

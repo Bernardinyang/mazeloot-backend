@@ -5,7 +5,6 @@ namespace Tests\Feature\Middleware;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class CacheSanctumTokenTest extends TestCase

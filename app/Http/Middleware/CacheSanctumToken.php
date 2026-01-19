@@ -37,6 +37,7 @@ class CacheSanctumToken
                     if ($cachedData === false) {
                         // Token was previously invalid, cache for 5 seconds
                         Cache::store('file')->put($cacheKey, false, 5);
+
                         // Return 401 immediately for invalid tokens
                         return response()->json([
                             'message' => 'Unauthenticated.',

@@ -37,7 +37,7 @@ class VideoThumbnailGenerator
 
         try {
             $ffmpegPath = config('video.ffmpeg_path', 'ffmpeg');
-            
+
             // Extract frame at 1 second (or first frame if video is shorter)
             // FFmpeg command: extract frame at 1s, resize to max 400px width, save as JPEG
             // Using scale=400:-2 to ensure height is divisible by 2 (required for codecs)
@@ -133,6 +133,7 @@ class VideoThumbnailGenerator
         // Check if exec() is disabled
         if (! function_exists('exec')) {
             Log::warning('exec() function is disabled. Video thumbnail generation unavailable.');
+
             return false;
         }
 

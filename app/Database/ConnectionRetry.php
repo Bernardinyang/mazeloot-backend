@@ -10,9 +10,6 @@ class ConnectionRetry
     /**
      * Execute a callback with retry logic for connection errors.
      *
-     * @param  callable  $callback
-     * @param  int  $maxRetries
-     * @param  int  $initialDelay
      * @return mixed
      *
      * @throws \Exception
@@ -66,9 +63,6 @@ class ConnectionRetry
 
     /**
      * Check if the exception is a connection limit error.
-     *
-     * @param  QueryException  $e
-     * @return bool
      */
     protected static function isConnectionLimitError(QueryException $e): bool
     {

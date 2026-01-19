@@ -31,7 +31,7 @@ class CloudflareR2Provider implements UploadProviderInterface
         // This works even when config is cached
         $config = config('upload.providers.r2', []);
         $filesystemConfig = config('filesystems.disks.r2', []);
-        
+
         $required = [
             'key' => 'R2_ACCESS_KEY_ID',
             'secret' => 'R2_SECRET_ACCESS_KEY',

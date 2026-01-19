@@ -6,7 +6,6 @@ use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class ConnectionLimitTest extends TestCase
@@ -22,7 +21,7 @@ class ConnectionLimitTest extends TestCase
         // Simulate connection limit error
         $pdoException = new \PDOException('SQLSTATE[42000] [1203] User already has more than \'max_user_connections\' active connections');
         $pdoException->errorInfo = ['42000', '1203', 'User already has more than \'max_user_connections\' active connections'];
-        
+
         $exception = new QueryException(
             'mysql',
             'SELECT * FROM personal_access_tokens',

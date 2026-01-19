@@ -15,16 +15,19 @@ class ConnectionRetryTest extends TestCase
             $attempts++;
             if ($attempts < 3) {
                 // Create a custom exception that mimics QueryException behavior
-                $exception = new class('SQLSTATE[42000] [1203] User already has more than \'max_user_connections\' active connections', '42000') extends QueryException {
-                    public function __construct($message, $code) {
+                $exception = new class('SQLSTATE[42000] [1203] User already has more than \'max_user_connections\' active connections', '42000') extends QueryException
+                {
+                    public function __construct($message, $code)
+                    {
                         parent::__construct('mysql', 'SELECT * FROM users', [], new \PDOException($message));
                         $this->message = $message;
                         $this->code = $code;
                     }
                 };
-                
+
                 throw $exception;
             }
+
             return 'success';
         };
 
@@ -41,7 +44,7 @@ class ConnectionRetryTest extends TestCase
         $callback = function () {
             $pdoException = new \PDOException('SQLSTATE[42000] [1203] User already has more than \'max_user_connections\' active connections');
             $pdoException->errorInfo = ['42000', '1203', 'User already has more than \'max_user_connections\' active connections'];
-            
+
             $exception = new QueryException(
                 'mysql',
                 'SELECT * FROM users',
@@ -61,7 +64,7 @@ class ConnectionRetryTest extends TestCase
         $callback = function () {
             $pdoException = new \PDOException('SQLSTATE[42S22]: Column not found: 1054 Unknown column');
             $pdoException->errorInfo = ['42S22', '1054', 'Unknown column'];
-            
+
             $exception = new QueryException(
                 'mysql',
                 'SELECT * FROM users',
@@ -90,6 +93,7 @@ class ConnectionRetryTest extends TestCase
         $attempts = 0;
         $callback = function () use (&$attempts) {
             $attempts++;
+
             return 'success';
         };
 

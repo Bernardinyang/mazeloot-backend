@@ -24,16 +24,16 @@ class CacheController extends Controller
     public function clearAll(): JsonResponse
     {
         $secretToken = env('CACHE_CLEAR_SECRET_TOKEN', 'change-me-in-production');
-        
+
         // Get token from query parameter or header
         $providedToken = request()->query('token') ?? request()->header('X-Cache-Token');
-        
+
         if (! $providedToken || $providedToken !== $secretToken) {
             Log::warning('Unauthorized cache clear attempt', [
                 'ip' => request()->ip(),
                 'user_agent' => request()->userAgent(),
             ]);
-            
+
             return ApiResponse::error(
                 'Unauthorized. Invalid or missing cache clear token.',
                 'UNAUTHORIZED',

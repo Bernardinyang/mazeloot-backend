@@ -27,7 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\HandleCors::class,
             \App\Http\Middleware\CacheSanctumToken::class,
         ]);
-        
+
         $middleware->web(prepend: [
             \Illuminate\Http\Middleware\HandleCors::class,
         ]);
