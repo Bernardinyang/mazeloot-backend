@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Log;
@@ -278,6 +279,83 @@ class User extends Authenticatable
     public function canManageAdmins(): bool
     {
         return $this->role && $this->role->canManageAdmins();
+    }
+
+    /**
+     * Get the product selections for the user.
+     */
+    public function productSelections(): HasMany
+    {
+        return $this->hasMany(UserProductSelection::class, 'user_uuid', 'uuid');
+    }
+
+    /**
+     * Get the onboarding tokens for the user.
+     */
+    public function onboardingTokens(): HasMany
+    {
+        return $this->hasMany(UserOnboardingToken::class, 'user_uuid', 'uuid');
+    }
+
+    /**
+     * Get the onboarding statuses for the user.
+     */
+    public function onboardingStatuses(): HasMany
+    {
+        return $this->hasMany(UserOnboardingStatus::class, 'user_uuid', 'uuid');
+    }
+
+    /**
+     * Get the early access record for the user.
+     */
+    public function earlyAccess(): HasOne
+    {
+        return $this->hasOne(EarlyAccessUser::class, 'user_uuid', 'uuid');
+    }
+
+    /**
+     * Check if user has active early access.
+     */
+    public function hasEarlyAccess(): bool
+    {
+        $earlyAccess = $this->earlyAccess;
+        return $earlyAccess && $earlyAccess->isActive();
+    }
+
+    /**
+     * Get early access discount for a specific product.
+     */
+    public function getEarlyAccessDiscount(string $productId): int
+    {
+        if (!$this->hasEarlyAccess()) {
+            return 0;
+        }
+
+        return $this->earlyAccess->getDiscountForProduct($productId);
+    }
+
+    /**
+     * Get storage multiplier from early access.
+     */
+    public function getStorageMultiplier(): float
+    {
+        if (!$this->hasEarlyAccess()) {
+            return 1.0;
+        }
+
+        return $this->earlyAccess->getStorageMultiplier();
+    }
+
+    /**
+     * Check if user has priority support.
+     */
+    public function hasPrioritySupport(): bool
+    {
+        if (!$this->hasEarlyAccess()) {
+            return false;
+        }
+
+        return $this->earlyAccess->hasPrioritySupport();
     }
 
     /**

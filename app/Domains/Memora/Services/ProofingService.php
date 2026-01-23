@@ -7,6 +7,7 @@ use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraProject;
 use App\Domains\Memora\Models\MemoraProofing;
 use App\Domains\Memora\Resources\V1\ProofingResource;
+use App\Services\ActivityLog\ActivityLogService;
 use App\Services\Notification\NotificationService;
 use App\Services\Pagination\PaginationService;
 use App\Services\Upload\UploadService;
@@ -23,11 +24,14 @@ class ProofingService
 
     protected NotificationService $notificationService;
 
-    public function __construct(UploadService $uploadService, PaginationService $paginationService, NotificationService $notificationService)
+    protected ActivityLogService $activityLogService;
+
+    public function __construct(UploadService $uploadService, PaginationService $paginationService, NotificationService $notificationService, ActivityLogService $activityLogService)
     {
         $this->uploadService = $uploadService;
         $this->paginationService = $paginationService;
         $this->notificationService = $notificationService;
+        $this->activityLogService = $activityLogService;
     }
 
     /**
@@ -65,7 +69,20 @@ class ProofingService
             'Proofing Created',
             "Proofing '{$proofing->name}' has been created successfully.",
             "Your new proofing '{$proofing->name}' is now available to use.",
-            $proofing->project_uuid ? "/memora/projects/{$proofing->project_uuid}/proofing/{$proofing->uuid}" : "/memora/proofing/{$proofing->uuid}"
+            $proofing->project_uuid ? "/memora/projects/{$proofing->project_uuid}/proofing/{$proofing->uuid}" : "/memora/proofing/{$proofing->uuid}",
+            ['coverPhoto' => $proofing->cover_photo_url]
+        );
+
+        $this->activityLogService->log(
+            'created',
+            $proofing,
+            "Created proofing phase '{$proofing->name}'",
+            [
+                'phase_type' => 'proofing',
+                'project_uuid' => $proofing->project_uuid,
+                'proofing_uuid' => $proofing->uuid,
+            ],
+            $user
         );
 
         return $proofing;
@@ -279,8 +296,23 @@ class ProofingService
             'completed_at' => now(),
         ]);
 
+        $proofing = $this->find($projectId, $id);
+
+        // Log activity for proofing completion
+        app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+            action: 'proofing_completed',
+            subject: $proofing,
+            description: "Proofing '{$proofing->name}' completed.",
+            properties: [
+                'proofing_uuid' => $proofing->uuid,
+                'proofing_name' => $proofing->name,
+                'project_uuid' => $proofing->project_uuid,
+            ],
+            causer: $user
+        );
+
         // Reload with relationships and recompute counts
-        return $this->find($projectId, $id);
+        return $proofing;
     }
 
     /**
@@ -608,7 +640,20 @@ class ProofingService
             'Proofing Updated',
             "Proofing '{$updated->name}' has been updated successfully.",
             "Your proofing '{$updated->name}' settings have been saved.",
-            $updated->project_uuid ? "/memora/projects/{$updated->project_uuid}/proofing/{$updated->uuid}" : "/memora/proofing/{$updated->uuid}"
+            $updated->project_uuid ? "/memora/projects/{$updated->project_uuid}/proofing/{$updated->uuid}" : "/memora/proofing/{$updated->uuid}",
+            ['coverPhoto' => $updated->cover_photo_url]
+        );
+
+        $this->activityLogService->log(
+            'updated',
+            $updated,
+            "Updated proofing phase '{$updated->name}'",
+            [
+                'phase_type' => 'proofing',
+                'project_uuid' => $updated->project_uuid,
+                'proofing_uuid' => $updated->uuid,
+            ],
+            $user
         );
 
         return $updated;
@@ -989,6 +1034,18 @@ class ProofingService
                     "The proofing '{$name}' has been permanently removed.",
                     $proofing->project_uuid ? "/memora/projects/{$proofing->project_uuid}/proofing" : '/memora/proofing'
                 );
+
+                $this->activityLogService->log(
+                    'deleted',
+                    null,
+                    "Deleted proofing phase '{$name}'",
+                    [
+                        'phase_type' => 'proofing',
+                        'proofing_uuid' => $proofing->uuid,
+                        'project_uuid' => $proofing->project_uuid,
+                    ],
+                    $user
+                );
             }
 
             return $deleted;
@@ -1042,7 +1099,23 @@ class ProofingService
 
         $proofing->update(['status' => $newStatus]);
 
-        return $proofing->fresh();
+        $proofing = $proofing->fresh();
+
+        // Log activity for proofing publish
+        app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+            action: $newStatus === 'active' ? 'proofing_published' : 'proofing_unpublished',
+            subject: $proofing,
+            description: "Proofing '{$proofing->name}' {$newStatus}.",
+            properties: [
+                'proofing_uuid' => $proofing->uuid,
+                'proofing_name' => $proofing->name,
+                'project_uuid' => $proofing->project_uuid,
+                'status' => $newStatus,
+            ],
+            causer: $user
+        );
+
+        return $proofing;
     }
 
     /**

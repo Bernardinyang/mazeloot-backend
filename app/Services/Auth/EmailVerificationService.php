@@ -6,6 +6,7 @@ use App\Models\EmailVerificationCode;
 use App\Models\User;
 use App\Notifications\EmailVerificationNotification;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class EmailVerificationService
 {
@@ -46,6 +47,25 @@ class EmailVerificationService
 
         // Send notification
         $user->notify(new EmailVerificationNotification($code->code));
+
+        // Log activity for verification email notification
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                'notification_sent',
+                $user,
+                'Email verification code sent',
+                [
+                    'channel' => 'email',
+                    'notification' => 'EmailVerificationNotification',
+                    'code_uuid' => $code->uuid ?? null,
+                ]
+            );
+        } catch (\Throwable $e) {
+            Log::error('Failed to log email verification notification activity', [
+                'user_uuid' => $user->uuid ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return $code;
     }

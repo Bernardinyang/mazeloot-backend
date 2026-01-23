@@ -12,6 +12,7 @@ use App\Domains\Memora\Controllers\V1\PresetController;
 use App\Domains\Memora\Controllers\V1\ProjectController;
 use App\Domains\Memora\Controllers\V1\ProofingApprovalRequestController;
 use App\Domains\Memora\Controllers\V1\ProofingController;
+use App\Domains\Memora\Controllers\V1\SearchController;
 use App\Domains\Memora\Controllers\V1\SettingsController;
 use App\Domains\Memora\Controllers\V1\SocialLinkController;
 use App\Domains\Memora\Controllers\V1\WatermarkController;
@@ -29,6 +30,9 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'stats']);
+
+    // Unified Search
+    Route::get('/search', [SearchController::class, 'search']);
 
     // Proofing (unified routes - works for both standalone and project-based)
     // For project-based: pass ?projectId=xxx as query parameter

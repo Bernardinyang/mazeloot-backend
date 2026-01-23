@@ -304,6 +304,28 @@ class GenerateZipDownloadJob implements ShouldQueue
                             $downloadFilename,
                             $this->token
                         ));
+
+                    // Log activity for ZIP ready email notification
+                    try {
+                        app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                            'notification_sent',
+                            $collection,
+                            'ZIP download ready email sent',
+                            [
+                                'channel' => 'email',
+                                'notification' => 'ZipDownloadReadyNotification',
+                                'recipient_email' => $this->email,
+                                'collection_uuid' => $collection->uuid ?? null,
+                                'download_token' => $this->token,
+                            ]
+                        );
+                    } catch (\Throwable $logException) {
+                        Log::error('Failed to log ZIP download ready notification activity', [
+                            'collection_uuid' => $collection->uuid ?? null,
+                            'email' => $this->email,
+                            'error' => $logException->getMessage(),
+                        ]);
+                    }
                 } catch (\Exception $e) {
                     Log::warning('Failed to send ZIP download email to downloader', [
                         'email' => $this->email,

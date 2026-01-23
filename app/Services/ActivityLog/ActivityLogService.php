@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class ActivityLogService
 {
@@ -65,20 +66,34 @@ class ActivityLogService
 
         // Activity logging is fast (simple DB insert), so we do it synchronously
         // For bulk operations, use logQueued() method instead
-        return ActivityLog::create([
-            'user_uuid' => $userUuid,
-            'subject_type' => $subject ? get_class($subject) : null,
-            'subject_uuid' => $subject?->getKey(),
-            'action' => $action,
-            'description' => $description,
-            'properties' => $properties,
-            'route' => $route,
-            'method' => $method,
-            'ip_address' => $ipAddress,
-            'user_agent' => $userAgent,
-            'causer_type' => $causerType,
-            'causer_uuid' => $causerUuid,
-        ]);
+        try {
+            return ActivityLog::create([
+                'user_uuid' => $userUuid,
+                'subject_type' => $subject ? get_class($subject) : null,
+                'subject_uuid' => $subject?->getKey(),
+                'action' => $action,
+                'description' => $description,
+                'properties' => $properties,
+                'route' => $route,
+                'method' => $method,
+                'ip_address' => $ipAddress,
+                'user_agent' => $userAgent,
+                'causer_type' => $causerType,
+                'causer_uuid' => $causerUuid,
+            ]);
+        } catch (\Exception $e) {
+            // Log error but don't break the main operation
+            Log::warning('Failed to log activity', [
+                'action' => $action,
+                'error' => $e->getMessage(),
+            ]);
+            // Return a dummy ActivityLog to prevent null reference errors
+            // The log entry won't be saved, but the operation continues
+            return new ActivityLog([
+                'action' => $action,
+                'description' => $description,
+            ]);
+        }
     }
 
     /**
@@ -163,57 +178,99 @@ class ActivityLogService
         ?string $description = null,
         ?array $properties = null,
         ?Model $causer = null,
+        ?Request $request = null,
+        ?string $guestEmail = null
+    ): void {
+        try {
+            // Determine the causer (user who performed the action)
+            $userUuid = null;
+            $causerType = null;
+            $causerUuid = null;
+
+            if ($causer) {
+                $causerType = get_class($causer);
+                $causerUuid = $causer->getKey();
+
+                if ($causer instanceof \App\Models\User) {
+                    $userUuid = $causer->uuid;
+                }
+            } elseif (Auth::check()) {
+                $causer = Auth::user();
+                $userUuid = $causer->uuid;
+                $causerType = get_class($causer);
+                $causerUuid = $causer->uuid;
+            }
+
+            // Extract request information
+            $request = $request ?? request();
+            $route = $request ? ($request->route()?->getName() ?? $request->path()) : null;
+            $method = $request?->method();
+            $ipAddress = $request?->ip();
+            $userAgent = $request?->userAgent();
+
+            // Add guest email to properties if provided
+            if ($guestEmail) {
+                $properties = array_merge($properties ?? [], ['guest_email' => $guestEmail]);
+            }
+
+            // Build description if not provided
+            if (! $description && $subject) {
+                $subjectName = class_basename($subject);
+                $description = ucfirst($action).' '.$subjectName;
+                if ($subject->getKey()) {
+                    $description .= ' #'.$subject->getKey();
+                }
+            }
+
+            // Dispatch job to queue
+            \App\Jobs\LogActivityJob::dispatch(
+                action: $action,
+                subjectType: $subject ? get_class($subject) : null,
+                subjectUuid: $subject?->getKey(),
+                description: $description,
+                properties: $properties,
+                causerType: $causerType,
+                causerUuid: $causerUuid,
+                userUuid: $userUuid,
+                route: $route,
+                method: $method,
+                ipAddress: $ipAddress,
+                userAgent: $userAgent
+            );
+        } catch (\Exception $e) {
+            // Log error but don't break the main operation
+            Log::warning('Failed to queue activity log', [
+                'action' => $action,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
+
+    /**
+     * Log bulk operation (summary instead of individual items).
+     */
+    public function logBulk(
+        string $action,
+        string $description,
+        int $count,
+        ?string $phaseType = null,
+        ?string $phaseUuid = null,
+        ?array $properties = null,
+        ?Model $causer = null,
         ?Request $request = null
     ): void {
-        // Determine the causer (user who performed the action)
-        $userUuid = null;
-        $causerType = null;
-        $causerUuid = null;
-
-        if ($causer) {
-            $causerType = get_class($causer);
-            $causerUuid = $causer->getKey();
-
-            if ($causer instanceof \App\Models\User) {
-                $userUuid = $causer->uuid;
-            }
-        } elseif (Auth::check()) {
-            $causer = Auth::user();
-            $userUuid = $causer->uuid;
-            $causerType = get_class($causer);
-            $causerUuid = $causer->uuid;
-        }
-
-        // Extract request information
-        $request = $request ?? request();
-        $route = $request ? ($request->route()?->getName() ?? $request->path()) : null;
-        $method = $request?->method();
-        $ipAddress = $request?->ip();
-        $userAgent = $request?->userAgent();
-
-        // Build description if not provided
-        if (! $description && $subject) {
-            $subjectName = class_basename($subject);
-            $description = ucfirst($action).' '.$subjectName;
-            if ($subject->getKey()) {
-                $description .= ' #'.$subject->getKey();
-            }
-        }
-
-        // Dispatch job to queue
-        \App\Jobs\LogActivityJob::dispatch(
-            action: $action,
-            subjectType: $subject ? get_class($subject) : null,
-            subjectUuid: $subject?->getKey(),
+        $this->logQueued(
+            action: "bulk_{$action}",
+            subject: null,
             description: $description,
-            properties: $properties,
-            causerType: $causerType,
-            causerUuid: $causerUuid,
-            userUuid: $userUuid,
-            route: $route,
-            method: $method,
-            ipAddress: $ipAddress,
-            userAgent: $userAgent
+            properties: array_merge($properties ?? [], [
+                'count' => $count,
+                'phase_type' => $phaseType,
+                'phase_uuid' => $phaseUuid,
+            ]),
+            causer: $causer,
+            request: $request
         );
     }
 
@@ -234,19 +291,28 @@ class ActivityLogService
         ?string $ipAddress = null,
         ?string $userAgent = null
     ): void {
-        ActivityLog::create([
-            'user_uuid' => $userUuid,
-            'subject_type' => $subjectType,
-            'subject_uuid' => $subjectUuid,
-            'action' => $action,
-            'description' => $description,
-            'properties' => $properties,
-            'route' => $route,
-            'method' => $method,
-            'ip_address' => $ipAddress,
-            'user_agent' => $userAgent,
-            'causer_type' => $causerType,
-            'causer_uuid' => $causerUuid,
-        ]);
+        try {
+            ActivityLog::create([
+                'user_uuid' => $userUuid,
+                'subject_type' => $subjectType,
+                'subject_uuid' => $subjectUuid,
+                'action' => $action,
+                'description' => $description,
+                'properties' => $properties,
+                'route' => $route,
+                'method' => $method,
+                'ip_address' => $ipAddress,
+                'user_agent' => $userAgent,
+                'causer_type' => $causerType,
+                'causer_uuid' => $causerUuid,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to process queued activity log', [
+                'action' => $action,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e; // Re-throw to trigger job retry
+        }
     }
 }

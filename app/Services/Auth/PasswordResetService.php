@@ -6,6 +6,7 @@ use App\Models\PasswordResetToken;
 use App\Models\User;
 use App\Notifications\PasswordResetNotification;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class PasswordResetService
 {
@@ -46,6 +47,25 @@ class PasswordResetService
 
         // Send notification
         $user->notify(new PasswordResetNotification($token->code));
+
+        // Log activity for password reset email notification
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                'notification_sent',
+                $user,
+                'Password reset code sent',
+                [
+                    'channel' => 'email',
+                    'notification' => 'PasswordResetNotification',
+                    'token_uuid' => $token->uuid ?? null,
+                ]
+            );
+        } catch (\Throwable $e) {
+            Log::error('Failed to log password reset notification activity', [
+                'user_uuid' => $user->uuid ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return $token;
     }

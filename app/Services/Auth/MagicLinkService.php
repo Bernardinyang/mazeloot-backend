@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Notifications\MagicLinkNotification;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class MagicLinkService
 {
@@ -45,6 +46,25 @@ class MagicLinkService
         $magicLink = $frontendUrl.'/auth/magic-link/verify?token='.$token->token.'&email='.urlencode($user->email);
 
         $user->notify(new MagicLinkNotification($magicLink));
+
+        // Log activity for magic link email notification
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                'notification_sent',
+                $user,
+                'Magic link sent',
+                [
+                    'channel' => 'email',
+                    'notification' => 'MagicLinkNotification',
+                    'token_uuid' => $token->uuid ?? null,
+                ]
+            );
+        } catch (\Throwable $e) {
+            Log::error('Failed to log magic link notification activity', [
+                'user_uuid' => $user->uuid ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return $token;
     }

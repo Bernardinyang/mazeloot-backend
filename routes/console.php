@@ -21,3 +21,10 @@ Schedule::command('raw-files:auto-delete')
     ->name('auto-delete-raw-files')
     ->withoutOverlapping()
     ->onOneServer();
+
+// Schedule cleanup of old activity logs to run daily at 3:00 AM (keep last 90 days)
+Schedule::command('activity-logs:cleanup --days=90')
+    ->dailyAt('03:00')
+    ->name('cleanup-activity-logs')
+    ->withoutOverlapping()
+    ->onOneServer();

@@ -7,6 +7,7 @@ use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraProject;
 use App\Domains\Memora\Models\MemoraRawFile;
 use App\Domains\Memora\Resources\V1\RawFileResource;
+use App\Services\ActivityLog\ActivityLogService;
 use App\Services\Notification\NotificationService;
 use App\Services\Pagination\PaginationService;
 use Illuminate\Database\Eloquent\Builder;
@@ -21,12 +22,16 @@ class RawFileService
 
     protected NotificationService $notificationService;
 
+    protected ActivityLogService $activityLogService;
+
     public function __construct(
         PaginationService $paginationService,
-        NotificationService $notificationService
+        NotificationService $notificationService,
+        ActivityLogService $activityLogService
     ) {
         $this->paginationService = $paginationService;
         $this->notificationService = $notificationService;
+        $this->activityLogService = $activityLogService;
     }
 
     /**
@@ -66,7 +71,20 @@ class RawFileService
             'Raw File Created',
             "Raw File '{$rawFile->name}' has been created successfully.",
             "Your new raw file '{$rawFile->name}' is now available to use.",
-            $rawFile->project_uuid ? "/memora/projects/{$rawFile->project_uuid}/raw-files/{$rawFile->uuid}" : "/memora/raw-files/{$rawFile->uuid}"
+            $rawFile->project_uuid ? "/memora/projects/{$rawFile->project_uuid}/raw-files/{$rawFile->uuid}" : "/memora/raw-files/{$rawFile->uuid}",
+            ['coverPhoto' => $rawFile->cover_photo_url]
+        );
+
+        $this->activityLogService->logQueued(
+            action: 'raw_file_created',
+            subject: $rawFile,
+            description: "Raw file '{$rawFile->name}' created.",
+            properties: [
+                'raw_file_uuid' => $rawFile->uuid,
+                'raw_file_name' => $rawFile->name,
+                'project_uuid' => $rawFile->project_uuid,
+            ],
+            causer: $user
         );
 
         return new RawFileResource($this->findModel($rawFile->uuid));
@@ -295,7 +313,8 @@ class RawFileService
                     'Raw File Republished',
                     "RawFile '{$rawFile->name}' has been republished.",
                     "RawFile '{$rawFile->name}' has been republished and is now available to clients.",
-                    "/memora/rawFiles/{$rawFile->uuid}"
+                    "/memora/rawFiles/{$rawFile->uuid}",
+                    ['coverPhoto' => $rawFile->cover_photo_url]
                 );
             } catch (\Exception $e) {
                 Log::error('Failed to send rawFile republish notification', [
@@ -305,6 +324,20 @@ class RawFileService
                 ]);
             }
         }
+
+        // Log activity for raw file publish
+        app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+            action: $newStatus === 'active' ? 'raw_file_published' : 'raw_file_unpublished',
+            subject: $rawFile,
+            description: "Raw file '{$rawFile->name}' {$newStatus}.",
+            properties: [
+                'raw_file_uuid' => $rawFile->uuid,
+                'raw_file_name' => $rawFile->name,
+                'project_uuid' => $rawFile->project_uuid,
+                'status' => $newStatus,
+            ],
+            causer: $user
+        );
 
         return new RawFileResource($rawFile);
     }
@@ -459,7 +492,20 @@ class RawFileService
             'Raw File Updated',
             "Raw File '{$rawFile->name}' has been updated successfully.",
             "Your raw file '{$rawFile->name}' settings have been saved.",
-            $rawFile->project_uuid ? "/memora/projects/{$rawFile->project_uuid}/raw-files/{$rawFile->uuid}" : "/memora/raw-files/{$rawFile->uuid}"
+            $rawFile->project_uuid ? "/memora/projects/{$rawFile->project_uuid}/raw-files/{$rawFile->uuid}" : "/memora/raw-files/{$rawFile->uuid}",
+            ['coverPhoto' => $rawFile->cover_photo_url]
+        );
+
+        $this->activityLogService->logQueued(
+            action: 'raw_file_updated',
+            subject: $rawFile,
+            description: "Raw file '{$rawFile->name}' updated.",
+            properties: [
+                'raw_file_uuid' => $rawFile->uuid,
+                'raw_file_name' => $rawFile->name,
+                'project_uuid' => $rawFile->project_uuid,
+            ],
+            causer: $user
         );
 
         // Return with calculated counts
@@ -536,7 +582,8 @@ class RawFileService
                     $completedByEmail
                         ? "Raw file '{$rawFile->name}' has been completed by {$completedByEmail}."
                         : "Raw file '{$rawFile->name}' has been completed.",
-                    "/memora/raw-files/{$rawFile->uuid}"
+                    "/memora/raw-files/{$rawFile->uuid}",
+                    ['coverPhoto' => $rawFile->cover_photo_url]
                 );
             } catch (\Exception $e) {
                 Log::error('Failed to send rawFile completion notification', [
@@ -545,6 +592,21 @@ class RawFileService
                     'error' => $e->getMessage(),
                 ]);
             }
+
+            // Log activity for raw file completion
+            app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                action: 'raw_file_completed',
+                subject: $rawFile,
+                description: "Raw file '{$rawFile->name}' completed.",
+                properties: [
+                    'raw_file_uuid' => $rawFile->uuid,
+                    'raw_file_name' => $rawFile->name,
+                    'project_uuid' => $rawFile->project_uuid,
+                    'completed_by_email' => $completedByEmail,
+                    'media_count' => count($mediaIds),
+                ],
+                causer: $user ?? $rawFile->user
+            );
 
             return new RawFileResource($rawFile);
         });
@@ -916,6 +978,18 @@ class RawFileService
                     "RawFile '{$name}' has been deleted.",
                     "The rawFile '{$name}' has been permanently removed.",
                     '/memora/rawFiles'
+                );
+
+                app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                    action: 'raw_file_deleted',
+                    subject: $rawFile,
+                    description: "Raw file '{$name}' deleted.",
+                    properties: [
+                        'raw_file_uuid' => $rawFile->uuid,
+                        'raw_file_name' => $name,
+                        'project_uuid' => $rawFile->project_uuid,
+                    ],
+                    causer: $user
                 );
             }
 

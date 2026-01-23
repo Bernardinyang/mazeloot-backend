@@ -665,6 +665,30 @@ class PublicCollectionController extends Controller
                                 $size
                             ));
 
+                            // Log activity for collection downloaded email notification
+                            try {
+                                app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                                    'notification_sent',
+                                    $collection,
+                                    'Collection downloaded email sent to owner',
+                                    [
+                                        'channel' => 'email',
+                                        'notification' => 'CollectionDownloadedNotification',
+                                        'owner_uuid' => $owner->uuid ?? null,
+                                        'collection_uuid' => $collection->uuid ?? null,
+                                        'downloader_email' => $downloaderEmail,
+                                        'media_count' => $mediaCount,
+                                        'download_size' => $size,
+                                    ]
+                                );
+                            } catch (\Throwable $logException) {
+                                \Illuminate\Support\Facades\Log::error('Failed to log collection downloaded notification activity', [
+                                    'collection_uuid' => $collection->uuid ?? null,
+                                    'owner_uuid' => $owner->uuid ?? null,
+                                    'error' => $logException->getMessage(),
+                                ]);
+                            }
+
                             // Create in-app notification
                             $notificationService = app(\App\Services\Notification\NotificationService::class);
                             $projectId = $collection->project_uuid ?? 'standalone';

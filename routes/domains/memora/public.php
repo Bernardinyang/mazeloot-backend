@@ -131,6 +131,7 @@ Route::prefix('public/approval-requests')->group(function () {
 // Public Settings Routes (no authentication required)
 Route::prefix('public/settings')->group(function () {
     Route::get('/', [PublicSettingsController::class, 'index']);
+    Route::get('/by-domain/{domain}', [PublicSettingsController::class, 'getUserByDomain']);
 });
 
 // Public Homepage Routes (no authentication required)

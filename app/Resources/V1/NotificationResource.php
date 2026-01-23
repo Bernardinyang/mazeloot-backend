@@ -8,6 +8,8 @@ class NotificationResource extends JsonResource
 {
     public function toArray($request): array
     {
+        $metadata = $this->metadata ?? [];
+        
         return [
             'id' => $this->uuid,
             'product' => $this->product,
@@ -16,7 +18,8 @@ class NotificationResource extends JsonResource
             'message' => $this->message,
             'description' => $this->description,
             'actionUrl' => $this->action_url,
-            'metadata' => $this->metadata,
+            'priority' => $metadata['priority'] ?? 'LOW',
+            'metadata' => $metadata,
             'readAt' => $this->read_at?->toIso8601String(),
             'createdAt' => $this->created_at->toIso8601String(),
             'updatedAt' => $this->updated_at->toIso8601String(),

@@ -34,7 +34,8 @@ class ApiResponse
     public static function error(
         string $message,
         ?string $code = null,
-        int $status = 400
+        int $status = 400,
+        ?array $metadata = null
     ): JsonResponse {
         $response = [
             'message' => $message,
@@ -43,6 +44,10 @@ class ApiResponse
 
         if ($code) {
             $response['code'] = $code;
+        }
+
+        if ($metadata) {
+            $response['metadata'] = $metadata;
         }
 
         return response()->json($response, $status);

@@ -7,6 +7,7 @@ use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraPreset;
 use App\Domains\Memora\Models\MemoraProject;
+use App\Services\ActivityLog\ActivityLogService;
 use App\Services\Notification\NotificationService;
 use App\Services\Pagination\PaginationService;
 use Illuminate\Support\Facades\Auth;
@@ -17,12 +18,16 @@ class CollectionService
 
     protected NotificationService $notificationService;
 
+    protected ActivityLogService $activityLogService;
+
     public function __construct(
         PaginationService $paginationService,
-        NotificationService $notificationService
+        NotificationService $notificationService,
+        ActivityLogService $activityLogService
     ) {
         $this->paginationService = $paginationService;
         $this->notificationService = $notificationService;
+        $this->activityLogService = $activityLogService;
     }
 
     /**
@@ -447,6 +452,9 @@ class CollectionService
 
         // Create notification
         $status = $collection->status?->value ?? $collection->status;
+        $settings = $collection->settings ?? [];
+        $coverPhoto = $settings['thumbnail'] ?? $settings['image'] ?? null;
+        
         if ($status === 'active') {
             $this->notificationService->create(
                 $user->uuid,
@@ -455,7 +463,21 @@ class CollectionService
                 'Collection Published',
                 "Collection '{$collection->name}' has been published successfully.",
                 "Your collection '{$collection->name}' is now live and accessible.",
-                "/memora/collections/{$collection->uuid}"
+                "/memora/collections/{$collection->uuid}",
+                $coverPhoto ? ['coverPhoto' => $coverPhoto] : null
+            );
+
+            // Log activity for collection published
+            app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                action: 'collection_published',
+                subject: $collection,
+                description: "Collection '{$collection->name}' published.",
+                properties: [
+                    'collection_uuid' => $collection->uuid,
+                    'collection_name' => $collection->name,
+                    'project_uuid' => $collection->project_uuid,
+                ],
+                causer: $user
             );
         } else {
             $this->notificationService->create(
@@ -465,9 +487,22 @@ class CollectionService
                 'Collection Created',
                 "Collection '{$collection->name}' has been created successfully.",
                 "Your collection '{$collection->name}' is ready to use.",
-                "/memora/collections/{$collection->uuid}"
+                "/memora/collections/{$collection->uuid}",
+                $coverPhoto ? ['coverPhoto' => $coverPhoto] : null
             );
         }
+
+        $this->activityLogService->log(
+            'created',
+            $collection,
+            "Created collection phase '{$collection->name}'",
+            [
+                'phase_type' => 'collection',
+                'project_uuid' => $collection->project_uuid,
+                'collection_uuid' => $collection->uuid,
+            ],
+            $user
+        );
 
         return $collection;
     }
@@ -727,6 +762,9 @@ class CollectionService
         $newStatus = $collection->status?->value ?? $collection->status;
 
         // Create notification if status changed to 'active' (published)
+        $settings = $collection->settings ?? [];
+        $coverPhoto = $settings['thumbnail'] ?? $settings['image'] ?? null;
+        
         if ($oldStatus !== 'active' && $newStatus === 'active') {
             $this->notificationService->create(
                 $user->uuid,
@@ -735,7 +773,21 @@ class CollectionService
                 'Collection Published',
                 "Collection '{$collection->name}' has been published successfully.",
                 "Your collection '{$collection->name}' is now live and accessible to viewers.",
-                "/memora/collections/{$collection->uuid}"
+                "/memora/collections/{$collection->uuid}",
+                $coverPhoto ? ['coverPhoto' => $coverPhoto] : null
+            );
+
+            // Log activity for collection published
+            app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                action: 'collection_published',
+                subject: $collection,
+                description: "Collection '{$collection->name}' published.",
+                properties: [
+                    'collection_uuid' => $collection->uuid,
+                    'collection_name' => $collection->name,
+                    'project_uuid' => $collection->project_uuid,
+                ],
+                causer: $user
             );
         } elseif ($oldStatus === $newStatus) {
             // General update notification (when status hasn't changed)
@@ -746,9 +798,25 @@ class CollectionService
                 'Collection Updated',
                 "Collection '{$collection->name}' has been updated successfully.",
                 "Your collection '{$collection->name}' settings have been saved.",
-                $collection->project_uuid ? "/memora/projects/{$collection->project_uuid}/collections/{$collection->uuid}" : "/memora/collections/{$collection->uuid}"
+                $collection->project_uuid ? "/memora/projects/{$collection->project_uuid}/collections/{$collection->uuid}" : "/memora/collections/{$collection->uuid}",
+                $coverPhoto ? ['coverPhoto' => $coverPhoto] : null
             );
         }
+
+        $this->activityLogService->log(
+            'updated',
+            $collection,
+            "Updated collection phase '{$collection->name}'",
+            [
+                'phase_type' => 'collection',
+                'project_uuid' => $collection->project_uuid,
+                'collection_uuid' => $collection->uuid,
+                'status_changed' => $oldStatus !== $newStatus,
+                'old_status' => $oldStatus,
+                'new_status' => $newStatus,
+            ],
+            $user
+        );
 
         // Restore preset sets if preset changed and new preset has photo_sets
         if ($presetChanged && $newPreset && $newPreset->photo_sets && is_array($newPreset->photo_sets) && count($newPreset->photo_sets) > 0) {
@@ -917,6 +985,18 @@ class CollectionService
                 "Collection '{$name}' has been deleted.",
                 "The collection '{$name}' has been permanently removed.",
                 '/memora/collections'
+            );
+
+            $this->activityLogService->log(
+                'deleted',
+                null,
+                "Deleted collection phase '{$name}'",
+                [
+                    'phase_type' => 'collection',
+                    'collection_uuid' => $collection->uuid,
+                    'project_uuid' => $collection->project_uuid,
+                ],
+                $user
             );
         }
 

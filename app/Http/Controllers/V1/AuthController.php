@@ -72,6 +72,21 @@ class AuthController extends Controller
             $user->load('status');
         }
 
+        // Log login activity (password)
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'logged_in',
+                $user,
+                'User logged in',
+                ['auth_method' => 'password']
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to log login activity', [
+                'user_uuid' => $user->uuid ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         return ApiResponse::successOk([
             'user' => [
                 'uuid' => $user->uuid,
@@ -80,6 +95,7 @@ class AuthController extends Controller
                 'last_name' => $user->last_name,
                 'profile_photo' => $user->profile_photo,
                 'email_verified_at' => $user->email_verified_at,
+                'role' => $user->role->value,
                 'status' => $user->status ? [
                     'uuid' => $user->status->uuid,
                     'name' => $user->status->name,
@@ -106,6 +122,20 @@ class AuthController extends Controller
 
         // Send verification code
         $this->verificationService->sendVerificationCode($user);
+
+        // Log registration activity
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'registered',
+                $user,
+                'User registered'
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to log registration activity', [
+                'user_uuid' => $user->uuid ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return ApiResponse::successCreated([
             'message' => 'Registration successful. Please verify your email.',
@@ -147,6 +177,20 @@ class AuthController extends Controller
         // Create token for login
         $token = $user->createToken('auth-token')->plainTextToken;
 
+        // Log email verification activity
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'email_verified',
+                $user,
+                'Email verified'
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to log email verification activity', [
+                'user_uuid' => $user->uuid ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         return ApiResponse::successOk([
             'message' => 'Email verified successfully.',
             'user' => [
@@ -155,6 +199,7 @@ class AuthController extends Controller
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
                 'email_verified_at' => $user->email_verified_at,
+                'role' => $user->role->value,
             ],
             'token' => $token,
         ]);
@@ -177,6 +222,20 @@ class AuthController extends Controller
 
         $this->verificationService->sendVerificationCode($user);
 
+        // Log verification code resend activity
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'verification_code_resent',
+                $user,
+                'Verification code resent'
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to log verification resend activity', [
+                'user_uuid' => $user->uuid ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         return ApiResponse::successOk([
             'message' => 'Verification code sent successfully.',
         ]);
@@ -197,6 +256,20 @@ class AuthController extends Controller
         }
 
         $this->passwordResetService->sendResetCode($user);
+
+        // Log password reset requested activity
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'password_reset_requested',
+                $user,
+                'Password reset requested'
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to log password reset request activity', [
+                'user_uuid' => $user->uuid ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return ApiResponse::successOk([
             'message' => 'If the email exists, a password reset code has been sent.',
@@ -222,6 +295,20 @@ class AuthController extends Controller
 
         if (! $reset) {
             return ApiResponse::error('Invalid or expired reset code.', 'INVALID_CODE', 400);
+        }
+
+        // Log password reset activity
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'password_reset',
+                $user,
+                'Password reset'
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to log password reset activity', [
+                'user_uuid' => $user->uuid ?? null,
+                'error' => $e->getMessage(),
+            ]);
         }
 
         return ApiResponse::successOk([
@@ -322,6 +409,25 @@ class AuthController extends Controller
             // Create token
             $token = $user->createToken('auth-token')->plainTextToken;
 
+            // Log OAuth login activity
+            try {
+                app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                    'logged_in',
+                    $user,
+                    'User logged in via OAuth',
+                    [
+                        'auth_method' => 'oauth',
+                        'provider' => $provider,
+                    ]
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to log OAuth login activity', [
+                    'user_uuid' => $user->uuid ?? null,
+                    'provider' => $provider,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             // Load status relationship if not already loaded
             if (! $user->relationLoaded('status')) {
                 $user->load('status');
@@ -362,6 +468,20 @@ class AuthController extends Controller
         }
 
         $this->magicLinkService->sendMagicLink($user);
+
+        // Log magic link sent activity
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'magic_link_sent',
+                $user,
+                'Magic link sent'
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to log magic link sent activity', [
+                'user_uuid' => $user->uuid ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return ApiResponse::successOk([
             'message' => 'If the email exists, a magic link has been sent.',
@@ -406,6 +526,21 @@ class AuthController extends Controller
             $user->load('status');
         }
 
+        // Log magic link login activity
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'logged_in',
+                $user,
+                'User logged in via magic link',
+                ['auth_method' => 'magic_link']
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to log magic link login activity', [
+                'user_uuid' => $user->uuid ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         return ApiResponse::successOk([
             'message' => 'Magic link verified successfully.',
             'user' => [
@@ -415,6 +550,7 @@ class AuthController extends Controller
                 'last_name' => $user->last_name,
                 'profile_photo' => $user->profile_photo,
                 'email_verified_at' => $user->email_verified_at,
+                'role' => $user->role->value,
                 'status' => $user->status ? [
                     'uuid' => $user->status->uuid,
                     'name' => $user->status->name,
@@ -437,9 +573,12 @@ class AuthController extends Controller
             return ApiResponse::errorUnauthorized('User not authenticated.');
         }
 
-        // Load status relationship if not already loaded
+        // Load relationships if not already loaded
         if (! $user->relationLoaded('status')) {
             $user->load('status');
+        }
+        if (! $user->relationLoaded('earlyAccess')) {
+            $user->load('earlyAccess');
         }
 
         return ApiResponse::successOk([
@@ -450,11 +589,25 @@ class AuthController extends Controller
                 'last_name' => $user->last_name,
                 'profile_photo' => $user->profile_photo,
                 'email_verified_at' => $user->email_verified_at,
+                'role' => $user->role->value,
                 'status' => $user->status ? [
                     'uuid' => $user->status->uuid,
                     'name' => $user->status->name,
                     'description' => $user->status->description,
                     'color' => $user->status->color,
+                ] : null,
+                'early_access' => $user->earlyAccess && $user->earlyAccess->isActive() ? [
+                    'is_active' => true,
+                    'discount_percentage' => $user->earlyAccess->discount_percentage,
+                    'discount_rules' => $user->earlyAccess->discount_rules,
+                    'feature_flags' => $user->earlyAccess->feature_flags ?? [],
+                    'storage_multiplier' => $user->earlyAccess->storage_multiplier,
+                    'priority_support' => $user->earlyAccess->priority_support,
+                    'exclusive_badge' => $user->earlyAccess->exclusive_badge,
+                    'trial_extension_days' => $user->earlyAccess->trial_extension_days,
+                    'custom_branding_enabled' => $user->earlyAccess->custom_branding_enabled,
+                    'release_version' => $user->earlyAccess->release_version,
+                    'expires_at' => $user->earlyAccess->expires_at?->toIso8601String(),
                 ] : null,
             ],
         ]);

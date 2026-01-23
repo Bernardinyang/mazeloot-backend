@@ -47,22 +47,40 @@ class QuotaService
     {
         $config = config('upload.quota', []);
 
+        $baseQuota = null;
+
         // Check per-domain quota first
         if ($domain && isset($config['per_domain'][$domain])) {
-            return $config['per_domain'][$domain];
+            $baseQuota = $config['per_domain'][$domain];
         }
-
         // Check per-user quota
-        if ($userId && isset($config['per_user'][$userId])) {
-            return $config['per_user'][$userId];
+        elseif ($userId && isset($config['per_user'][$userId])) {
+            $baseQuota = $config['per_user'][$userId];
         }
-
         // Check default user quota
-        if (isset($config['per_user']['default'])) {
-            return $config['per_user']['default'];
+        elseif (isset($config['per_user']['default'])) {
+            $baseQuota = $config['per_user']['default'];
         }
 
-        return null;
+        if (!$baseQuota) {
+            return null;
+        }
+
+        // Apply early access storage multiplier
+        if ($userId) {
+            $user = \App\Models\User::find($userId);
+        } else {
+            $user = auth()->user();
+        }
+
+        if ($user) {
+            $multiplier = $user->getStorageMultiplier();
+            if ($multiplier > 1.0) {
+                return (int) round($baseQuota * $multiplier);
+            }
+        }
+
+        return $baseQuota;
     }
 
     /**

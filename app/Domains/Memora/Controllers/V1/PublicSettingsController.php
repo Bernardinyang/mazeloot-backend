@@ -293,4 +293,30 @@ class PublicSettingsController extends Controller
             return ApiResponse::error('Failed to fetch featured media', 'FETCH_FAILED', 500);
         }
     }
+
+    /**
+     * Get user UUID by domain (no authentication required)
+     */
+    public function getUserByDomain(Request $request, string $domain): JsonResponse
+    {
+        try {
+            $settings = MemoraSettings::where('branding_domain', $domain)->first();
+
+            if (!$settings) {
+                return ApiResponse::errorNotFound('Domain not found');
+            }
+
+            return ApiResponse::success([
+                'user_uuid' => $settings->user_uuid,
+                'domain' => $domain,
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to get user by domain', [
+                'domain' => $domain,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return ApiResponse::error('Failed to resolve domain', 'RESOLVE_FAILED', 500);
+        }
+    }
 }

@@ -91,6 +91,28 @@ class ProofingApprovalRequestService
             try {
                 Notification::route('mail', $email)
                     ->notify(new ProofingApprovalRequestedNotification($approvalRequest));
+
+                // Log activity for approval request email notification
+                try {
+                    app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                        'notification_sent',
+                        $approvalRequest,
+                        'Proofing approval request email sent',
+                        [
+                            'channel' => 'email',
+                            'notification' => 'ProofingApprovalRequestedNotification',
+                            'recipient_email' => $email,
+                            'proofing_uuid' => $proofing->uuid,
+                            'media_uuid' => $media->uuid,
+                        ]
+                    );
+                } catch (\Throwable $logException) {
+                    Log::error('Failed to log proofing approval request notification activity', [
+                        'approval_request_uuid' => $approvalRequest->uuid ?? null,
+                        'email' => $email,
+                        'error' => $logException->getMessage(),
+                    ]);
+                }
             } catch (\Exception $e) {
                 Log::error('Failed to send approval request notification', [
                     'approval_request_uuid' => $approvalRequest->uuid,
@@ -168,10 +190,46 @@ class ProofingApprovalRequestService
                 throw $e; // Re-throw to trigger rollback
             }
 
+            // Log activity for approval request approved
+            app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                action: 'approval_request_approved',
+                subject: $approvalRequest->media,
+                description: "Approval request approved for media by {$email}.",
+                properties: [
+                    'approval_request_uuid' => $approvalRequest->uuid,
+                    'proofing_uuid' => $approvalRequest->proofing_uuid,
+                    'media_uuid' => $approvalRequest->media_uuid,
+                    'approved_by_email' => $email,
+                ],
+                causer: $approvalRequest->user
+            );
+
             // Send email notification to creative (outside transaction - don't rollback on email failure)
             try {
                 Notification::route('mail', $approvalRequest->user->email)
                     ->notify(new ProofingApprovalApprovedNotification($approvalRequest->fresh()));
+
+                // Log activity for approval approved email notification
+                try {
+                    app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                        'notification_sent',
+                        $approvalRequest,
+                        'Proofing approval approved email sent',
+                        [
+                            'channel' => 'email',
+                            'notification' => 'ProofingApprovalApprovedNotification',
+                            'recipient_email' => $approvalRequest->user->email,
+                            'proofing_uuid' => $approvalRequest->proofing_uuid,
+                            'media_uuid' => $approvalRequest->media_uuid,
+                        ]
+                    );
+                } catch (\Throwable $logException) {
+                    Log::error('Failed to log proofing approval approved notification activity', [
+                        'approval_request_uuid' => $approvalRequest->uuid ?? null,
+                        'email' => $approvalRequest->user->email ?? null,
+                        'error' => $logException->getMessage(),
+                    ]);
+                }
             } catch (\Exception $e) {
                 Log::error('Failed to send approval notification', [
                     'approval_request_uuid' => $approvalRequest->uuid,
@@ -238,10 +296,47 @@ class ProofingApprovalRequestService
                 throw $e; // Re-throw to trigger rollback
             }
 
+            // Log activity for approval request rejected
+            app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                action: 'approval_request_rejected',
+                subject: $approvalRequest->media,
+                description: "Approval request rejected for media by {$email}.",
+                properties: [
+                    'approval_request_uuid' => $approvalRequest->uuid,
+                    'proofing_uuid' => $approvalRequest->proofing_uuid,
+                    'media_uuid' => $approvalRequest->media_uuid,
+                    'rejected_by_email' => $email,
+                    'rejection_reason' => $reason,
+                ],
+                causer: $approvalRequest->user
+            );
+
             // Send email notification to creative (outside transaction - don't rollback on email failure)
             try {
                 Notification::route('mail', $approvalRequest->user->email)
                     ->notify(new ProofingApprovalRejectedNotification($approvalRequest->fresh()));
+
+                // Log activity for approval rejected email notification
+                try {
+                    app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                        'notification_sent',
+                        $approvalRequest,
+                        'Proofing approval rejected email sent',
+                        [
+                            'channel' => 'email',
+                            'notification' => 'ProofingApprovalRejectedNotification',
+                            'recipient_email' => $approvalRequest->user->email,
+                            'proofing_uuid' => $approvalRequest->proofing_uuid,
+                            'media_uuid' => $approvalRequest->media_uuid,
+                        ]
+                    );
+                } catch (\Throwable $logException) {
+                    Log::error('Failed to log proofing approval rejected notification activity', [
+                        'approval_request_uuid' => $approvalRequest->uuid ?? null,
+                        'email' => $approvalRequest->user->email ?? null,
+                        'error' => $logException->getMessage(),
+                    ]);
+                }
             } catch (\Exception $e) {
                 Log::error('Failed to send approval rejection notification', [
                     'approval_request_uuid' => $approvalRequest->uuid,

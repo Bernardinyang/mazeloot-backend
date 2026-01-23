@@ -15,6 +15,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'api-key' => \App\Http\Middleware\ApiKeyAuth::class,
             'guest.token' => \App\Http\Middleware\GuestTokenAuth::class,
+            'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
+            'superadmin' => \App\Http\Middleware\EnsureUserIsSuperAdmin::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [

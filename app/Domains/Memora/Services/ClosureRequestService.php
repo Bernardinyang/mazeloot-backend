@@ -62,6 +62,28 @@ class ClosureRequestService
             try {
                 Notification::route('mail', $primaryEmail)
                     ->notify(new ProofingClosureRequestedNotification($closureRequest));
+
+                // Log activity for closure request email notification
+                try {
+                    app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                        'notification_sent',
+                        $closureRequest,
+                        'Proofing closure request email sent',
+                        [
+                            'channel' => 'email',
+                            'notification' => 'ProofingClosureRequestedNotification',
+                            'recipient_email' => $primaryEmail,
+                            'proofing_uuid' => $proofing->uuid,
+                            'media_uuid' => $media->uuid,
+                        ]
+                    );
+                } catch (\Throwable $logException) {
+                    Log::error('Failed to log proofing closure request notification activity', [
+                        'closure_request_uuid' => $closureRequest->uuid ?? null,
+                        'email' => $primaryEmail,
+                        'error' => $logException->getMessage(),
+                    ]);
+                }
             } catch (\Exception $e) {
                 Log::error('Failed to send closure request notification', [
                     'closure_request_uuid' => $closureRequest->uuid,
@@ -132,10 +154,46 @@ class ClosureRequestService
                 'is_ready_for_revision' => true,
             ]);
 
+            // Log activity for closure request approved
+            app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                action: 'closure_request_approved',
+                subject: $closureRequest->media,
+                description: "Closure request approved for media by {$email}.",
+                properties: [
+                    'closure_request_uuid' => $closureRequest->uuid,
+                    'proofing_uuid' => $closureRequest->proofing_uuid,
+                    'media_uuid' => $closureRequest->media_uuid,
+                    'approved_by_email' => $email,
+                ],
+                causer: $closureRequest->user
+            );
+
             // Send email notification to creative (outside transaction - don't rollback on email failure)
             try {
                 Notification::route('mail', $closureRequest->user->email)
                     ->notify(new ProofingClosureApprovedNotification($closureRequest->fresh()));
+
+                // Log activity for closure approved email notification
+                try {
+                    app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                        'notification_sent',
+                        $closureRequest,
+                        'Proofing closure approved email sent',
+                        [
+                            'channel' => 'email',
+                            'notification' => 'ProofingClosureApprovedNotification',
+                            'recipient_email' => $closureRequest->user->email,
+                            'proofing_uuid' => $closureRequest->proofing_uuid,
+                            'media_uuid' => $closureRequest->media_uuid,
+                        ]
+                    );
+                } catch (\Throwable $logException) {
+                    Log::error('Failed to log proofing closure approved notification activity', [
+                        'closure_request_uuid' => $closureRequest->uuid ?? null,
+                        'email' => $closureRequest->user->email ?? null,
+                        'error' => $logException->getMessage(),
+                    ]);
+                }
             } catch (\Exception $e) {
                 Log::error('Failed to send closure approval notification', [
                     'closure_request_uuid' => $closureRequest->uuid,
@@ -183,10 +241,47 @@ class ClosureRequestService
             'rejected_by_email' => $email,
         ]);
 
+        // Log activity for closure request rejected
+        app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+            action: 'closure_request_rejected',
+            subject: $closureRequest->media,
+            description: "Closure request rejected for media by {$email}.",
+            properties: [
+                'closure_request_uuid' => $closureRequest->uuid,
+                'proofing_uuid' => $closureRequest->proofing_uuid,
+                'media_uuid' => $closureRequest->media_uuid,
+                'rejected_by_email' => $email,
+                'rejection_reason' => $reason,
+            ],
+            causer: $closureRequest->user
+        );
+
         // Send email notification to creative
         try {
             Notification::route('mail', $closureRequest->user->email)
                 ->notify(new \App\Notifications\ProofingClosureRejectedNotification($closureRequest, $reason));
+
+            // Log activity for closure rejected email notification
+            try {
+                app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                    'notification_sent',
+                    $closureRequest,
+                    'Proofing closure rejected email sent',
+                    [
+                        'channel' => 'email',
+                        'notification' => 'ProofingClosureRejectedNotification',
+                        'recipient_email' => $closureRequest->user->email,
+                        'proofing_uuid' => $closureRequest->proofing_uuid,
+                        'media_uuid' => $closureRequest->media_uuid,
+                    ]
+                );
+            } catch (\Throwable $logException) {
+                Log::error('Failed to log proofing closure rejected notification activity', [
+                    'closure_request_uuid' => $closureRequest->uuid ?? null,
+                    'email' => $closureRequest->user->email ?? null,
+                    'error' => $logException->getMessage(),
+                ]);
+            }
         } catch (\Exception $e) {
             Log::error('Failed to send closure rejection notification', [
                 'closure_request_uuid' => $closureRequest->uuid,

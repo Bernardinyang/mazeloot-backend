@@ -8,6 +8,7 @@ use App\Domains\Memora\Models\MemoraMediaFeedback;
 use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraProofing;
 use App\Domains\Memora\Models\MemoraSelection;
+use App\Services\ActivityLog\ActivityLogService;
 use App\Services\Upload\UploadService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -278,7 +279,35 @@ class MediaService
             'selected_at' => $isSelected ? now() : null,
         ]);
 
-        return $media->fresh();
+        $media = $media->fresh();
+
+        // Log activity for media selection (only when selecting, not deselecting)
+        if ($isSelected) {
+            $phaseType = null;
+            $phaseUuid = null;
+            if ($set->raw_file_uuid) {
+                $phaseType = 'raw_file';
+                $phaseUuid = $set->raw_file_uuid;
+            } elseif ($set->selection_uuid) {
+                $phaseType = 'selection';
+                $phaseUuid = $set->selection_uuid;
+            }
+
+            app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                action: 'media_selected',
+                subject: $media,
+                description: "Media selected in {$phaseType}.",
+                properties: [
+                    'media_uuid' => $media->uuid,
+                    'phase_type' => $phaseType,
+                    'phase_uuid' => $phaseUuid,
+                    'media_set_uuid' => $set->uuid,
+                ],
+                causer: Auth::user()
+            );
+        }
+
+        return $media;
     }
 
     /**
@@ -335,7 +364,44 @@ class MediaService
             'completed_at' => $isCompleted ? now() : null,
         ]);
 
-        return $media->fresh();
+        $media = $media->fresh();
+
+        // Log activity for media approval/rejection (only if not already logged via approval request)
+        if ($isCompleted) {
+            $media->load('mediaSet');
+            $phaseType = null;
+            $phaseUuid = null;
+            if ($media->mediaSet) {
+                if ($media->mediaSet->proof_uuid) {
+                    $phaseType = 'proofing';
+                    $phaseUuid = $media->mediaSet->proof_uuid;
+                }
+            }
+
+            // Check for guest email from request
+            $guestEmail = null;
+            $request = request();
+            if ($request && $request->attributes->has('guest_token')) {
+                $guestToken = $request->attributes->get('guest_token');
+                $guestEmail = $guestToken->email ?? null;
+            }
+
+            app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                action: 'media_approved',
+                subject: $media,
+                description: "Media approved in proofing.",
+                properties: [
+                    'media_uuid' => $media->uuid,
+                    'phase_type' => $phaseType,
+                    'phase_uuid' => $phaseUuid,
+                ],
+                causer: Auth::user(),
+                request: $request,
+                guestEmail: $guestEmail
+            );
+        }
+
+        return $media;
     }
 
     public function markRejected(string $id, bool $isRejected, ?string $userId = null): MemoraMedia
@@ -358,7 +424,44 @@ class MediaService
             'rejected_at' => $isRejected ? now() : null,
         ]);
 
-        return $media->fresh();
+        $media = $media->fresh();
+
+        // Log activity for media rejection (only if not already logged via approval request)
+        if ($isRejected) {
+            $media->load('mediaSet');
+            $phaseType = null;
+            $phaseUuid = null;
+            if ($media->mediaSet) {
+                if ($media->mediaSet->proof_uuid) {
+                    $phaseType = 'proofing';
+                    $phaseUuid = $media->mediaSet->proof_uuid;
+                }
+            }
+
+            // Check for guest email from request
+            $guestEmail = null;
+            $request = request();
+            if ($request && $request->attributes->has('guest_token')) {
+                $guestToken = $request->attributes->get('guest_token');
+                $guestEmail = $guestToken->email ?? null;
+            }
+
+            app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                action: 'media_rejected',
+                subject: $media,
+                description: "Media rejected in proofing.",
+                properties: [
+                    'media_uuid' => $media->uuid,
+                    'phase_type' => $phaseType,
+                    'phase_uuid' => $phaseUuid,
+                ],
+                causer: Auth::user(),
+                request: $request,
+                guestEmail: $guestEmail
+            );
+        }
+
+        return $media;
     }
 
     /**
@@ -888,6 +991,37 @@ class MediaService
         // Update phase storage
         $this->updatePhaseStorage($set);
 
+        // Log activity for media upload
+        $phaseType = null;
+        $phaseUuid = null;
+        if ($set->proof_uuid) {
+            $phaseType = 'proofing';
+            $phaseUuid = $set->proof_uuid;
+        } elseif ($set->selection_uuid) {
+            $phaseType = 'selection';
+            $phaseUuid = $set->selection_uuid;
+        } elseif ($set->collection_uuid) {
+            $phaseType = 'collection';
+            $phaseUuid = $set->collection_uuid;
+        } elseif ($set->raw_file_uuid) {
+            $phaseType = 'raw_file';
+            $phaseUuid = $set->raw_file_uuid;
+        }
+
+        app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+            action: 'media_uploaded',
+            subject: $media,
+            description: "Media uploaded to {$phaseType}.",
+            properties: [
+                'media_uuid' => $media->uuid,
+                'phase_type' => $phaseType,
+                'phase_uuid' => $phaseUuid,
+                'media_set_uuid' => $setUuid,
+                'filename' => $userFile->filename ?? null,
+            ],
+            causer: Auth::user()
+        );
+
         return $media;
     }
 
@@ -1047,6 +1181,39 @@ class MediaService
         if ($mediaSet) {
             $this->updatePhaseStorage($mediaSet);
         }
+
+        // Log activity for media deletion
+        $phaseType = null;
+        $phaseUuid = null;
+        if ($mediaSet) {
+            if ($mediaSet->proof_uuid) {
+                $phaseType = 'proofing';
+                $phaseUuid = $mediaSet->proof_uuid;
+            } elseif ($mediaSet->selection_uuid) {
+                $phaseType = 'selection';
+                $phaseUuid = $mediaSet->selection_uuid;
+            } elseif ($mediaSet->collection_uuid) {
+                $phaseType = 'collection';
+                $phaseUuid = $mediaSet->collection_uuid;
+            } elseif ($mediaSet->raw_file_uuid) {
+                $phaseType = 'raw_file';
+                $phaseUuid = $mediaSet->raw_file_uuid;
+            }
+        }
+
+        app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+            action: 'media_deleted',
+            subject: null,
+            description: "Media deleted from {$phaseType}.",
+            properties: [
+                'media_uuid' => $mediaId,
+                'phase_type' => $phaseType,
+                'phase_uuid' => $phaseUuid,
+                'media_set_uuid' => $mediaSet?->uuid,
+                'filename' => $media->file?->filename ?? null,
+            ],
+            causer: Auth::user()
+        );
 
         return $deleted;
     }

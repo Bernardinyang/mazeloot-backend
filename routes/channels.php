@@ -44,3 +44,7 @@ Broadcast::channel('user.{userId}', function ($user, $userId) {
 
     return $authorized;
 });
+
+Broadcast::channel('admin.early-access', function ($user) {
+    return $user && $user->isAdmin();
+});

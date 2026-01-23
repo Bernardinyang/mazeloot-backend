@@ -7,9 +7,51 @@ use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class NotificationService
 {
+    /**
+     * Determine notification priority based on type.
+     *
+     * @param  string  $type  Notification type
+     * @return string  Priority: HIGH, MEDIUM, or LOW
+     */
+    private function determinePriority(string $type): string
+    {
+        // HIGH: Critical actions requiring immediate attention
+        if (
+            str_contains($type, 'rejected') ||
+            str_contains($type, 'approval_requested') ||
+            str_contains($type, 'closure_requested') ||
+            str_contains($type, 'limit_reached') ||
+            str_contains($type, 'failed') ||
+            str_contains($type, 'error') ||
+            str_contains($type, 'deleted')
+        ) {
+            return 'HIGH';
+        }
+
+        // MEDIUM: Important workflow milestones
+        if (
+            str_contains($type, 'completed') ||
+            str_contains($type, 'published') ||
+            str_contains($type, 'approved') ||
+            str_contains($type, 'comment') ||
+            str_contains($type, 'revision_uploaded') ||
+            str_contains($type, 'feedback') ||
+            str_contains($type, 'download') ||
+            str_contains($type, 'access') ||
+            str_contains($type, 'shared') ||
+            str_contains($type, 'uploaded')
+        ) {
+            return 'MEDIUM';
+        }
+
+        // LOW: Informational updates
+        return 'LOW';
+    }
+
     /**
      * Create a notification for a user.
      *
@@ -32,6 +74,20 @@ class NotificationService
         ?string $actionUrl = null,
         ?array $metadata = null
     ): Notification {
+        // Determine priority and merge into metadata
+        // Allow metadata to override priority if explicitly set, otherwise determine from type
+        $priority = $metadata['priority'] ?? $this->determinePriority($type);
+        
+        // Ensure priority is valid
+        if (!in_array($priority, ['HIGH', 'MEDIUM', 'LOW'])) {
+            $priority = $this->determinePriority($type);
+        }
+        
+        $finalMetadata = array_merge(
+            $metadata ?? [],
+            ['priority' => $priority]
+        );
+
         $notification = Notification::create([
             'user_uuid' => $userUuid,
             'product' => $product,
@@ -40,11 +96,32 @@ class NotificationService
             'message' => $message,
             'description' => $description,
             'action_url' => $actionUrl,
-            'metadata' => $metadata,
+            'metadata' => $finalMetadata,
         ]);
 
         // Broadcast the notification
         event(new NotificationCreated($notification));
+
+        // Log activity for notification creation (admin visibility)
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                'notification_created',
+                $notification,
+                'Notification created',
+                [
+                    'user_uuid' => $notification->user_uuid,
+                    'product' => $notification->product,
+                    'type' => $notification->type,
+                    'title' => $notification->title,
+                ]
+            );
+        } catch (\Throwable $e) {
+            Log::error('Failed to log notification activity', [
+                'notification_uuid' => $notification->uuid ?? null,
+                'user_uuid' => $notification->user_uuid ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return $notification;
     }

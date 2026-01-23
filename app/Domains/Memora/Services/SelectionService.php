@@ -7,6 +7,7 @@ use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraProject;
 use App\Domains\Memora\Models\MemoraSelection;
 use App\Domains\Memora\Resources\V1\SelectionResource;
+use App\Services\ActivityLog\ActivityLogService;
 use App\Services\Notification\NotificationService;
 use App\Services\Pagination\PaginationService;
 use Illuminate\Database\Eloquent\Builder;
@@ -21,12 +22,16 @@ class SelectionService
 
     protected NotificationService $notificationService;
 
+    protected ActivityLogService $activityLogService;
+
     public function __construct(
         PaginationService $paginationService,
-        NotificationService $notificationService
+        NotificationService $notificationService,
+        ActivityLogService $activityLogService
     ) {
         $this->paginationService = $paginationService;
         $this->notificationService = $notificationService;
+        $this->activityLogService = $activityLogService;
     }
 
     /**
@@ -66,7 +71,20 @@ class SelectionService
             'Selection Created',
             "Selection '{$selection->name}' has been created successfully.",
             "Your new selection '{$selection->name}' is now available to use.",
-            $selection->project_uuid ? "/memora/projects/{$selection->project_uuid}/selections/{$selection->uuid}" : "/memora/selections/{$selection->uuid}"
+            $selection->project_uuid ? "/memora/projects/{$selection->project_uuid}/selections/{$selection->uuid}" : "/memora/selections/{$selection->uuid}",
+            ['coverPhoto' => $selection->cover_photo_url]
+        );
+
+        $this->activityLogService->log(
+            'created',
+            $selection,
+            "Created selection phase '{$selection->name}'",
+            [
+                'phase_type' => 'selection',
+                'project_uuid' => $selection->project_uuid,
+                'selection_uuid' => $selection->uuid,
+            ],
+            $user
         );
 
         return new SelectionResource($this->findModel($selection->uuid));
@@ -295,7 +313,8 @@ class SelectionService
                     'Selection Republished',
                     "Selection '{$selection->name}' has been republished.",
                     "Selection '{$selection->name}' has been republished and is now available to clients.",
-                    "/memora/selections/{$selection->uuid}"
+                    "/memora/selections/{$selection->uuid}",
+                    ['coverPhoto' => $selection->cover_photo_url]
                 );
             } catch (\Exception $e) {
                 Log::error('Failed to send selection republish notification', [
@@ -305,6 +324,20 @@ class SelectionService
                 ]);
             }
         }
+
+        // Log activity for selection publish
+        app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+            action: $newStatus === 'active' ? 'selection_published' : 'selection_unpublished',
+            subject: $selection,
+            description: "Selection '{$selection->name}' {$newStatus}.",
+            properties: [
+                'selection_uuid' => $selection->uuid,
+                'selection_name' => $selection->name,
+                'project_uuid' => $selection->project_uuid,
+                'status' => $newStatus,
+            ],
+            causer: $user
+        );
 
         return new SelectionResource($selection);
     }
@@ -439,7 +472,20 @@ class SelectionService
             'Selection Updated',
             "Selection '{$selection->name}' has been updated successfully.",
             "Your selection '{$selection->name}' settings have been saved.",
-            $selection->project_uuid ? "/memora/projects/{$selection->project_uuid}/selections/{$selection->uuid}" : "/memora/selections/{$selection->uuid}"
+            $selection->project_uuid ? "/memora/projects/{$selection->project_uuid}/selections/{$selection->uuid}" : "/memora/selections/{$selection->uuid}",
+            ['coverPhoto' => $selection->cover_photo_url]
+        );
+
+        $this->activityLogService->log(
+            'updated',
+            $selection,
+            "Updated selection phase '{$selection->name}'",
+            [
+                'phase_type' => 'selection',
+                'project_uuid' => $selection->project_uuid,
+                'selection_uuid' => $selection->uuid,
+            ],
+            $user
         );
 
         // Return with calculated counts
@@ -516,7 +562,8 @@ class SelectionService
                     $completedByEmail
                         ? "Selection '{$selection->name}' has been completed by {$completedByEmail}."
                         : "Selection '{$selection->name}' has been completed.",
-                    "/memora/selections/{$selection->uuid}"
+                    "/memora/selections/{$selection->uuid}",
+                    ['coverPhoto' => $selection->cover_photo_url]
                 );
             } catch (\Exception $e) {
                 Log::error('Failed to send selection completion notification', [
@@ -525,6 +572,21 @@ class SelectionService
                     'error' => $e->getMessage(),
                 ]);
             }
+
+            // Log activity for selection completion
+            app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                action: 'selection_completed',
+                subject: $selection,
+                description: "Selection '{$selection->name}' completed.",
+                properties: [
+                    'selection_uuid' => $selection->uuid,
+                    'selection_name' => $selection->name,
+                    'project_uuid' => $selection->project_uuid,
+                    'completed_by_email' => $completedByEmail,
+                    'media_count' => count($mediaIds),
+                ],
+                causer: $user ?? $selection->user
+            );
 
             return new SelectionResource($selection);
         });
@@ -896,6 +958,18 @@ class SelectionService
                     "Selection '{$name}' has been deleted.",
                     "The selection '{$name}' has been permanently removed.",
                     '/memora/selections'
+                );
+
+                $this->activityLogService->log(
+                    'deleted',
+                    null,
+                    "Deleted selection phase '{$name}'",
+                    [
+                        'phase_type' => 'selection',
+                        'selection_uuid' => $selection->uuid,
+                        'project_uuid' => $selection->project_uuid,
+                    ],
+                    $user
                 );
             }
 

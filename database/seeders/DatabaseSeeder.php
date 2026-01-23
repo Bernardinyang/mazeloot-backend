@@ -57,5 +57,20 @@ class DatabaseSeeder extends Seeder
         $this->call([
             EmailNotificationTypeSeeder::class,
         ]);
+
+        // Seed products
+        $this->call([
+            ProductSeeder::class,
+        ]);
+
+        // Seed super admin
+        $this->call([
+            SuperAdminSeeder::class,
+        ]);
+
+        // Seed admin and super admin users
+        $this->call([
+            UserSeeder::class,
+        ]);
     }
 }
