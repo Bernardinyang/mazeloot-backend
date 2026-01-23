@@ -16,7 +16,6 @@ use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class OnboardingController extends Controller
 {
@@ -40,7 +39,7 @@ class OnboardingController extends Controller
             ->where('product_uuid', $productUuid)
             ->exists();
 
-        if (!$hasSelection) {
+        if (! $hasSelection) {
             return ApiResponse::errorForbidden('You must select this product first');
         }
 
@@ -61,7 +60,7 @@ class OnboardingController extends Controller
     {
         $token = $request->query('token');
 
-        if (!$token) {
+        if (! $token) {
             return ApiResponse::errorBadRequest('Token is required');
         }
 
@@ -79,7 +78,7 @@ class OnboardingController extends Controller
         // Check onboarding token
         $tokenModel = $this->tokenService->verify($token);
 
-        if (!$tokenModel) {
+        if (! $tokenModel) {
             return ApiResponse::errorUnauthorized('Invalid or expired token');
         }
 
@@ -119,7 +118,7 @@ class OnboardingController extends Controller
 
         // Verify token
         $tokenModel = $this->tokenService->verify($token);
-        if (!$tokenModel || $tokenModel->user_uuid !== $user->uuid || $tokenModel->product_uuid !== $productUuid) {
+        if (! $tokenModel || $tokenModel->user_uuid !== $user->uuid || $tokenModel->product_uuid !== $productUuid) {
             return ApiResponse::errorUnauthorized('Invalid or expired token');
         }
 
@@ -130,12 +129,12 @@ class OnboardingController extends Controller
             if ($step === 'domain') {
                 // Validate domain
                 $domain = $stepData['domain'] ?? null;
-                if (!$domain) {
+                if (! $domain) {
                     return ApiResponse::errorValidation('Domain is required');
                 }
 
                 $validation = $this->domainService->validateDomain($domain, $user->uuid);
-                if (!$validation['available']) {
+                if (! $validation['available']) {
                     return ApiResponse::errorValidation($validation['message']);
                 }
 
@@ -190,7 +189,7 @@ class OnboardingController extends Controller
 
         // Verify token
         $tokenModel = $this->tokenService->verify($token);
-        if (!$tokenModel || $tokenModel->user_uuid !== $user->uuid || $tokenModel->product_uuid !== $productUuid) {
+        if (! $tokenModel || $tokenModel->user_uuid !== $user->uuid || $tokenModel->product_uuid !== $productUuid) {
             return ApiResponse::errorUnauthorized('Invalid or expired token');
         }
 
@@ -211,11 +210,11 @@ class OnboardingController extends Controller
         // For Memora, ensure domain and branding are saved
         if ($product->slug === 'memora') {
             $onboardingData = $status->onboarding_data ?? [];
-            
+
             if (isset($onboardingData['domain'])) {
                 $this->domainService->saveDomain($user, $onboardingData['domain']['domain']);
             }
-            
+
             if (isset($onboardingData['branding'])) {
                 $this->settingsService->updateBranding($onboardingData['branding']);
             }
@@ -247,10 +246,10 @@ class OnboardingController extends Controller
     public function generateProductSelectionToken(Request $request): JsonResponse
     {
         $user = Auth::user();
-        
+
         // Generate a secure token for product selection
         $token = bin2hex(random_bytes(32));
-        
+
         // Store token in cache with 24 hour expiration
         \Illuminate\Support\Facades\Cache::put(
             "product_selection_token:{$token}",

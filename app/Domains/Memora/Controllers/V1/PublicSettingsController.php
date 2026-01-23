@@ -302,7 +302,7 @@ class PublicSettingsController extends Controller
         try {
             $settings = MemoraSettings::where('branding_domain', $domain)->first();
 
-            if (!$settings) {
+            if (! $settings) {
                 return ApiResponse::errorNotFound('Domain not found');
             }
 

@@ -43,7 +43,7 @@ class EarlyAccessRequestService
         });
 
         $user = User::find($userUuid);
-        if ($user && !empty($adminUuids)) {
+        if ($user && ! empty($adminUuids)) {
             NotifyAdminsEarlyAccessRequest::dispatch(
                 $adminUuids,
                 $user->first_name,

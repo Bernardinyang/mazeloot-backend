@@ -319,6 +319,7 @@ class User extends Authenticatable
     public function hasEarlyAccess(): bool
     {
         $earlyAccess = $this->earlyAccess;
+
         return $earlyAccess && $earlyAccess->isActive();
     }
 
@@ -327,7 +328,7 @@ class User extends Authenticatable
      */
     public function getEarlyAccessDiscount(string $productId): int
     {
-        if (!$this->hasEarlyAccess()) {
+        if (! $this->hasEarlyAccess()) {
             return 0;
         }
 
@@ -339,7 +340,7 @@ class User extends Authenticatable
      */
     public function getStorageMultiplier(): float
     {
-        if (!$this->hasEarlyAccess()) {
+        if (! $this->hasEarlyAccess()) {
             return 1.0;
         }
 
@@ -351,7 +352,7 @@ class User extends Authenticatable
      */
     public function hasPrioritySupport(): bool
     {
-        if (!$this->hasEarlyAccess()) {
+        if (! $this->hasEarlyAccess()) {
             return false;
         }
 

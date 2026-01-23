@@ -79,7 +79,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/status', [OnboardingController::class, 'getStatus']);
         Route::post('/step', [OnboardingController::class, 'completeStep']);
         Route::post('/complete', [OnboardingController::class, 'complete']);
-        
+
         // Memora-specific onboarding helpers
         Route::post('/memora/validate-domain', [OnboardingController::class, 'validateDomain']);
     });

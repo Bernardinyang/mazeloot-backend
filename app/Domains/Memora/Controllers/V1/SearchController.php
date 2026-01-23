@@ -3,11 +3,11 @@
 namespace App\Domains\Memora\Controllers\V1;
 
 use App\Domains\Memora\Models\MemoraCollection;
+use App\Domains\Memora\Models\MemoraPreset;
 use App\Domains\Memora\Models\MemoraProject;
-use App\Domains\Memora\Models\MemoraSelection;
 use App\Domains\Memora\Models\MemoraProofing;
 use App\Domains\Memora\Models\MemoraRawFile;
-use App\Domains\Memora\Models\MemoraPreset;
+use App\Domains\Memora\Models\MemoraSelection;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -43,7 +43,7 @@ class SearchController extends Controller
         $results = [];
 
         // Search Collections
-        if (!$type || $type === 'collection') {
+        if (! $type || $type === 'collection') {
             $collections = MemoraCollection::where('user_uuid', $user->uuid)
                 ->when($search, function ($query) use ($search) {
                     $query->where(function ($q) use ($search) {
@@ -51,17 +51,17 @@ class SearchController extends Controller
                             ->orWhere('description', 'like', "%{$search}%");
                     });
                 })
-                ->when($status, fn($q) => $q->where('status', $status))
+                ->when($status, fn ($q) => $q->where('status', $status))
                 ->when($starred !== null, function ($q) use ($user, $starred) {
                     if ($starred) {
-                        $q->whereHas('starredByUsers', fn($q) => $q->where('user_uuid', $user->uuid));
+                        $q->whereHas('starredByUsers', fn ($q) => $q->where('user_uuid', $user->uuid));
                     } else {
-                        $q->whereDoesntHave('starredByUsers', fn($q) => $q->where('user_uuid', $user->uuid));
+                        $q->whereDoesntHave('starredByUsers', fn ($q) => $q->where('user_uuid', $user->uuid));
                     }
                 })
                 ->limit($limit)
                 ->get()
-                ->map(fn($item) => [
+                ->map(fn ($item) => [
                     'id' => $item->uuid,
                     'name' => $item->name,
                     'description' => $item->description,
@@ -74,7 +74,7 @@ class SearchController extends Controller
         }
 
         // Search Projects
-        if (!$type || $type === 'project') {
+        if (! $type || $type === 'project') {
             $projects = MemoraProject::where('user_uuid', $user->uuid)
                 ->when($search, function ($query) use ($search) {
                     $query->where(function ($q) use ($search) {
@@ -82,17 +82,17 @@ class SearchController extends Controller
                             ->orWhere('description', 'like', "%{$search}%");
                     });
                 })
-                ->when($status, fn($q) => $q->where('status', $status))
+                ->when($status, fn ($q) => $q->where('status', $status))
                 ->when($starred !== null, function ($q) use ($user, $starred) {
                     if ($starred) {
-                        $q->whereHas('starredByUsers', fn($q) => $q->where('user_uuid', $user->uuid));
+                        $q->whereHas('starredByUsers', fn ($q) => $q->where('user_uuid', $user->uuid));
                     } else {
-                        $q->whereDoesntHave('starredByUsers', fn($q) => $q->where('user_uuid', $user->uuid));
+                        $q->whereDoesntHave('starredByUsers', fn ($q) => $q->where('user_uuid', $user->uuid));
                     }
                 })
                 ->limit($limit)
                 ->get()
-                ->map(fn($item) => [
+                ->map(fn ($item) => [
                     'id' => $item->uuid,
                     'name' => $item->name,
                     'description' => $item->description,
@@ -105,20 +105,20 @@ class SearchController extends Controller
         }
 
         // Search Selections
-        if (!$type || $type === 'selection') {
+        if (! $type || $type === 'selection') {
             $selections = MemoraSelection::where('user_uuid', $user->uuid)
-                ->when($search, fn($q) => $q->where('name', 'like', "%{$search}%"))
-                ->when($status, fn($q) => $q->where('status', $status))
+                ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%"))
+                ->when($status, fn ($q) => $q->where('status', $status))
                 ->when($starred !== null, function ($q) use ($user, $starred) {
                     if ($starred) {
-                        $q->whereHas('starredByUsers', fn($q) => $q->where('user_uuid', $user->uuid));
+                        $q->whereHas('starredByUsers', fn ($q) => $q->where('user_uuid', $user->uuid));
                     } else {
-                        $q->whereDoesntHave('starredByUsers', fn($q) => $q->where('user_uuid', $user->uuid));
+                        $q->whereDoesntHave('starredByUsers', fn ($q) => $q->where('user_uuid', $user->uuid));
                     }
                 })
                 ->limit($limit)
                 ->get()
-                ->map(fn($item) => [
+                ->map(fn ($item) => [
                     'id' => $item->uuid,
                     'name' => $item->name,
                     'description' => null,
@@ -131,20 +131,20 @@ class SearchController extends Controller
         }
 
         // Search Proofing
-        if (!$type || $type === 'proofing') {
+        if (! $type || $type === 'proofing') {
             $proofing = MemoraProofing::where('user_uuid', $user->uuid)
-                ->when($search, fn($q) => $q->where('name', 'like', "%{$search}%"))
-                ->when($status, fn($q) => $q->where('status', $status))
+                ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%"))
+                ->when($status, fn ($q) => $q->where('status', $status))
                 ->when($starred !== null, function ($q) use ($user, $starred) {
                     if ($starred) {
-                        $q->whereHas('starredByUsers', fn($q) => $q->where('user_uuid', $user->uuid));
+                        $q->whereHas('starredByUsers', fn ($q) => $q->where('user_uuid', $user->uuid));
                     } else {
-                        $q->whereDoesntHave('starredByUsers', fn($q) => $q->where('user_uuid', $user->uuid));
+                        $q->whereDoesntHave('starredByUsers', fn ($q) => $q->where('user_uuid', $user->uuid));
                     }
                 })
                 ->limit($limit)
                 ->get()
-                ->map(fn($item) => [
+                ->map(fn ($item) => [
                     'id' => $item->uuid,
                     'name' => $item->name,
                     'description' => null,
@@ -157,20 +157,20 @@ class SearchController extends Controller
         }
 
         // Search Raw Files
-        if (!$type || $type === 'rawFile') {
+        if (! $type || $type === 'rawFile') {
             $rawFiles = MemoraRawFile::where('user_uuid', $user->uuid)
-                ->when($search, fn($q) => $q->where('name', 'like', "%{$search}%"))
-                ->when($status, fn($q) => $q->where('status', $status))
+                ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%"))
+                ->when($status, fn ($q) => $q->where('status', $status))
                 ->when($starred !== null, function ($q) use ($user, $starred) {
                     if ($starred) {
-                        $q->whereHas('starredByUsers', fn($q) => $q->where('user_uuid', $user->uuid));
+                        $q->whereHas('starredByUsers', fn ($q) => $q->where('user_uuid', $user->uuid));
                     } else {
-                        $q->whereDoesntHave('starredByUsers', fn($q) => $q->where('user_uuid', $user->uuid));
+                        $q->whereDoesntHave('starredByUsers', fn ($q) => $q->where('user_uuid', $user->uuid));
                     }
                 })
                 ->limit($limit)
                 ->get()
-                ->map(fn($item) => [
+                ->map(fn ($item) => [
                     'id' => $item->uuid,
                     'name' => $item->name,
                     'description' => null,
@@ -183,7 +183,7 @@ class SearchController extends Controller
         }
 
         // Search Presets
-        if (!$type || $type === 'preset') {
+        if (! $type || $type === 'preset') {
             $presets = MemoraPreset::where('user_uuid', $user->uuid)
                 ->when($search, function ($query) use ($search) {
                     $query->where(function ($q) use ($search) {
@@ -194,7 +194,7 @@ class SearchController extends Controller
                 })
                 ->limit($limit)
                 ->get()
-                ->map(fn($item) => [
+                ->map(fn ($item) => [
                     'id' => $item->uuid,
                     'name' => $item->name,
                     'description' => $item->description,
@@ -215,12 +215,14 @@ class SearchController extends Controller
                     return $aExact ? -1 : 1;
                 }
             }
+
             return strtotime($b['created_at']) - strtotime($a['created_at']);
         });
 
         // Add productUuid to each result (currently all Memora content)
         $results = array_map(function ($item) {
             $item['productUuid'] = 'memora'; // TODO: Map to actual product UUID when multi-product support is added
+
             return $item;
         }, $results);
 

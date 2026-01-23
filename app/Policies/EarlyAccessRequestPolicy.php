@@ -29,7 +29,7 @@ class EarlyAccessRequestPolicy
      */
     public function approve(User $user, EarlyAccessRequest $earlyAccessRequest): bool
     {
-        if (!$user->isAdmin()) {
+        if (! $user->isAdmin()) {
             return false;
         }
 
@@ -42,7 +42,7 @@ class EarlyAccessRequestPolicy
      */
     public function reject(User $user, EarlyAccessRequest $earlyAccessRequest): bool
     {
-        if (!$user->isAdmin()) {
+        if (! $user->isAdmin()) {
             return false;
         }
 

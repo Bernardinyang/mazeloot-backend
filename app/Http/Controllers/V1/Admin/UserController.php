@@ -11,7 +11,6 @@ use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
 class UserController extends Controller
@@ -78,7 +77,7 @@ class UserController extends Controller
         $user = User::with(['status', 'earlyAccess', 'productSelections.product'])
             ->find($uuid);
 
-        if (!$user) {
+        if (! $user) {
             return ApiResponse::errorNotFound('User not found');
         }
 
@@ -102,7 +101,7 @@ class UserController extends Controller
                 'release_version' => $user->earlyAccess->release_version,
                 'expires_at' => $user->earlyAccess->expires_at?->toIso8601String(),
             ] : null,
-            'product_selections' => $user->productSelections->map(fn($selection) => [
+            'product_selections' => $user->productSelections->map(fn ($selection) => [
                 'product' => [
                     'uuid' => $selection->product->uuid,
                     'slug' => $selection->product->slug,
@@ -121,7 +120,7 @@ class UserController extends Controller
     {
         $user = User::find($uuid);
 
-        if (!$user) {
+        if (! $user) {
             return ApiResponse::errorNotFound('User not found');
         }
 
@@ -165,7 +164,7 @@ class UserController extends Controller
     {
         $user = User::find($uuid);
 
-        if (!$user) {
+        if (! $user) {
             return ApiResponse::errorNotFound('User not found');
         }
 
@@ -206,7 +205,7 @@ class UserController extends Controller
     {
         $user = User::find($uuid);
 
-        if (!$user) {
+        if (! $user) {
             return ApiResponse::errorNotFound('User not found');
         }
 
@@ -239,7 +238,7 @@ class UserController extends Controller
     {
         $user = User::find($uuid);
 
-        if (!$user) {
+        if (! $user) {
             return ApiResponse::errorNotFound('User not found');
         }
 

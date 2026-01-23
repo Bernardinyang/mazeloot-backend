@@ -13,9 +13,6 @@ class AdminDashboardService
 {
     /**
      * Get overall dashboard statistics.
-     *
-     * @param  string|null  $productSlug
-     * @return array
      */
     public function getDashboardStats(?string $productSlug = null): array
     {
@@ -42,9 +39,6 @@ class AdminDashboardService
 
     /**
      * Get user statistics.
-     *
-     * @param  string|null  $productSlug
-     * @return array
      */
     public function getUserStats(?string $productSlug = null): array
     {
@@ -64,7 +58,7 @@ class AdminDashboardService
             'by_role' => $query->select('role', DB::raw('count(*) as count'))
                 ->groupBy('role')
                 ->get()
-                ->mapWithKeys(fn($item) => [$item->role->value => $item->count]),
+                ->mapWithKeys(fn ($item) => [$item->role->value => $item->count]),
             'with_early_access' => $query->whereHas('earlyAccess', function ($q) {
                 $q->where('is_active', true);
             })->count(),
@@ -74,15 +68,12 @@ class AdminDashboardService
 
     /**
      * Get product-specific statistics.
-     *
-     * @param  string  $productSlug
-     * @return array
      */
     public function getProductStats(string $productSlug): array
     {
         $product = Product::where('slug', $productSlug)->first();
 
-        if (!$product) {
+        if (! $product) {
             return [];
         }
 
@@ -114,8 +105,6 @@ class AdminDashboardService
 
     /**
      * Get early access statistics.
-     *
-     * @return array
      */
     public function getEarlyAccessStats(): array
     {
@@ -145,10 +134,6 @@ class AdminDashboardService
 
     /**
      * Get activity statistics.
-     *
-     * @param  string|null  $productSlug
-     * @param  int|null  $days
-     * @return array
      */
     public function getActivityStats(?string $productSlug = null, ?int $days = 30): array
     {
@@ -168,12 +153,12 @@ class AdminDashboardService
                 ->orderByDesc('count')
                 ->limit(10)
                 ->get()
-                ->mapWithKeys(fn($item) => [$item->action => $item->count]),
+                ->mapWithKeys(fn ($item) => [$item->action => $item->count]),
             'recent' => $query->orderByDesc('created_at')
                 ->limit(20)
                 ->with('user')
                 ->get()
-                ->map(fn($log) => [
+                ->map(fn ($log) => [
                     'id' => $log->uuid,
                     'action' => $log->action,
                     'description' => $log->description,

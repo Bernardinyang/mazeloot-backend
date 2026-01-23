@@ -16,7 +16,9 @@ class EarlyAccessRequest extends Model
     protected $table = 'early_access_requests';
 
     protected $primaryKey = 'uuid';
+
     protected $keyType = 'string';
+
     public $incrementing = false;
 
     protected $fillable = [

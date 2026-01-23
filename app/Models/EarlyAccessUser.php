@@ -110,7 +110,7 @@ class EarlyAccessUser extends Model
      */
     public function isActive(): bool
     {
-        if (!$this->is_active) {
+        if (! $this->is_active) {
             return false;
         }
 
@@ -127,6 +127,7 @@ class EarlyAccessUser extends Model
     public function hasFeature(string $feature): bool
     {
         $flags = $this->feature_flags ?? [];
+
         return in_array($feature, $flags);
     }
 

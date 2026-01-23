@@ -52,7 +52,7 @@ class AnalyticsController extends Controller
         $perPage = $request->query('per_page', 50);
         $paginator = $this->paginationService->paginate($query->orderByDesc('created_at'), $perPage);
 
-        $formatted = $paginator->getCollection()->map(fn($log) => [
+        $formatted = $paginator->getCollection()->map(fn ($log) => [
             'uuid' => $log->uuid,
             'action' => $log->action,
             'description' => $log->description,
@@ -84,7 +84,7 @@ class AnalyticsController extends Controller
             ->orderByDesc('created_at')
             ->limit(50)
             ->get()
-            ->map(fn($log) => [
+            ->map(fn ($log) => [
                 'uuid' => $log->uuid,
                 'action' => $log->action,
                 'description' => $log->description,

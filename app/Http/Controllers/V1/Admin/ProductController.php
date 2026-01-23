@@ -21,7 +21,7 @@ class ProductController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $products = Product::ordered()->get()->map(fn($product) => [
+        $products = Product::ordered()->get()->map(fn ($product) => [
             'uuid' => $product->uuid,
             'slug' => $product->slug,
             'name' => $product->name,
@@ -41,7 +41,7 @@ class ProductController extends Controller
     {
         $product = Product::where('slug', $slug)->first();
 
-        if (!$product) {
+        if (! $product) {
             return ApiResponse::errorNotFound('Product not found');
         }
 
@@ -64,7 +64,7 @@ class ProductController extends Controller
     {
         $product = Product::where('slug', $slug)->first();
 
-        if (!$product) {
+        if (! $product) {
             return ApiResponse::errorNotFound('Product not found');
         }
 
@@ -110,14 +110,14 @@ class ProductController extends Controller
     {
         $product = Product::where('slug', $slug)->first();
 
-        if (!$product) {
+        if (! $product) {
             return ApiResponse::errorNotFound('Product not found');
         }
 
         $users = $product->userProductSelections()
             ->with('user')
             ->get()
-            ->map(fn($selection) => [
+            ->map(fn ($selection) => [
                 'uuid' => $selection->user->uuid,
                 'email' => $selection->user->email,
                 'first_name' => $selection->user->first_name,

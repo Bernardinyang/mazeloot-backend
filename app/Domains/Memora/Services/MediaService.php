@@ -8,7 +8,6 @@ use App\Domains\Memora\Models\MemoraMediaFeedback;
 use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraProofing;
 use App\Domains\Memora\Models\MemoraSelection;
-use App\Services\ActivityLog\ActivityLogService;
 use App\Services\Upload\UploadService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -389,7 +388,7 @@ class MediaService
             app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
                 action: 'media_approved',
                 subject: $media,
-                description: "Media approved in proofing.",
+                description: 'Media approved in proofing.',
                 properties: [
                     'media_uuid' => $media->uuid,
                     'phase_type' => $phaseType,
@@ -449,7 +448,7 @@ class MediaService
             app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
                 action: 'media_rejected',
                 subject: $media,
-                description: "Media rejected in proofing.",
+                description: 'Media rejected in proofing.',
                 properties: [
                     'media_uuid' => $media->uuid,
                     'phase_type' => $phaseType,

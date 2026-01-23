@@ -85,7 +85,7 @@ class UserOnboardingStatus extends Model
     public function markStepComplete(string $step): void
     {
         $steps = $this->completed_steps ?? [];
-        if (!in_array($step, $steps)) {
+        if (! in_array($step, $steps)) {
             $steps[] = $step;
             $this->update(['completed_steps' => $steps]);
         }

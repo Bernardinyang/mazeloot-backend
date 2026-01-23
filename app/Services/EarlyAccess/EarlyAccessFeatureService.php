@@ -18,10 +18,6 @@ class EarlyAccessFeatureService
 
     /**
      * Grant a feature flag to a user.
-     *
-     * @param  string  $userUuid
-     * @param  string  $feature
-     * @return bool
      */
     public function grantFeature(string $userUuid, string $feature): bool
     {
@@ -29,12 +25,12 @@ class EarlyAccessFeatureService
             ->where('is_active', true)
             ->first();
 
-        if (!$earlyAccess) {
+        if (! $earlyAccess) {
             return false;
         }
 
         $flags = $earlyAccess->feature_flags ?? [];
-        if (!in_array($feature, $flags)) {
+        if (! in_array($feature, $flags)) {
             $flags[] = $feature;
             $earlyAccess->update(['feature_flags' => $flags]);
 
@@ -56,22 +52,18 @@ class EarlyAccessFeatureService
 
     /**
      * Revoke a feature flag from a user.
-     *
-     * @param  string  $userUuid
-     * @param  string  $feature
-     * @return bool
      */
     public function revokeFeature(string $userUuid, string $feature): bool
     {
         $earlyAccess = EarlyAccessUser::where('user_uuid', $userUuid)->first();
 
-        if (!$earlyAccess) {
+        if (! $earlyAccess) {
             return false;
         }
 
         $flags = array_filter(
             $earlyAccess->feature_flags ?? [],
-            fn($f) => $f !== $feature
+            fn ($f) => $f !== $feature
         );
 
         $earlyAccess->update(['feature_flags' => array_values($flags)]);
@@ -82,8 +74,7 @@ class EarlyAccessFeatureService
     /**
      * Grant a feature to all early access users.
      *
-     * @param  string  $feature
-     * @return int  Number of users updated
+     * @return int Number of users updated
      */
     public function grantToAll(string $feature): int
     {
@@ -94,7 +85,7 @@ class EarlyAccessFeatureService
                 ->get()
                 ->each(function ($earlyAccess) use ($feature, &$updated) {
                     $flags = $earlyAccess->feature_flags ?? [];
-                    if (!in_array($feature, $flags)) {
+                    if (! in_array($feature, $flags)) {
                         $flags[] = $feature;
                         $earlyAccess->update(['feature_flags' => $flags]);
 
@@ -121,9 +112,8 @@ class EarlyAccessFeatureService
     /**
      * Rollout feature to a percentage of early access users.
      *
-     * @param  string  $feature
      * @param  int  $percentage  Percentage (0-100)
-     * @return int  Number of users updated
+     * @return int Number of users updated
      */
     public function rolloutPercentage(string $feature, int $percentage): int
     {
@@ -139,7 +129,7 @@ class EarlyAccessFeatureService
                 ->get()
                 ->each(function ($earlyAccess) use ($feature, &$updated) {
                     $flags = $earlyAccess->feature_flags ?? [];
-                    if (!in_array($feature, $flags)) {
+                    if (! in_array($feature, $flags)) {
                         $flags[] = $feature;
                         $earlyAccess->update(['feature_flags' => $flags]);
 
@@ -166,8 +156,7 @@ class EarlyAccessFeatureService
     /**
      * Update release version for all early access users.
      *
-     * @param  string  $version
-     * @return int  Number of users updated
+     * @return int Number of users updated
      */
     public function updateReleaseVersion(string $version): int
     {

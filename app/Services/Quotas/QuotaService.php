@@ -62,7 +62,7 @@ class QuotaService
             $baseQuota = $config['per_user']['default'];
         }
 
-        if (!$baseQuota) {
+        if (! $baseQuota) {
             return null;
         }
 

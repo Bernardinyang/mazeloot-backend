@@ -17,6 +17,7 @@ class EarlyAccessRequestTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected User $admin;
 
     protected function setUp(): void

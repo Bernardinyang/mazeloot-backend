@@ -15,7 +15,7 @@ class NotificationService
      * Determine notification priority based on type.
      *
      * @param  string  $type  Notification type
-     * @return string  Priority: HIGH, MEDIUM, or LOW
+     * @return string Priority: HIGH, MEDIUM, or LOW
      */
     private function determinePriority(string $type): string
     {
@@ -77,12 +77,12 @@ class NotificationService
         // Determine priority and merge into metadata
         // Allow metadata to override priority if explicitly set, otherwise determine from type
         $priority = $metadata['priority'] ?? $this->determinePriority($type);
-        
+
         // Ensure priority is valid
-        if (!in_array($priority, ['HIGH', 'MEDIUM', 'LOW'])) {
+        if (! in_array($priority, ['HIGH', 'MEDIUM', 'LOW'])) {
             $priority = $this->determinePriority($type);
         }
-        
+
         $finalMetadata = array_merge(
             $metadata ?? [],
             ['priority' => $priority]

@@ -87,6 +87,7 @@ class ActivityLogService
                 'action' => $action,
                 'error' => $e->getMessage(),
             ]);
+
             // Return a dummy ActivityLog to prevent null reference errors
             // The log entry won't be saved, but the operation continues
             return new ActivityLog([

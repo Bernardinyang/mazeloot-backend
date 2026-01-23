@@ -23,7 +23,7 @@ class EarlyAccessController extends Controller
     {
         $user = auth()->user();
 
-        if (!$user) {
+        if (! $user) {
             return ApiResponse::errorUnauthorized();
         }
 
@@ -64,7 +64,7 @@ class EarlyAccessController extends Controller
     {
         $user = auth()->user();
 
-        if (!$user) {
+        if (! $user) {
             return ApiResponse::errorUnauthorized();
         }
 
@@ -72,7 +72,7 @@ class EarlyAccessController extends Controller
             ->orderByDesc('created_at')
             ->first();
 
-        if (!$requestRecord) {
+        if (! $requestRecord) {
             return ApiResponse::successOk([
                 'status' => null,
                 'message' => 'No early access request found',
@@ -96,7 +96,7 @@ class EarlyAccessController extends Controller
     {
         $user = auth()->user();
 
-        if (!$user) {
+        if (! $user) {
             return ApiResponse::errorUnauthorized();
         }
 
@@ -116,7 +116,7 @@ class EarlyAccessController extends Controller
     {
         $user = auth()->user();
 
-        if (!$user || !$user->hasEarlyAccess()) {
+        if (! $user || ! $user->hasEarlyAccess()) {
             return ApiResponse::successOk([
                 'features' => [],
                 'release_version' => null,

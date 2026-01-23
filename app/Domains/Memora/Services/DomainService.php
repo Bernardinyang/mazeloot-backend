@@ -10,7 +10,6 @@ class DomainService
     /**
      * Validate domain availability and format.
      *
-     * @param  string  $domain
      * @param  string|null  $excludeUserUuid  User UUID to exclude from availability check
      * @return array{available: bool, message: string}
      */
@@ -20,7 +19,7 @@ class DomainService
         $domain = strtolower(trim($domain));
 
         // Validate format: alphanumeric, hyphens, underscores, 3-50 chars
-        if (!preg_match('/^[a-z0-9_-]{3,50}$/', $domain)) {
+        if (! preg_match('/^[a-z0-9_-]{3,50}$/', $domain)) {
             return [
                 'available' => false,
                 'message' => 'Domain must be 3-50 characters and contain only letters, numbers, hyphens, and underscores.',
@@ -28,7 +27,7 @@ class DomainService
         }
 
         // Check if domain is available
-        if (!$this->isDomainAvailable($domain, $excludeUserUuid)) {
+        if (! $this->isDomainAvailable($domain, $excludeUserUuid)) {
             return [
                 'available' => false,
                 'message' => 'This domain is already taken. Please choose another.',
@@ -44,30 +43,24 @@ class DomainService
     /**
      * Check if domain is available.
      *
-     * @param  string  $domain
      * @param  string|null  $excludeUserUuid  User UUID to exclude from availability check
-     * @return bool
      */
     public function isDomainAvailable(string $domain, ?string $excludeUserUuid = null): bool
     {
         $domain = strtolower(trim($domain));
 
         $query = MemoraSettings::where('branding_domain', $domain);
-        
+
         // Exclude current user's domain if provided
         if ($excludeUserUuid) {
             $query->where('user_uuid', '!=', $excludeUserUuid);
         }
 
-        return !$query->exists();
+        return ! $query->exists();
     }
 
     /**
      * Save domain to user's Memora settings.
-     *
-     * @param  User  $user
-     * @param  string  $domain
-     * @return void
      */
     public function saveDomain(User $user, string $domain): void
     {
@@ -75,7 +68,7 @@ class DomainService
 
         // Validate domain before saving, excluding current user's existing domain
         $validation = $this->validateDomain($domain, $user->uuid);
-        if (!$validation['available']) {
+        if (! $validation['available']) {
             throw new \InvalidArgumentException($validation['message']);
         }
 

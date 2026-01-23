@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('activity_logs', function (Blueprint $table) {
             // Composite index for common query: user + action + date
             $table->index(['user_uuid', 'action', 'created_at'], 'activity_logs_user_action_created_idx');
-            
+
             // Composite index for common query: subject type + action + date
             $table->index(['subject_type', 'action', 'created_at'], 'activity_logs_subject_action_created_idx');
         });

@@ -66,7 +66,7 @@ class ActivityLogController extends Controller
                 'user' => $log->user ? [
                     'uuid' => $log->user->uuid,
                     'email' => $log->user->email,
-                    'name' => trim(($log->user->first_name ?? '') . ' ' . ($log->user->last_name ?? '')),
+                    'name' => trim(($log->user->first_name ?? '').' '.($log->user->last_name ?? '')),
                 ] : null,
                 'action' => $log->action,
                 'description' => $log->description,
@@ -142,7 +142,7 @@ class ActivityLogController extends Controller
                 'user' => $log->user ? [
                     'uuid' => $log->user->uuid,
                     'email' => $log->user->email,
-                    'name' => trim(($log->user->first_name ?? '') . ' ' . ($log->user->last_name ?? '')),
+                    'name' => trim(($log->user->first_name ?? '').' '.($log->user->last_name ?? '')),
                     'role' => $log->user->role->value,
                 ] : null,
                 'action' => $log->action,
@@ -177,8 +177,8 @@ class ActivityLogController extends Controller
                 });
             } elseif (in_array($role, ['admin', 'super_admin'])) {
                 $query->whereHas('user', function ($q) use ($role) {
-                    $roles = $role === 'admin' 
-                        ? [\App\Enums\UserRoleEnum::ADMIN] 
+                    $roles = $role === 'admin'
+                        ? [\App\Enums\UserRoleEnum::ADMIN]
                         : [\App\Enums\UserRoleEnum::ADMIN, \App\Enums\UserRoleEnum::SUPER_ADMIN];
                     $q->whereIn('role', $roles);
                 });
@@ -202,7 +202,7 @@ class ActivityLogController extends Controller
             ->orderByDesc('count')
             ->limit(10)
             ->get()
-            ->mapWithKeys(fn($item) => [$item->action => $item->count]);
+            ->mapWithKeys(fn ($item) => [$item->action => $item->count]);
 
         // Actions by subject type
         $bySubjectType = (clone $query)
@@ -211,7 +211,7 @@ class ActivityLogController extends Controller
             ->groupBy('subject_type')
             ->orderByDesc('count')
             ->get()
-            ->mapWithKeys(fn($item) => [$item->subject_type => $item->count]);
+            ->mapWithKeys(fn ($item) => [$item->subject_type => $item->count]);
 
         // Activity over time (last 30 days)
         $days = (int) $request->query('days', 30);
@@ -224,7 +224,7 @@ class ActivityLogController extends Controller
             ->groupBy('date')
             ->orderBy('date')
             ->get()
-            ->map(fn($item) => [
+            ->map(fn ($item) => [
                 'date' => $item->date,
                 'count' => $item->count,
             ]);

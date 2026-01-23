@@ -31,7 +31,7 @@ class ProductController extends Controller
     {
         $product = $this->productService->getProductBySlug($slug);
 
-        if (!$product) {
+        if (! $product) {
             return ApiResponse::errorNotFound('Product not found');
         }
 

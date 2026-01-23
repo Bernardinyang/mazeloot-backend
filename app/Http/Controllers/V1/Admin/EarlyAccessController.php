@@ -66,7 +66,7 @@ class EarlyAccessController extends Controller
         $perPage = $request->query('per_page', 20);
         $paginator = $this->paginationService->paginate($query->orderByDesc('granted_at'), $perPage);
 
-        $formatted = $paginator->getCollection()->map(fn($ea) => [
+        $formatted = $paginator->getCollection()->map(fn ($ea) => [
             'uuid' => $ea->uuid,
             'user' => [
                 'uuid' => $ea->user->uuid,
@@ -147,7 +147,7 @@ class EarlyAccessController extends Controller
     {
         $earlyAccess = EarlyAccessUser::with('user')->find($uuid);
 
-        if (!$earlyAccess) {
+        if (! $earlyAccess) {
             return ApiResponse::errorNotFound('Early access record not found');
         }
 
@@ -182,7 +182,7 @@ class EarlyAccessController extends Controller
     {
         $earlyAccess = EarlyAccessUser::find($uuid);
 
-        if (!$earlyAccess) {
+        if (! $earlyAccess) {
             return ApiResponse::errorNotFound('Early access record not found');
         }
 
@@ -217,7 +217,7 @@ class EarlyAccessController extends Controller
     {
         $earlyAccess = EarlyAccessUser::find($uuid);
 
-        if (!$earlyAccess) {
+        if (! $earlyAccess) {
             return ApiResponse::errorNotFound('Early access record not found');
         }
 
@@ -258,7 +258,7 @@ class EarlyAccessController extends Controller
         $perPage = $request->query('per_page', 20);
         $paginator = $this->paginationService->paginate($query->orderByDesc('created_at'), $perPage);
 
-        $formatted = $paginator->getCollection()->map(fn($req) => [
+        $formatted = $paginator->getCollection()->map(fn ($req) => [
             'uuid' => $req->uuid,
             'user' => [
                 'uuid' => $req->user->uuid,
@@ -291,7 +291,7 @@ class EarlyAccessController extends Controller
     {
         $request = EarlyAccessRequest::with(['user', 'reviewer'])->find($uuid);
 
-        if (!$request) {
+        if (! $request) {
             return ApiResponse::error('Early access request not found', 'REQUEST_NOT_FOUND', 404, [
                 'request_uuid' => $uuid,
             ]);
@@ -335,7 +335,7 @@ class EarlyAccessController extends Controller
                 ->lockForUpdate()
                 ->first();
 
-            if (!$requestRecord) {
+            if (! $requestRecord) {
                 return ApiResponse::error('Early access request not found', 'REQUEST_NOT_FOUND', 404, [
                     'request_uuid' => $uuid,
                 ]);
@@ -404,7 +404,7 @@ class EarlyAccessController extends Controller
                 ->lockForUpdate()
                 ->first();
 
-            if (!$requestRecord) {
+            if (! $requestRecord) {
                 return ApiResponse::error('Early access request not found', 'REQUEST_NOT_FOUND', 404, [
                     'request_uuid' => $uuid,
                 ]);
@@ -494,8 +494,9 @@ class EarlyAccessController extends Controller
                         ->lockForUpdate()
                         ->first();
 
-                    if (!$requestRecord || $requestRecord->status !== EarlyAccessRequestStatusEnum::PENDING) {
+                    if (! $requestRecord || $requestRecord->status !== EarlyAccessRequestStatusEnum::PENDING) {
                         $failed[] = $uuid;
+
                         continue;
                     }
 
@@ -522,7 +523,7 @@ class EarlyAccessController extends Controller
                 }
 
                 return ApiResponse::successOk([
-                    'message' => "Approved " . count($approved) . " request(s), " . count($failed) . " failed",
+                    'message' => 'Approved '.count($approved).' request(s), '.count($failed).' failed',
                     'approved' => $approved,
                     'failed' => $failed,
                 ]);
@@ -564,8 +565,9 @@ class EarlyAccessController extends Controller
                         ->lockForUpdate()
                         ->first();
 
-                    if (!$requestRecord || $requestRecord->status !== EarlyAccessRequestStatusEnum::PENDING) {
+                    if (! $requestRecord || $requestRecord->status !== EarlyAccessRequestStatusEnum::PENDING) {
                         $failed[] = $uuid;
+
                         continue;
                     }
 
@@ -591,7 +593,7 @@ class EarlyAccessController extends Controller
                 }
 
                 return ApiResponse::successOk([
-                    'message' => "Rejected " . count($rejected) . " request(s), " . count($failed) . " failed",
+                    'message' => 'Rejected '.count($rejected).' request(s), '.count($failed).' failed',
                     'rejected' => $rejected,
                     'failed' => $failed,
                 ]);

@@ -4,7 +4,6 @@ namespace App\Console\Commands;
 
 use App\Models\ActivityLog;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 
 class CleanupActivityLogs extends Command
 {

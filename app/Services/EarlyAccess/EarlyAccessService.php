@@ -20,10 +20,7 @@ class EarlyAccessService
     /**
      * Grant early access to a user with all reward types.
      *
-     * @param  string  $userUuid
      * @param  array  $rewards  Reward configuration
-     * @param  Carbon|null  $expiresAt
-     * @return EarlyAccessUser
      */
     public function grantEarlyAccess(string $userUuid, array $rewards, ?Carbon $expiresAt = null): EarlyAccessUser
     {
@@ -68,9 +65,6 @@ class EarlyAccessService
 
     /**
      * Revoke early access from a user.
-     *
-     * @param  string  $userUuid
-     * @return bool
      */
     public function revokeEarlyAccess(string $userUuid): bool
     {
@@ -101,9 +95,6 @@ class EarlyAccessService
 
     /**
      * Get active early access for a user.
-     *
-     * @param  string  $userUuid
-     * @return EarlyAccessUser|null
      */
     public function getActiveEarlyAccess(string $userUuid): ?EarlyAccessUser
     {
@@ -118,16 +109,12 @@ class EarlyAccessService
 
     /**
      * Get discount percentage for a product.
-     *
-     * @param  string  $userUuid
-     * @param  string  $productId
-     * @return int
      */
     public function getDiscountForProduct(string $userUuid, string $productId): int
     {
         $earlyAccess = $this->getActiveEarlyAccess($userUuid);
 
-        if (!$earlyAccess) {
+        if (! $earlyAccess) {
             return 0;
         }
 
@@ -136,16 +123,12 @@ class EarlyAccessService
 
     /**
      * Update reward configuration for a user.
-     *
-     * @param  string  $userUuid
-     * @param  array  $rewards
-     * @return EarlyAccessUser|null
      */
     public function updateRewards(string $userUuid, array $rewards): ?EarlyAccessUser
     {
         $earlyAccess = EarlyAccessUser::where('user_uuid', $userUuid)->first();
 
-        if (!$earlyAccess) {
+        if (! $earlyAccess) {
             return null;
         }
 

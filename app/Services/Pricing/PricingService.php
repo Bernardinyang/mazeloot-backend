@@ -48,7 +48,7 @@ class PricingService
             }
         }
 
-        if (!$basePrice) {
+        if (! $basePrice) {
             return null;
         }
 
@@ -59,6 +59,7 @@ class PricingService
                 $discount = $user->getEarlyAccessDiscount($productId);
                 if ($discount > 0) {
                     $discountAmount = (int) round($basePrice * ($discount / 100));
+
                     return $basePrice - $discountAmount;
                 }
             }

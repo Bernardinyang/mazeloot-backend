@@ -14,6 +14,7 @@ class EarlyAccessRequestUpdated implements ShouldBroadcast
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public EarlyAccessRequest $request;
+
     public string $action;
 
     /**

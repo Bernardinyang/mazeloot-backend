@@ -9,7 +9,7 @@ class NotificationResource extends JsonResource
     public function toArray($request): array
     {
         $metadata = $this->metadata ?? [];
-        
+
         return [
             'id' => $this->uuid,
             'product' => $this->product,

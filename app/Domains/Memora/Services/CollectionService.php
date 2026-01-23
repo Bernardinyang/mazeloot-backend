@@ -454,7 +454,7 @@ class CollectionService
         $status = $collection->status?->value ?? $collection->status;
         $settings = $collection->settings ?? [];
         $coverPhoto = $settings['thumbnail'] ?? $settings['image'] ?? null;
-        
+
         if ($status === 'active') {
             $this->notificationService->create(
                 $user->uuid,
@@ -764,7 +764,7 @@ class CollectionService
         // Create notification if status changed to 'active' (published)
         $settings = $collection->settings ?? [];
         $coverPhoto = $settings['thumbnail'] ?? $settings['image'] ?? null;
-        
+
         if ($oldStatus !== 'active' && $newStatus === 'active') {
             $this->notificationService->create(
                 $user->uuid,

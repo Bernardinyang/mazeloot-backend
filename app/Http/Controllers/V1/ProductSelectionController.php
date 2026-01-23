@@ -5,7 +5,6 @@ namespace App\Http\Controllers\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\StoreProductSelectionRequest;
 use App\Models\Product;
-use App\Models\UserProductSelection;
 use App\Services\ProductService;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -38,12 +37,12 @@ class ProductSelectionController extends Controller
         try {
             $user = Auth::user();
             $validated = $request->validated();
-            
-            if (!isset($validated['products']) || !is_array($validated['products'])) {
+
+            if (! isset($validated['products']) || ! is_array($validated['products'])) {
                 return ApiResponse::errorValidation('Products array is required and must not be empty');
             }
-            
-            $productUuids = array_values(array_filter($validated['products'], fn($uuid) => is_string($uuid) && !empty($uuid)));
+
+            $productUuids = array_values(array_filter($validated['products'], fn ($uuid) => is_string($uuid) && ! empty($uuid)));
             $token = $request->input('token'); // Optional token to mark as used
 
             if (empty($productUuids)) {
@@ -78,8 +77,8 @@ class ProductSelectionController extends Controller
                         'updated_at' => $now,
                     ];
                 }
-                
-                if (!empty($inserts)) {
+
+                if (! empty($inserts)) {
                     DB::table('user_product_selections')->insert($inserts);
                 }
 
@@ -98,7 +97,8 @@ class ProductSelectionController extends Controller
                 'trace' => $e->getTraceAsString(),
                 'request_data' => $request->all(),
             ]);
-            return ApiResponse::error('Failed to process product selection: ' . $e->getMessage(), 'PROCESSING_ERROR', 500);
+
+            return ApiResponse::error('Failed to process product selection: '.$e->getMessage(), 'PROCESSING_ERROR', 500);
         }
     }
 }

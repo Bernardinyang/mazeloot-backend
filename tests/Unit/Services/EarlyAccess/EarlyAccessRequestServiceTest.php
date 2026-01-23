@@ -22,7 +22,9 @@ class EarlyAccessRequestServiceTest extends TestCase
     use RefreshDatabase;
 
     protected EarlyAccessRequestService $service;
+
     protected User $user;
+
     protected User $admin;
 
     protected function setUp(): void
@@ -71,7 +73,7 @@ class EarlyAccessRequestServiceTest extends TestCase
         Queue::fake();
         Event::fake();
         $adminUuids = [$this->admin->uuid];
-        
+
         Cache::shouldReceive('remember')
             ->once()
             ->andReturn($adminUuids);
@@ -104,7 +106,7 @@ class EarlyAccessRequestServiceTest extends TestCase
     {
         Queue::fake();
         Event::fake();
-        
+
         $request = EarlyAccessRequest::factory()->create([
             'user_uuid' => $this->user->uuid,
             'status' => EarlyAccessRequestStatusEnum::PENDING,
@@ -150,7 +152,7 @@ class EarlyAccessRequestServiceTest extends TestCase
     public function test_it_rejects_request()
     {
         Event::fake();
-        
+
         $request = EarlyAccessRequest::factory()->create([
             'user_uuid' => $this->user->uuid,
             'status' => EarlyAccessRequestStatusEnum::PENDING,
@@ -183,9 +185,9 @@ class EarlyAccessRequestServiceTest extends TestCase
     {
         Queue::fake();
         Event::fake();
-        
+
         config(['early_access.allowed_features' => ['ai_enhancement', 'advanced_export']]);
-        
+
         $request = EarlyAccessRequest::factory()->create([
             'user_uuid' => $this->user->uuid,
             'status' => EarlyAccessRequestStatusEnum::PENDING,
@@ -202,7 +204,7 @@ class EarlyAccessRequestServiceTest extends TestCase
                 return count($rewards['feature_flags']) === 2
                     && in_array('ai_enhancement', $rewards['feature_flags'])
                     && in_array('advanced_export', $rewards['feature_flags'])
-                    && !in_array('invalid_feature', $rewards['feature_flags']);
+                    && ! in_array('invalid_feature', $rewards['feature_flags']);
             }), \Mockery::any())
             ->andReturn(\App\Models\EarlyAccessUser::factory()->make());
 
