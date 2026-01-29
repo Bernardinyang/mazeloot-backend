@@ -92,6 +92,7 @@ class UserStorageService
                 if ($this->filePurposeExcludedFromStorage($file)) {
                     return 0;
                 }
+
                 return $this->calculateFileSizeFromMetadata($file);
             });
 
@@ -496,6 +497,7 @@ class UserStorageService
                 if ($this->filePurposeExcludedFromStorage($file)) {
                     return 0;
                 }
+
                 return $this->calculateFileSizeFromMetadata($file);
             });
 
@@ -526,7 +528,6 @@ class UserStorageService
      * Check if file record has a purpose that excludes it from storage calculation.
      *
      * @param  object  $file  Database file record (must have metadata)
-     * @return bool
      */
     protected function filePurposeExcludedFromStorage($file): bool
     {
