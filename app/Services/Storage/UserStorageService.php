@@ -8,6 +8,19 @@ use Illuminate\Support\Facades\Storage;
 class UserStorageService
 {
     /**
+     * Purposes that do not count toward storage quota (e.g. branding logo, favicon).
+     */
+    protected const STORAGE_EXCLUDED_PURPOSES = ['branding_logo', 'branding_favicon'];
+
+    /**
+     * Whether the given purpose is excluded from storage calculation.
+     */
+    public function isExcludedFromStorage(?string $purpose): bool
+    {
+        return $purpose !== null && in_array($purpose, self::STORAGE_EXCLUDED_PURPOSES, true);
+    }
+
+    /**
      * Get total storage used by a user (including all file variants)
      * Uses cached storage value for fast calculation
      *
@@ -70,12 +83,15 @@ class UserStorageService
     {
         // Use raw SQL to extract and sum storage from JSON metadata
         // This avoids loading all files into memory and N+1 queries
-        // Exclude soft-deleted files from storage calculation
+        // Exclude soft-deleted files and non-billable purposes (e.g. branding logo/favicon) from storage calculation
         $totalSize = \Illuminate\Support\Facades\DB::table('user_files')
             ->where('user_uuid', $userUuid)
             ->whereNull('deleted_at')
             ->get()
             ->sum(function ($file) {
+                if ($this->filePurposeExcludedFromStorage($file)) {
+                    return 0;
+                }
                 return $this->calculateFileSizeFromMetadata($file);
             });
 
@@ -141,6 +157,9 @@ class UserStorageService
         $variantsNotFound = 0;
 
         foreach ($files as $file) {
+            if ($this->filePurposeExcludedFromStorage($file)) {
+                continue;
+            }
             try {
                 $metadata = json_decode($file->metadata ?? '{}', true) ?? [];
                 $fileStats = [];
@@ -467,13 +486,16 @@ class UserStorageService
             }
 
             // Use the same calculation method as calculateAndCacheStorage for consistency
-            // Exclude soft-deleted files from storage calculation
+            // Exclude soft-deleted files and non-billable purposes from storage calculation
             $userFiles = \Illuminate\Support\Facades\DB::table('user_files')
                 ->whereIn('uuid', $userFileUuids)
                 ->whereNull('deleted_at')
                 ->get();
 
             $totalSize = $userFiles->sum(function ($file) {
+                if ($this->filePurposeExcludedFromStorage($file)) {
+                    return 0;
+                }
                 return $this->calculateFileSizeFromMetadata($file);
             });
 
@@ -498,6 +520,23 @@ class UserStorageService
 
             return 0;
         }
+    }
+
+    /**
+     * Check if file record has a purpose that excludes it from storage calculation.
+     *
+     * @param  object  $file  Database file record (must have metadata)
+     * @return bool
+     */
+    protected function filePurposeExcludedFromStorage($file): bool
+    {
+        $metadata = $file->metadata ?? null;
+        if (is_string($metadata)) {
+            $metadata = json_decode($metadata, true) ?? [];
+        }
+        $purpose = $metadata['purpose'] ?? null;
+
+        return $this->isExcludedFromStorage($purpose);
     }
 
     /**

@@ -26,6 +26,7 @@ class ImageUploadRequest extends FormRequest
             'files' => ['required_without:file', 'array', 'min:1'],
             'files.*' => $fileRule,
             'context' => ['sometimes', 'string', 'max:255'],
+            'purpose' => ['sometimes', 'string', 'max:255'],
             'visibility' => ['sometimes', 'string', 'in:public,private'],
         ];
     }

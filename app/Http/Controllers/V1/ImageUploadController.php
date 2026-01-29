@@ -44,6 +44,7 @@ class ImageUploadController extends Controller
         $options = [
             'context' => $request->input('context'),
             'visibility' => $request->input('visibility', 'public'),
+            'purpose' => $request->input('purpose'),
         ];
 
         $uploadResults = $this->imageUploadService->uploadMultipleImages($files, $options);
@@ -53,9 +54,10 @@ class ImageUploadController extends Controller
         $results = [];
         foreach ($uploadResults as $index => $uploadResult) {
             $file = $files[$index];
+            $purpose = $request->input('purpose');
 
             // Store file information in user_files table
-            $userFile = $this->storeUserFile($userUuid, $file, $uploadResult);
+            $userFile = $this->storeUserFile($userUuid, $file, $uploadResult, $purpose);
 
             // Format response to match UploadController format, but include variants
             $results[] = [
@@ -79,7 +81,7 @@ class ImageUploadController extends Controller
     /**
      * Store file information in user_files table
      */
-    protected function storeUserFile(string $userUuid, $file, array $uploadResult): UserFile
+    protected function storeUserFile(string $userUuid, $file, array $uploadResult, ?string $purpose = null): UserFile
     {
         // Use original variant URL as the primary URL
         $primaryUrl = $uploadResult['variants']['original']
@@ -87,6 +89,17 @@ class ImageUploadController extends Controller
             ?? '';
 
         $totalSizeWithVariants = $uploadResult['meta']['total_size_with_variants'] ?? $uploadResult['meta']['size'];
+
+        $metadata = [
+            'uuid' => $uploadResult['uuid'],
+            'variants' => $uploadResult['variants'],
+            'variant_sizes' => $uploadResult['variant_sizes'] ?? [],
+            'total_size_with_variants' => $totalSizeWithVariants,
+            'provider' => config('upload.default_provider', 'local'),
+        ];
+        if ($purpose !== null) {
+            $metadata['purpose'] = $purpose;
+        }
 
         $userFile = UserFile::query()->create([
             'user_uuid' => $userUuid,
@@ -98,18 +111,14 @@ class ImageUploadController extends Controller
             'size' => $uploadResult['meta']['size'],
             'width' => $uploadResult['meta']['width'],
             'height' => $uploadResult['meta']['height'],
-            'metadata' => [
-                'uuid' => $uploadResult['uuid'],
-                'variants' => $uploadResult['variants'],
-                'variant_sizes' => $uploadResult['variant_sizes'] ?? [],
-                'total_size_with_variants' => $totalSizeWithVariants,
-                'provider' => config('upload.default_provider', 'local'),
-            ],
+            'metadata' => $metadata,
         ]);
 
-        // Update cached storage
-        $storageService = app(\App\Services\Storage\UserStorageService::class);
-        $storageService->incrementStorage($userUuid, $totalSizeWithVariants);
+        // Update cached storage only for files that count toward quota (e.g. not branding logo/favicon)
+        if (! app(\App\Services\Storage\UserStorageService::class)->isExcludedFromStorage($purpose)) {
+            $storageService = app(\App\Services\Storage\UserStorageService::class);
+            $storageService->incrementStorage($userUuid, $totalSizeWithVariants);
+        }
 
         return $userFile;
     }

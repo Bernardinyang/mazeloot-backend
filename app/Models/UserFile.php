@@ -72,9 +72,13 @@ class UserFile extends Model
         });
 
         static::deleted(function ($model) {
-            // Decrement storage when file is deleted (soft or hard delete)
+            // Decrement storage when file is deleted (soft or hard delete), unless excluded (e.g. branding logo/favicon)
             if ($model->user_uuid) {
                 $storageService = app(\App\Services\Storage\UserStorageService::class);
+                $purpose = $model->metadata['purpose'] ?? null;
+                if ($storageService->isExcludedFromStorage($purpose)) {
+                    return;
+                }
                 $totalSize = $storageService->calculateFileSizeFromMetadata((object) [
                     'metadata' => $model->metadata,
                     'size' => $model->size,

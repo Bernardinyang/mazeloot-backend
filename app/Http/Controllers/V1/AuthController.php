@@ -277,6 +277,28 @@ class AuthController extends Controller
     }
 
     /**
+     * Verify password reset code.
+     */
+    public function verifyResetCode(\App\Http\Requests\V1\VerifyResetCodeRequest $request): JsonResponse
+    {
+        $user = User::where('email', $request->email)->first();
+
+        if (! $user) {
+            return ApiResponse::errorNotFound('User not found.');
+        }
+
+        $resetToken = $this->passwordResetService->verifyCode($user, $request->code);
+
+        if (! $resetToken) {
+            return ApiResponse::error('Invalid or expired reset code.', 'INVALID_CODE', 400);
+        }
+
+        return ApiResponse::successOk([
+            'message' => 'Reset code verified successfully.',
+        ]);
+    }
+
+    /**
      * Reset password with code.
      */
     public function resetPassword(ResetPasswordRequest $request): JsonResponse
