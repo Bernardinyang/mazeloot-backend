@@ -173,6 +173,7 @@ class SettingsService
                 'Branding Settings Updated',
                 'Your branding settings have been updated successfully.',
                 'Your branding configuration has been saved and will be applied to your collections.',
+                null,
                 '/memora/settings/branding'
             );
         }
@@ -221,6 +222,7 @@ class SettingsService
                 'Preference Settings Updated',
                 'Your preference settings have been updated successfully.',
                 'Your preference configuration has been saved and will be applied to your collections.',
+                null,
                 '/memora/settings/preference'
             );
         }
@@ -297,6 +299,7 @@ class SettingsService
                 'Email Settings Updated',
                 'Your email settings have been updated successfully.',
                 'Your email configuration has been saved and will be used for notifications.',
+                null,
                 '/memora/settings/email'
             );
         }

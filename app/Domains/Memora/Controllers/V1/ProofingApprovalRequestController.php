@@ -89,10 +89,7 @@ class ProofingApprovalRequestController extends Controller
                     'creative_email' => $approvalRequest->user->email ?? null,
                     'media' => [
                         'uuid' => $approvalRequest->media->uuid,
-                        'file' => $approvalRequest->media->file ? [
-                            'url' => $approvalRequest->media->file->url,
-                            'type' => $approvalRequest->media->file->type,
-                        ] : null,
+                        'file' => $this->fileViewUrlOrNull($approvalRequest->media->file),
                     ],
                     'created_at' => $approvalRequest->created_at,
                     'rejection_reason' => $approvalRequest->rejection_reason,
@@ -251,5 +248,23 @@ class ProofingApprovalRequestController extends Controller
 
             return ApiResponse::error('Failed to fetch approval requests: '.$e->getMessage(), 500);
         }
+    }
+
+    /** Return file for API with view-only url (never original). */
+    private function fileViewUrlOrNull(?object $file): ?array
+    {
+        if (! $file) {
+            return null;
+        }
+        $v = $file->metadata['variants'] ?? null;
+        $url = null;
+        if (is_array($v)) {
+            $url = $v['medium'] ?? $v['thumb'] ?? null;
+        }
+
+        return [
+            'url' => $url,
+            'type' => $file->type,
+        ];
     }
 }

@@ -298,6 +298,7 @@ class ProjectService
             'Project Created',
             "Project '{$project->name}' has been created successfully.",
             "Your new project '{$project->name}' is now available to use.",
+            null,
             "/memora/projects/{$project->uuid}"
         );
 
@@ -515,6 +516,7 @@ class ProjectService
             'Project Updated',
             "Project '{$project->name}' has been updated successfully.",
             "Your project '{$project->name}' settings have been saved.",
+            null,
             "/memora/projects/{$project->uuid}"
         );
 
@@ -567,6 +569,7 @@ class ProjectService
                 'Project Deleted',
                 "Project '{$name}' has been deleted.",
                 "The project '{$name}' has been permanently removed.",
+                null,
                 '/memora/projects'
             );
         }

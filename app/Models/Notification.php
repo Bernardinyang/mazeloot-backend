@@ -40,6 +40,7 @@ class Notification extends Model
         'title',
         'message',
         'description',
+        'detail',
         'action_url',
         'metadata',
         'read_at',

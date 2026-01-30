@@ -159,6 +159,7 @@ class WatermarkService
             'Watermark Created',
             "Watermark '{$watermark->name}' has been created successfully.",
             "Your new watermark '{$watermark->name}' is now available to use.",
+            null,
             '/memora/settings/watermark'
         );
 
@@ -252,6 +253,7 @@ class WatermarkService
             'Watermark Updated',
             "Watermark '{$watermark->name}' has been updated successfully.",
             "Your watermark '{$watermark->name}' settings have been saved.",
+            null,
             '/memora/settings/watermark'
         );
 
@@ -283,6 +285,7 @@ class WatermarkService
                 'Watermark Deleted',
                 "Watermark '{$name}' has been deleted.",
                 "The watermark '{$name}' has been permanently removed.",
+                null,
                 '/memora/settings/watermark'
             );
         }

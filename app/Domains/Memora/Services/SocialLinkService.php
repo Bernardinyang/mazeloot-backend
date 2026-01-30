@@ -78,6 +78,7 @@ class SocialLinkService
             'Social Link Added',
             "Social link for {$platform->name} has been added successfully.",
             "Your {$platform->name} link has been added to your homepage.",
+            null,
             '/memora/settings/social-links'
         );
 
@@ -135,6 +136,7 @@ class SocialLinkService
             'Social Link Updated',
             "Social link for {$platformName} has been updated successfully.",
             "Your {$platformName} link has been updated.",
+            null,
             '/memora/settings/social-links'
         );
 
@@ -166,6 +168,7 @@ class SocialLinkService
                 'Social Link Removed',
                 "Social link for {$platformName} has been removed.",
                 "Your {$platformName} link has been permanently removed from your homepage.",
+                null,
                 '/memora/settings/social-links'
             );
         }

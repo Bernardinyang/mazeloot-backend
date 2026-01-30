@@ -515,6 +515,7 @@ class EarlyAccessController extends Controller
                         'Early Access Approved',
                         'Your early access request has been approved!',
                         'You now have early access to exclusive features and benefits.',
+                        null,
                         '/overview',
                         ['early_access_uuid' => $earlyAccess->uuid]
                     );
@@ -585,6 +586,7 @@ class EarlyAccessController extends Controller
                         'Early Access Request Rejected',
                         'Your early access request has been rejected.',
                         $validated['rejection_reason'] ?? 'We appreciate your interest. Please try again later.',
+                        null,
                         '/early-access',
                         []
                     );

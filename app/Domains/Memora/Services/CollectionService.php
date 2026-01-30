@@ -463,6 +463,7 @@ class CollectionService
                 'Collection Published',
                 "Collection '{$collection->name}' has been published successfully.",
                 "Your collection '{$collection->name}' is now live and accessible.",
+                null,
                 "/memora/collections/{$collection->uuid}",
                 $coverPhoto ? ['coverPhoto' => $coverPhoto] : null
             );
@@ -487,6 +488,7 @@ class CollectionService
                 'Collection Created',
                 "Collection '{$collection->name}' has been created successfully.",
                 "Your collection '{$collection->name}' is ready to use.",
+                null,
                 "/memora/collections/{$collection->uuid}",
                 $coverPhoto ? ['coverPhoto' => $coverPhoto] : null
             );
@@ -773,6 +775,7 @@ class CollectionService
                 'Collection Published',
                 "Collection '{$collection->name}' has been published successfully.",
                 "Your collection '{$collection->name}' is now live and accessible to viewers.",
+                null,
                 "/memora/collections/{$collection->uuid}",
                 $coverPhoto ? ['coverPhoto' => $coverPhoto] : null
             );
@@ -798,6 +801,7 @@ class CollectionService
                 'Collection Updated',
                 "Collection '{$collection->name}' has been updated successfully.",
                 "Your collection '{$collection->name}' settings have been saved.",
+                null,
                 $collection->project_uuid ? "/memora/projects/{$collection->project_uuid}/collections/{$collection->uuid}" : "/memora/collections/{$collection->uuid}",
                 $coverPhoto ? ['coverPhoto' => $coverPhoto] : null
             );
@@ -984,6 +988,7 @@ class CollectionService
                 'Collection Deleted',
                 "Collection '{$name}' has been deleted.",
                 "The collection '{$name}' has been permanently removed.",
+                null,
                 '/memora/collections'
             );
 

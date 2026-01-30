@@ -71,6 +71,7 @@ class SelectionService
             'Selection Created',
             "Selection '{$selection->name}' has been created successfully.",
             "Your new selection '{$selection->name}' is now available to use.",
+            null,
             $selection->project_uuid ? "/memora/projects/{$selection->project_uuid}/selections/{$selection->uuid}" : "/memora/selections/{$selection->uuid}",
             ['coverPhoto' => $selection->cover_photo_url]
         );
@@ -313,6 +314,7 @@ class SelectionService
                     'Selection Republished',
                     "Selection '{$selection->name}' has been republished.",
                     "Selection '{$selection->name}' has been republished and is now available to clients.",
+                    null,
                     "/memora/selections/{$selection->uuid}",
                     ['coverPhoto' => $selection->cover_photo_url]
                 );
@@ -472,6 +474,7 @@ class SelectionService
             'Selection Updated',
             "Selection '{$selection->name}' has been updated successfully.",
             "Your selection '{$selection->name}' settings have been saved.",
+            null,
             $selection->project_uuid ? "/memora/projects/{$selection->project_uuid}/selections/{$selection->uuid}" : "/memora/selections/{$selection->uuid}",
             ['coverPhoto' => $selection->cover_photo_url]
         );
@@ -562,6 +565,7 @@ class SelectionService
                     $completedByEmail
                         ? "Selection '{$selection->name}' has been completed by {$completedByEmail}."
                         : "Selection '{$selection->name}' has been completed.",
+                    null,
                     "/memora/selections/{$selection->uuid}",
                     ['coverPhoto' => $selection->cover_photo_url]
                 );
@@ -703,42 +707,26 @@ class SelectionService
             })
             ->firstOrFail();
 
-        // Get cover URL from the media's file
-        // For videos, use the actual video URL (file.url)
-        // For images, use original/best quality URL
+        // Cover URL: never original. Use thumb/medium only. Originals are for download only.
         $coverUrl = null;
         if ($media->file) {
             $file = $media->file;
             $fileType = $file->type?->value ?? $file->type;
+            $metadata = $file->metadata;
+            if (is_string($metadata)) {
+                $metadata = json_decode($metadata, true);
+            }
+            $variants = is_array($metadata['variants'] ?? null) ? $metadata['variants'] : [];
 
             if ($fileType === 'video') {
-                // For videos, use the actual video URL
-                $coverUrl = $file->url ?? null;
+                $coverUrl = $metadata['thumbnail'] ?? $variants['thumb'] ?? null;
             } else {
-                // For images, use original/best quality URL
-                $metadata = $file->metadata;
-                if (is_string($metadata)) {
-                    $metadata = json_decode($metadata, true);
-                }
-
-                // Priority: original variant > large variant > file URL
-                if ($metadata && is_array($metadata) && isset($metadata['variants']) && is_array($metadata['variants'])) {
-                    if (isset($metadata['variants']['original'])) {
-                        $coverUrl = $metadata['variants']['original'];
-                    } elseif (isset($metadata['variants']['large'])) {
-                        $coverUrl = $metadata['variants']['large'];
-                    } else {
-                        $coverUrl = $file->url ?? null;
-                    }
-                } else {
-                    // Fallback to file URL (which should be the original)
-                    $coverUrl = $file->url ?? null;
-                }
+                $coverUrl = $variants['medium'] ?? $variants['thumb'] ?? null;
             }
         }
 
         if (! $coverUrl) {
-            throw new \RuntimeException('Media does not have a valid URL');
+            throw new \RuntimeException('Media does not have a valid non-original URL for cover (thumb/medium required)');
         }
 
         // Prepare update data
@@ -906,6 +894,18 @@ class SelectionService
             }
         }
 
+        $this->notificationService->create(
+            $user->uuid,
+            'memora',
+            'selection_duplicated',
+            'Selection Duplicated',
+            "Selection '{$duplicated->name}' has been created from '{$original->name}'.",
+            "Your duplicate is ready with the same media and settings.",
+            null,
+            $duplicated->project_uuid ? "/memora/projects/{$duplicated->project_uuid}/selections/{$duplicated->uuid}" : "/memora/selections/{$duplicated->uuid}",
+            ['coverPhoto' => $original->cover_photo_url ?? $duplicated->cover_photo_url]
+        );
+
         return new SelectionResource($this->findModel($duplicated->uuid));
     }
 
@@ -957,6 +957,7 @@ class SelectionService
                     'Selection Deleted',
                     "Selection '{$name}' has been deleted.",
                     "The selection '{$name}' has been permanently removed.",
+                    null,
                     '/memora/selections'
                 );
 

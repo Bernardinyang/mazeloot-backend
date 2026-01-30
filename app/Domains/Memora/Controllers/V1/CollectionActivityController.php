@@ -349,7 +349,7 @@ class CollectionActivityController extends Controller
                     } elseif ($fileType === 'video' && $file->metadata) {
                         $photoThumbnail = $file->metadata['thumbnail'] ?? $file->metadata['variants']['thumb'] ?? null;
                     } else {
-                        $photoThumbnail = $media->thumbnail_url ?? $file->url ?? null;
+                        $photoThumbnail = $media->thumbnail_url ?? null;
                     }
                 }
 
@@ -451,7 +451,7 @@ class CollectionActivityController extends Controller
                     } elseif ($fileType === 'video' && $file->metadata) {
                         $photoThumbnail = $file->metadata['thumbnail'] ?? $file->metadata['variants']['thumb'] ?? null;
                     } else {
-                        $photoThumbnail = $media->thumbnail_url ?? $file->url ?? null;
+                        $photoThumbnail = $media->thumbnail_url ?? null;
                     }
                 }
 
@@ -553,7 +553,7 @@ class CollectionActivityController extends Controller
                     } elseif ($fileType === 'video' && $file->metadata) {
                         $photoThumbnail = $file->metadata['thumbnail'] ?? $file->metadata['variants']['thumb'] ?? null;
                     } else {
-                        $photoThumbnail = $media->thumbnail_url ?? $file->url ?? null;
+                        $photoThumbnail = $media->thumbnail_url ?? null;
                     }
                 }
 

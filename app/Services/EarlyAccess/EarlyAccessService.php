@@ -54,6 +54,7 @@ class EarlyAccessService
                     'Early Access Granted',
                     'You have been granted early access to Mazeloot!',
                     'You now have access to exclusive features, discounts, and priority support.',
+                    null,
                     '/dashboard',
                     ['early_access' => true]
                 );
@@ -82,6 +83,7 @@ class EarlyAccessService
                     'Early Access Revoked',
                     'Your early access has been revoked.',
                     'You no longer have access to early access features.',
+                    null,
                     '/dashboard',
                     ['early_access' => false]
                 );

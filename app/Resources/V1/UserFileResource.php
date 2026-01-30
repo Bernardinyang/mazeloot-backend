@@ -48,19 +48,23 @@ class UserFileResource extends JsonResource
             }
         }
 
-        // Determine display URL
-        $displayUrl = $this->url;
-
-        if ($fileType === 'image') {
-            // For public selection, use preview variant if available and no watermark exists
-            if ($isPublicSelection && ! $hasMediaWatermark && $variants && isset($variants['preview'])) {
+        // Display URL: never original. Only thumb/medium/preview. Originals are for download only.
+        $displayUrl = null;
+        if ($fileType === 'image' && is_array($variants)) {
+            if ($isPublicSelection && ! $hasMediaWatermark && ! empty($variants['preview'])) {
                 $displayUrl = $variants['preview'];
-            } elseif ($variants && isset($variants['medium'])) {
-                // Use medium variant as the main URL instead of original
+            } elseif (! empty($variants['medium'])) {
                 $displayUrl = $variants['medium'];
-            } elseif ($variants && isset($variants['thumb'])) {
+            } elseif (! empty($variants['thumb'])) {
                 $displayUrl = $variants['thumb'];
             }
+        }
+        // Video: no playable URL in resource; use download/stream endpoint for playback.
+
+        $metadata = $this->metadata ?? [];
+        if (is_array($metadata) && isset($metadata['variants']) && is_array($metadata['variants'])) {
+            $metadata = array_merge([], $metadata);
+            $metadata['variants'] = $previewVariants ?? [];
         }
 
         return [
@@ -73,7 +77,7 @@ class UserFileResource extends JsonResource
             'size' => $this->size,
             'width' => $this->width,
             'height' => $this->height,
-            'metadata' => $this->metadata,
+            'metadata' => $metadata,
             'thumbnailUrl' => $fileType === 'image' && $variants && isset($variants['thumb'])
                 ? $variants['thumb']
                 : ($fileType === 'video'

@@ -46,16 +46,19 @@ class MediaResource extends JsonResource
                 $file = $this->file;
                 $fileType = $file->type?->value ?? $file->type;
 
-                // Use medium variant instead of large to hide full quality
-                if ($fileType === 'image' && $file->metadata && isset($file->metadata['variants']['medium'])) {
-                    return $file->metadata['variants']['medium'];
+                if ($fileType !== 'image' || ! $file->metadata) {
+                    return null;
                 }
-                // Fallback to thumb if medium not available
-                if ($fileType === 'image' && $file->metadata && isset($file->metadata['variants']['thumb'])) {
-                    return $file->metadata['variants']['thumb'];
+                $v = $file->metadata['variants'] ?? null;
+                if (is_array($v)) {
+                    if (! empty($v['medium'])) {
+                        return $v['medium'];
+                    }
+                    if (! empty($v['thumb'])) {
+                        return $v['thumb'];
+                    }
                 }
-
-                return $file->url ?? null;
+                return $this->low_res_copy_url ?? null;
             }, null),
             'thumbnailUrl' => $this->whenLoaded('file', function () {
                 $file = $this->file;
@@ -65,17 +68,16 @@ class MediaResource extends JsonResource
                     return $file->metadata['variants']['thumb'];
                 }
 
-                // For videos, check metadata for thumbnail
                 if ($fileType === 'video' && $file->metadata) {
-                    if (isset($file->metadata['thumbnail'])) {
+                    if (! empty($file->metadata['thumbnail'])) {
                         return $file->metadata['thumbnail'];
                     }
-                    if (isset($file->metadata['variants']['thumb'])) {
+                    if (! empty($file->metadata['variants']['thumb'])) {
                         return $file->metadata['variants']['thumb'];
                     }
                 }
 
-                return $this->thumbnail_url ?? $file->url ?? null;
+                return $this->thumbnail_url ?? null;
             }, $this->thumbnail_url),
             'type' => $this->whenLoaded('file', function () {
                 return $this->file->type?->value ?? $this->file->type;

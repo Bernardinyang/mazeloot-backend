@@ -90,10 +90,7 @@ class ClosureRequestController extends Controller
                     'creative_email' => $closureRequest->user->email ?? null,
                     'media' => [
                         'uuid' => $closureRequest->media->uuid,
-                        'file' => $closureRequest->media->file ? [
-                            'url' => $closureRequest->media->file->url,
-                            'type' => $closureRequest->media->file->type,
-                        ] : null,
+                        'file' => $this->fileViewUrlOrNull($closureRequest->media->file),
                     ],
                     'comments' => $this->closureRequestService->getMediaComments($closureRequest->media_uuid),
                     'created_at' => $closureRequest->created_at,
@@ -253,5 +250,23 @@ class ClosureRequestController extends Controller
 
             return ApiResponse::error('Failed to fetch closure requests: '.$e->getMessage(), 500);
         }
+    }
+
+    /** Return file for API with view-only url (never original). */
+    private function fileViewUrlOrNull(?object $file): ?array
+    {
+        if (! $file) {
+            return null;
+        }
+        $v = $file->metadata['variants'] ?? null;
+        $url = null;
+        if (is_array($v)) {
+            $url = $v['medium'] ?? $v['thumb'] ?? null;
+        }
+
+        return [
+            'url' => $url,
+            'type' => $file->type,
+        ];
     }
 }

@@ -69,6 +69,7 @@ class ProofingService
             'Proofing Created',
             "Proofing '{$proofing->name}' has been created successfully.",
             "Your new proofing '{$proofing->name}' is now available to use.",
+            null,
             $proofing->project_uuid ? "/memora/projects/{$proofing->project_uuid}/proofing/{$proofing->uuid}" : "/memora/proofing/{$proofing->uuid}",
             ['coverPhoto' => $proofing->cover_photo_url]
         );
@@ -640,6 +641,7 @@ class ProofingService
             'Proofing Updated',
             "Proofing '{$updated->name}' has been updated successfully.",
             "Your proofing '{$updated->name}' settings have been saved.",
+            null,
             $updated->project_uuid ? "/memora/projects/{$updated->project_uuid}/proofing/{$updated->uuid}" : "/memora/proofing/{$updated->uuid}",
             ['coverPhoto' => $updated->cover_photo_url]
         );
@@ -1032,6 +1034,7 @@ class ProofingService
                     'Proofing Deleted',
                     "Proofing '{$name}' has been deleted.",
                     "The proofing '{$name}' has been permanently removed.",
+                    null,
                     $proofing->project_uuid ? "/memora/projects/{$proofing->project_uuid}/proofing" : '/memora/proofing'
                 );
 
@@ -1262,44 +1265,25 @@ class ProofingService
         if ($media->file) {
             $file = $media->file;
             $fileType = $file->type?->value ?? $file->type;
+            $metadata = $file->metadata;
+            if (is_string($metadata)) {
+                $metadata = json_decode($metadata, true);
+            }
+            $variants = is_array($metadata['variants'] ?? null) ? $metadata['variants'] : [];
 
             if ($fileType === 'video') {
-                $coverUrl = $file->url ?? null;
+                $coverUrl = $metadata['thumbnail'] ?? $variants['thumb'] ?? null;
             } else {
-                // Check metadata for variants (metadata is cast as array, but handle null case)
-                $metadata = $file->metadata;
-
-                // Handle case where metadata might be stored as JSON string (shouldn't happen with cast, but be safe)
-                if (is_string($metadata)) {
-                    $metadata = json_decode($metadata, true);
-                }
-
-                // Priority: original variant > large variant > file URL (use best quality)
-                if ($metadata && is_array($metadata) && isset($metadata['variants']) && is_array($metadata['variants'])) {
-                    if (isset($metadata['variants']['original'])) {
-                        $coverUrl = $metadata['variants']['original'];
-                    } elseif (isset($metadata['variants']['large'])) {
-                        $coverUrl = $metadata['variants']['large'];
-                    } else {
-                        $coverUrl = $file->url ?? null;
-                    }
-                } else {
-                    // Fallback to file URL (which should be the original)
-                    $coverUrl = $file->url ?? null;
-                }
+                $coverUrl = $variants['medium'] ?? $variants['thumb'] ?? null;
             }
         }
 
         if (! $coverUrl) {
-            $fileUrl = $media->file ? ($media->file->url ?? 'none') : 'no file relationship';
-            Log::error('Failed to get cover URL for media', [
+            Log::error('Media has no non-original URL for cover (thumb/medium required)', [
                 'media_uuid' => $mediaUuid,
                 'proofing_id' => $proofingId,
-                'has_file' => $media->file ? 'yes' : 'no',
-                'file_url' => $fileUrl,
-                'file_metadata' => $media->file ? ($media->file->metadata ?? 'none') : 'none',
             ]);
-            throw new \RuntimeException('Media does not have a valid URL for cover photo');
+            throw new \RuntimeException('Media does not have a valid non-original URL for cover (thumb/medium required)');
         }
 
         $updateData = [

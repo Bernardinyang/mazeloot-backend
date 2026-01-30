@@ -365,6 +365,7 @@ class PresetService
             'Preset Created',
             "Preset '{$preset->name}' has been created successfully.",
             "Your new preset '{$preset->name}' is now available to use.",
+            null,
             '/memora/settings/preset'
         );
 
@@ -402,6 +403,7 @@ class PresetService
             'Preset Updated',
             "Preset '{$preset->name}' has been updated successfully.",
             "Your preset '{$preset->name}' settings have been saved.",
+            null,
             '/memora/settings/preset'
         );
 
@@ -433,6 +435,7 @@ class PresetService
                 'Preset Deleted',
                 "Preset '{$name}' has been deleted.",
                 "The preset '{$name}' has been permanently removed.",
+                null,
                 '/memora/settings/preset'
             );
         }

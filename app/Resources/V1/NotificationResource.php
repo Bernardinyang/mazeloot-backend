@@ -17,6 +17,7 @@ class NotificationResource extends JsonResource
             'title' => $this->title,
             'message' => $this->message,
             'description' => $this->description,
+            'detail' => $this->detail,
             'actionUrl' => $this->action_url,
             'priority' => $metadata['priority'] ?? 'LOW',
             'metadata' => $metadata,

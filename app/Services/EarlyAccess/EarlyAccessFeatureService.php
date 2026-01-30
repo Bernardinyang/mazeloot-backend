@@ -42,6 +42,7 @@ class EarlyAccessFeatureService
                 'New Feature Available',
                 "You now have access to: {$feature}",
                 'Check it out in your dashboard!',
+                null,
                 '/dashboard',
                 ['feature' => $feature]
             );
@@ -97,6 +98,7 @@ class EarlyAccessFeatureService
                             'New Feature Available',
                             "You now have access to: {$feature}",
                             'Check it out in your dashboard!',
+                            null,
                             '/dashboard',
                             ['feature' => $feature]
                         );
@@ -141,6 +143,7 @@ class EarlyAccessFeatureService
                             'New Feature Available',
                             "You now have access to: {$feature}",
                             'Check it out in your dashboard!',
+                            null,
                             '/dashboard',
                             ['feature' => $feature]
                         );

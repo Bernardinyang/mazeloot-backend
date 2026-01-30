@@ -60,7 +60,8 @@ class NotificationService
      * @param  string  $type  Notification type (e.g., 'collection_created')
      * @param  string  $title  Notification title
      * @param  string  $message  Notification message
-     * @param  string|null  $description  Optional description
+     * @param  string|null  $description  Optional short description
+     * @param  string|null  $detail  Optional long-form explanation for the user
      * @param  string|null  $actionUrl  Optional action URL
      * @param  array|null  $metadata  Optional metadata
      */
@@ -71,6 +72,7 @@ class NotificationService
         string $title,
         string $message,
         ?string $description = null,
+        ?string $detail = null,
         ?string $actionUrl = null,
         ?array $metadata = null
     ): Notification {
@@ -95,6 +97,7 @@ class NotificationService
             'title' => $title,
             'message' => $message,
             'description' => $description,
+            'detail' => $detail,
             'action_url' => $actionUrl,
             'metadata' => $finalMetadata,
         ]);

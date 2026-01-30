@@ -47,6 +47,7 @@ class NotifyAdminsEarlyAccessRequest implements ShouldQueue
                 'New Early Access Request',
                 "{$this->userFirstName} {$this->userLastName} ({$this->userEmail}) has requested early access",
                 $this->reason ?? 'No reason provided',
+                null,
                 "/admin/early-access/requests/{$this->requestUuid}",
                 [
                     'request_uuid' => $this->requestUuid,

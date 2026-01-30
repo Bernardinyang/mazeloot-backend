@@ -71,6 +71,7 @@ class RawFileService
             'Raw File Created',
             "Raw File '{$rawFile->name}' has been created successfully.",
             "Your new raw file '{$rawFile->name}' is now available to use.",
+            null,
             $rawFile->project_uuid ? "/memora/projects/{$rawFile->project_uuid}/raw-files/{$rawFile->uuid}" : "/memora/raw-files/{$rawFile->uuid}",
             ['coverPhoto' => $rawFile->cover_photo_url]
         );
@@ -313,6 +314,7 @@ class RawFileService
                     'Raw File Republished',
                     "RawFile '{$rawFile->name}' has been republished.",
                     "RawFile '{$rawFile->name}' has been republished and is now available to clients.",
+                    null,
                     "/memora/rawFiles/{$rawFile->uuid}",
                     ['coverPhoto' => $rawFile->cover_photo_url]
                 );
@@ -492,6 +494,7 @@ class RawFileService
             'Raw File Updated',
             "Raw File '{$rawFile->name}' has been updated successfully.",
             "Your raw file '{$rawFile->name}' settings have been saved.",
+            null,
             $rawFile->project_uuid ? "/memora/projects/{$rawFile->project_uuid}/raw-files/{$rawFile->uuid}" : "/memora/raw-files/{$rawFile->uuid}",
             ['coverPhoto' => $rawFile->cover_photo_url]
         );
@@ -582,6 +585,7 @@ class RawFileService
                     $completedByEmail
                         ? "Raw file '{$rawFile->name}' has been completed by {$completedByEmail}."
                         : "Raw file '{$rawFile->name}' has been completed.",
+                    null,
                     "/memora/raw-files/{$rawFile->uuid}",
                     ['coverPhoto' => $rawFile->cover_photo_url]
                 );
@@ -723,42 +727,26 @@ class RawFileService
             })
             ->firstOrFail();
 
-        // Get cover URL from the media's file
-        // For videos, use the actual video URL (file.url)
-        // For images, use original/best quality URL
+        // Cover URL: never original. Use thumb/medium only. Originals are for download only.
         $coverUrl = null;
         if ($media->file) {
             $file = $media->file;
             $fileType = $file->type?->value ?? $file->type;
+            $metadata = $file->metadata;
+            if (is_string($metadata)) {
+                $metadata = json_decode($metadata, true);
+            }
+            $variants = is_array($metadata['variants'] ?? null) ? $metadata['variants'] : [];
 
             if ($fileType === 'video') {
-                // For videos, use the actual video URL
-                $coverUrl = $file->url ?? null;
+                $coverUrl = $metadata['thumbnail'] ?? $variants['thumb'] ?? null;
             } else {
-                // For images, use original/best quality URL
-                $metadata = $file->metadata;
-                if (is_string($metadata)) {
-                    $metadata = json_decode($metadata, true);
-                }
-
-                // Priority: original variant > large variant > file URL
-                if ($metadata && is_array($metadata) && isset($metadata['variants']) && is_array($metadata['variants'])) {
-                    if (isset($metadata['variants']['original'])) {
-                        $coverUrl = $metadata['variants']['original'];
-                    } elseif (isset($metadata['variants']['large'])) {
-                        $coverUrl = $metadata['variants']['large'];
-                    } else {
-                        $coverUrl = $file->url ?? null;
-                    }
-                } else {
-                    // Fallback to file URL (which should be the original)
-                    $coverUrl = $file->url ?? null;
-                }
+                $coverUrl = $variants['medium'] ?? $variants['thumb'] ?? null;
             }
         }
 
         if (! $coverUrl) {
-            throw new \RuntimeException('Media does not have a valid URL');
+            throw new \RuntimeException('Media does not have a valid non-original URL for cover (thumb/medium required)');
         }
 
         // Prepare update data
@@ -977,6 +965,7 @@ class RawFileService
                     'Raw File Deleted',
                     "RawFile '{$name}' has been deleted.",
                     "The rawFile '{$name}' has been permanently removed.",
+                    null,
                     '/memora/rawFiles'
                 );
 

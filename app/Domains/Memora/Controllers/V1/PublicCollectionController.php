@@ -702,6 +702,7 @@ class PublicCollectionController extends Controller
                                 'Collection Downloaded',
                                 "Your collection '{$collection->name}' has been downloaded {$downloaderInfo}.",
                                 "Your collection **{$collection->name}** has been downloaded {$downloaderInfo}.",
+                                null,
                                 $collectionUrl,
                                 [
                                     'collection_id' => $collection->uuid,
