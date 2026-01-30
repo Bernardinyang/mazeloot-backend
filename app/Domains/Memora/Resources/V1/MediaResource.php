@@ -58,6 +58,7 @@ class MediaResource extends JsonResource
                         return $v['thumb'];
                     }
                 }
+
                 return $this->low_res_copy_url ?? null;
             }, null),
             'thumbnailUrl' => $this->whenLoaded('file', function () {

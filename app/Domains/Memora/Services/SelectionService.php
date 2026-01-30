@@ -900,7 +900,7 @@ class SelectionService
             'selection_duplicated',
             'Selection Duplicated',
             "Selection '{$duplicated->name}' has been created from '{$original->name}'.",
-            "Your duplicate is ready with the same media and settings.",
+            'Your duplicate is ready with the same media and settings.',
             null,
             $duplicated->project_uuid ? "/memora/projects/{$duplicated->project_uuid}/selections/{$duplicated->uuid}" : "/memora/selections/{$duplicated->uuid}",
             ['coverPhoto' => $original->cover_photo_url ?? $duplicated->cover_photo_url]
