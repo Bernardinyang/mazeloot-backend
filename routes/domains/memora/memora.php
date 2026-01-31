@@ -52,6 +52,8 @@ Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
 
     // Closure Requests
     Route::post('/closure-requests', [ClosureRequestController::class, 'store']);
+    Route::post('/closure-requests/{uuid}/resend', [ClosureRequestController::class, 'resend']);
+    Route::post('/closure-requests/{uuid}/cancel', [ClosureRequestController::class, 'cancel']);
     Route::get('/media/{mediaId}/closure-requests', [ClosureRequestController::class, 'getByMedia']);
 
     // Approval Requests

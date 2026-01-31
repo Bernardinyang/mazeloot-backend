@@ -30,12 +30,16 @@ class ProofingServiceTest extends TestCase
         parent::setUp();
         $this->mockUploadService = \Mockery::mock(UploadService::class);
         $this->mockPaginationService = \Mockery::mock(PaginationService::class);
-        $this->service = new ProofingService($this->mockUploadService, $this->mockPaginationService);
+        $mockNotificationService = \Mockery::mock(\App\Services\Notification\NotificationService::class);
+        $mockNotificationService->shouldReceive('create')->andReturn(null);
+        $mockActivityLogService = \Mockery::mock(\App\Services\ActivityLog\ActivityLogService::class);
+        $mockActivityLogService->shouldReceive('log')->andReturn(null);
+        $this->service = new ProofingService($this->mockUploadService, $this->mockPaginationService, $mockNotificationService, $mockActivityLogService);
     }
 
     public function test_create_proofing_standalone(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['memora_tier' => 'pro']);
         Auth::login($user);
 
         $proofing = $this->service->create([
@@ -54,7 +58,7 @@ class ProofingServiceTest extends TestCase
 
     public function test_create_proofing_with_project(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['memora_tier' => 'pro']);
         Auth::login($user);
         $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
 
@@ -77,7 +81,7 @@ class ProofingServiceTest extends TestCase
 
     public function test_find_proofing(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['memora_tier' => 'pro']);
         Auth::login($user);
         $proofing = MemoraProofing::factory()->create(['user_uuid' => $user->uuid]);
 
@@ -88,7 +92,7 @@ class ProofingServiceTest extends TestCase
 
     public function test_find_proofing_with_project(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['memora_tier' => 'pro']);
         Auth::login($user);
         $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
         $proofing = MemoraProofing::factory()->create([
@@ -103,7 +107,7 @@ class ProofingServiceTest extends TestCase
 
     public function test_complete_proofing(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['memora_tier' => 'pro']);
         Auth::login($user);
         $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
         $proofing = MemoraProofing::factory()->create([
@@ -120,7 +124,7 @@ class ProofingServiceTest extends TestCase
 
     public function test_update_proofing(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['memora_tier' => 'pro']);
         Auth::login($user);
         $proofing = MemoraProofing::factory()->create(['user_uuid' => $user->uuid]);
 
@@ -137,7 +141,7 @@ class ProofingServiceTest extends TestCase
 
     public function test_update_allowed_emails(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['memora_tier' => 'pro']);
         Auth::login($user);
         $proofing = MemoraProofing::factory()->create(['user_uuid' => $user->uuid]);
 
@@ -151,7 +155,7 @@ class ProofingServiceTest extends TestCase
 
     public function test_update_primary_email(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['memora_tier' => 'pro']);
         Auth::login($user);
         $proofing = MemoraProofing::factory()->create([
             'user_uuid' => $user->uuid,
@@ -167,7 +171,7 @@ class ProofingServiceTest extends TestCase
 
     public function test_update_primary_email_adds_to_allowed(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['memora_tier' => 'pro']);
         Auth::login($user);
         $proofing = MemoraProofing::factory()->create(['user_uuid' => $user->uuid]);
 
@@ -181,7 +185,7 @@ class ProofingServiceTest extends TestCase
 
     public function test_upload_revision_requires_ready_media(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['memora_tier' => 'pro']);
         Auth::login($user);
         $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
         $proofing = MemoraProofing::factory()->create([
@@ -202,7 +206,7 @@ class ProofingServiceTest extends TestCase
 
     public function test_upload_revision_respects_max_limit(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['memora_tier' => 'pro']);
         Auth::login($user);
         $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
         $proofing = MemoraProofing::factory()->create([
@@ -236,7 +240,7 @@ class ProofingServiceTest extends TestCase
 
     public function test_delete_proofing(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['memora_tier' => 'pro']);
         Auth::login($user);
         $proofing = MemoraProofing::factory()->create(['user_uuid' => $user->uuid]);
 
@@ -248,7 +252,7 @@ class ProofingServiceTest extends TestCase
 
     public function test_publish_proofing(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['memora_tier' => 'pro']);
         Auth::login($user);
         $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
         $proofing = MemoraProofing::factory()->create([
@@ -265,7 +269,7 @@ class ProofingServiceTest extends TestCase
 
     public function test_toggle_star(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['memora_tier' => 'pro']);
         Auth::login($user);
         $proofing = MemoraProofing::factory()->create(['user_uuid' => $user->uuid]);
 

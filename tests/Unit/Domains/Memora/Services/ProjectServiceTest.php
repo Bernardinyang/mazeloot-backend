@@ -22,7 +22,12 @@ class ProjectServiceTest extends TestCase
     {
         parent::setUp();
         $this->mockPaginationService = \Mockery::mock(PaginationService::class);
-        $this->service = new ProjectService($this->mockPaginationService);
+        $mockNotificationService = \Mockery::mock(\App\Services\Notification\NotificationService::class);
+        $mockNotificationService->shouldReceive('create')->andReturn(new \App\Models\Notification);
+        $mockTierService = \Mockery::mock(\App\Services\Subscription\TierService::class);
+        $mockTierService->shouldReceive('getProjectLimit')->andReturn(null);
+        $mockTierService->shouldReceive('canUseProofing')->andReturn(true);
+        $this->service = new ProjectService($this->mockPaginationService, $mockNotificationService, $mockTierService);
     }
 
     public function test_create_project(): void
@@ -43,7 +48,7 @@ class ProjectServiceTest extends TestCase
 
     public function test_create_project_with_phases(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['memora_tier' => 'pro']);
         Auth::login($user);
 
         $project = $this->service->create([

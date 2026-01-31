@@ -86,10 +86,12 @@ class ClosureRequestController extends Controller
                         'allowed_emails' => $closureRequest->proofing->allowed_emails,
                         'has_password' => ! empty($closureRequest->proofing->password),
                         'project_uuid' => $closureRequest->proofing->project_uuid,
+                        'branding_domain' => \App\Support\MemoraFrontendUrls::getBrandingDomainForUser($closureRequest->proofing->user_uuid),
                     ],
                     'creative_email' => $closureRequest->user->email ?? null,
                     'media' => [
                         'uuid' => $closureRequest->media->uuid,
+                        'revision_number' => $closureRequest->media->revision_number,
                         'file' => $this->fileViewUrlOrNull($closureRequest->media->file),
                     ],
                     'comments' => $this->closureRequestService->getMediaComments($closureRequest->media_uuid),
@@ -169,6 +171,48 @@ class ClosureRequestController extends Controller
             ]);
 
             return ApiResponse::error('Failed to reject closure request: '.$e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Resend closure request email to client (authenticated - creative only).
+     */
+    public function resend(string $uuid): JsonResponse
+    {
+        try {
+            $this->closureRequestService->resendNotification($uuid, Auth::user()->uuid);
+
+            return ApiResponse::success([
+                'message' => 'Closure request email resent to client.',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to resend closure request', [
+                'uuid' => $uuid,
+                'error' => $e->getMessage(),
+            ]);
+
+            return ApiResponse::error($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Cancel a pending closure request (authenticated - creative only).
+     */
+    public function cancel(string $uuid): JsonResponse
+    {
+        try {
+            $this->closureRequestService->cancel($uuid, Auth::user()->uuid);
+
+            return ApiResponse::success([
+                'message' => 'Closure request cancelled.',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to cancel closure request', [
+                'uuid' => $uuid,
+                'error' => $e->getMessage(),
+            ]);
+
+            return ApiResponse::error($e->getMessage(), 500);
         }
     }
 
@@ -267,6 +311,7 @@ class ClosureRequestController extends Controller
         return [
             'url' => $url,
             'type' => $file->type,
+            'filename' => $file->filename ?? null,
         ];
     }
 }

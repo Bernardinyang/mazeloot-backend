@@ -12,9 +12,12 @@ use App\Services\Notification\NotificationService;
 use App\Services\Pagination\PaginationService;
 use App\Services\Upload\UploadService;
 use Illuminate\Database\Eloquent\Builder;
+use App\Notifications\NewRevisionUploadedNotification;
+use App\Support\MemoraFrontendUrls;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 
 class ProofingService
 {
@@ -44,6 +47,19 @@ class ProofingService
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
+        if (! $user->isAdmin()) {
+            $tierService = app(\App\Services\Subscription\TierService::class);
+            if (! $tierService->canUseProofing($user)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'proofing' => ['Proofing phase requires Pro plan or higher. Upgrade to unlock.'],
+                ]);
+            }
+            $maxRevisions = $tierService->getMaxRevisions($user);
+            if ($maxRevisions > 0 && isset($data['maxRevisions']) && (int) $data['maxRevisions'] > $maxRevisions) {
+                $data['maxRevisions'] = $maxRevisions;
+            }
+        }
+
         $projectUuid = $data['project_uuid'] ?? $data['projectUuid'] ?? null;
         $project = null;
 
@@ -70,7 +86,7 @@ class ProofingService
             "Proofing '{$proofing->name}' has been created successfully.",
             "Your new proofing '{$proofing->name}' is now available to use.",
             null,
-            $proofing->project_uuid ? "/memora/projects/{$proofing->project_uuid}/proofing/{$proofing->uuid}" : "/memora/proofing/{$proofing->uuid}",
+            \App\Support\MemoraFrontendUrls::proofingDetailPath($proofing->uuid, $proofing->project_uuid),
             ['coverPhoto' => $proofing->cover_photo_url]
         );
 
@@ -165,7 +181,7 @@ class ProofingService
         }
 
         // Create new media record for revision and mark older revisions as revised in a transaction
-        return DB::transaction(function () use ($originalMediaUuid, $calculatedRevisionNumber, $originalMedia, $userFile, $description, $revisionTodos, $maxOrder) {
+        $revisionMedia = DB::transaction(function () use ($originalMediaUuid, $calculatedRevisionNumber, $originalMedia, $userFile, $description, $revisionTodos, $maxOrder) {
             // Create new media record for revision
             $revisionMedia = MemoraMedia::create([
                 'user_uuid' => Auth::user()->uuid,
@@ -196,6 +212,70 @@ class ProofingService
 
             return $revisionMedia;
         });
+
+        // Email primary email and in-app notification for proofing owner
+        $primaryEmail = $proofing->primary_email;
+        if ($primaryEmail) {
+            try {
+                Notification::route('mail', $primaryEmail)
+                    ->notify(new NewRevisionUploadedNotification($proofing, $revisionMedia));
+                try {
+                    $this->activityLogService->logQueued(
+                        'notification_sent',
+                        $revisionMedia,
+                        'New revision uploaded email sent',
+                        [
+                            'channel' => 'email',
+                            'notification' => 'NewRevisionUploadedNotification',
+                            'recipient_email' => $primaryEmail,
+                            'proofing_uuid' => $proofing->uuid,
+                            'media_uuid' => $revisionMedia->uuid,
+                        ]
+                    );
+                } catch (\Throwable $e) {
+                    Log::error('Failed to log new revision notification activity', [
+                        'media_uuid' => $revisionMedia->uuid,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::error('Failed to send new revision notification', [
+                    'media_uuid' => $revisionMedia->uuid,
+                    'email' => $primaryEmail,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        if ($proofing->user_uuid) {
+            try {
+                $actionUrl = MemoraFrontendUrls::proofingDetailPath($proofing->uuid, $proofing->project_uuid);
+                $mediaName = $revisionMedia->file->filename ?? 'Media item';
+                $revisionNum = $revisionMedia->revision_number ?? 1;
+                $this->notificationService->create(
+                    $proofing->user_uuid,
+                    'memora',
+                    'proofing_revision_uploaded',
+                    'New revision uploaded',
+                    "Revision {$revisionNum} for \"{$mediaName}\" was uploaded in proofing \"{$proofing->name}\".",
+                    null,
+                    null,
+                    $actionUrl,
+                    [
+                        'proofing_uuid' => $proofing->uuid,
+                        'media_uuid' => $revisionMedia->uuid,
+                        'revision_number' => $revisionNum,
+                    ]
+                );
+            } catch (\Throwable $e) {
+                Log::error('Failed to create in-app notification for new revision', [
+                    'media_uuid' => $revisionMedia->uuid ?? null,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $revisionMedia;
     }
 
     /**
@@ -312,6 +392,28 @@ class ProofingService
             causer: $user
         );
 
+        if ($proofing->user_uuid) {
+            try {
+                $actionUrl = MemoraFrontendUrls::proofingDetailPath($proofing->uuid, $proofing->project_uuid);
+                $this->notificationService->create(
+                    $proofing->user_uuid,
+                    'memora',
+                    'proofing_completed',
+                    'Proofing completed',
+                    "Proofing \"{$proofing->name}\" has been completed.",
+                    null,
+                    null,
+                    $actionUrl,
+                    ['proofing_uuid' => $proofing->uuid, 'proofing_name' => $proofing->name]
+                );
+            } catch (\Throwable $e) {
+                Log::error('Failed to create in-app notification for proofing completed', [
+                    'proofing_uuid' => $proofing->uuid,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
         // Reload with relationships and recompute counts
         return $proofing;
     }
@@ -386,6 +488,28 @@ class ProofingService
         $proofing->setAttribute('media_count', $mediaCount);
         $proofing->setAttribute('completed_count', $completedCount);
         $proofing->setAttribute('pending_count', $mediaCount - $completedCount);
+
+        if ($proofing->user_uuid) {
+            try {
+                $actionUrl = MemoraFrontendUrls::proofingDetailPath($proofing->uuid, $proofing->project_uuid);
+                $this->notificationService->create(
+                    $proofing->user_uuid,
+                    'memora',
+                    'proofing_completed',
+                    'Proofing completed',
+                    "Proofing \"{$proofing->name}\" has been completed by a client.",
+                    null,
+                    null,
+                    $actionUrl,
+                    ['proofing_uuid' => $proofing->uuid, 'proofing_name' => $proofing->name]
+                );
+            } catch (\Throwable $e) {
+                Log::error('Failed to create in-app notification for proofing completed (public)', [
+                    'proofing_uuid' => $proofing->uuid,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
 
         return $proofing;
     }
@@ -642,7 +766,7 @@ class ProofingService
             "Proofing '{$updated->name}' has been updated successfully.",
             "Your proofing '{$updated->name}' settings have been saved.",
             null,
-            $updated->project_uuid ? "/memora/projects/{$updated->project_uuid}/proofing/{$updated->uuid}" : "/memora/proofing/{$updated->uuid}",
+            \App\Support\MemoraFrontendUrls::proofingDetailPath($updated->uuid, $updated->project_uuid),
             ['coverPhoto' => $updated->cover_photo_url]
         );
 
@@ -1035,7 +1159,7 @@ class ProofingService
                     "Proofing '{$name}' has been deleted.",
                     "The proofing '{$name}' has been permanently removed.",
                     null,
-                    $proofing->project_uuid ? "/memora/projects/{$proofing->project_uuid}/proofing" : '/memora/proofing'
+                    \App\Support\MemoraFrontendUrls::proofingListPath($proofing->project_uuid)
                 );
 
                 $this->activityLogService->log(

@@ -25,10 +25,12 @@ class CollectionServicePresetTest extends TestCase
         parent::setUp();
         $mockPaginationService = \Mockery::mock(PaginationService::class);
         $mockNotificationService = \Mockery::mock(\App\Services\Notification\NotificationService::class);
+        $mockActivityLogService = \Mockery::mock(\App\Services\ActivityLog\ActivityLogService::class);
+        $mockActivityLogService->shouldReceive('log')->andReturn(null);
         $mockNotification = new \App\Models\Notification;
         $mockNotificationService->shouldReceive('create')->andReturn($mockNotification);
 
-        $this->collectionService = new CollectionService($mockPaginationService, $mockNotificationService);
+        $this->collectionService = new CollectionService($mockPaginationService, $mockNotificationService, $mockActivityLogService);
         $this->presetService = new PresetService($mockNotificationService);
     }
 

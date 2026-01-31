@@ -10,6 +10,7 @@ use App\Domains\Memora\Resources\V1\RawFileResource;
 use App\Services\ActivityLog\ActivityLogService;
 use App\Services\Notification\NotificationService;
 use App\Services\Pagination\PaginationService;
+use App\Support\MemoraFrontendUrls;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -39,6 +40,16 @@ class RawFileService
      */
     public function create(array $data): RawFileResource
     {
+        $user = Auth::user();
+        if ($user && ! $user->isAdmin()) {
+            $tierService = app(\App\Services\Subscription\TierService::class);
+            if (! $tierService->canUseRawFiles($user)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'raw_files' => ['Raw Files phase requires Studio plan or higher. Upgrade to unlock.'],
+                ]);
+            }
+        }
+
         $projectUuid = $data['project_uuid'] ?? null;
 
         if ($projectUuid) {
@@ -72,7 +83,7 @@ class RawFileService
             "Raw File '{$rawFile->name}' has been created successfully.",
             "Your new raw file '{$rawFile->name}' is now available to use.",
             null,
-            $rawFile->project_uuid ? "/memora/projects/{$rawFile->project_uuid}/raw-files/{$rawFile->uuid}" : "/memora/raw-files/{$rawFile->uuid}",
+            MemoraFrontendUrls::rawFileDetailPath($rawFile->uuid, $rawFile->project_uuid),
             ['coverPhoto' => $rawFile->cover_photo_url]
         );
 
@@ -315,7 +326,7 @@ class RawFileService
                     "RawFile '{$rawFile->name}' has been republished.",
                     "RawFile '{$rawFile->name}' has been republished and is now available to clients.",
                     null,
-                    "/memora/rawFiles/{$rawFile->uuid}",
+                    MemoraFrontendUrls::rawFileDetailPath($rawFile->uuid, $rawFile->project_uuid),
                     ['coverPhoto' => $rawFile->cover_photo_url]
                 );
             } catch (\Exception $e) {
@@ -495,7 +506,7 @@ class RawFileService
             "Raw File '{$rawFile->name}' has been updated successfully.",
             "Your raw file '{$rawFile->name}' settings have been saved.",
             null,
-            $rawFile->project_uuid ? "/memora/projects/{$rawFile->project_uuid}/raw-files/{$rawFile->uuid}" : "/memora/raw-files/{$rawFile->uuid}",
+            MemoraFrontendUrls::rawFileDetailPath($rawFile->uuid, $rawFile->project_uuid),
             ['coverPhoto' => $rawFile->cover_photo_url]
         );
 
@@ -586,7 +597,7 @@ class RawFileService
                         ? "Raw file '{$rawFile->name}' has been completed by {$completedByEmail}."
                         : "Raw file '{$rawFile->name}' has been completed.",
                     null,
-                    "/memora/raw-files/{$rawFile->uuid}",
+                    MemoraFrontendUrls::rawFileDetailPath($rawFile->uuid, $rawFile->project_uuid),
                     ['coverPhoto' => $rawFile->cover_photo_url]
                 );
             } catch (\Exception $e) {
@@ -966,7 +977,7 @@ class RawFileService
                     "RawFile '{$name}' has been deleted.",
                     "The rawFile '{$name}' has been permanently removed.",
                     null,
-                    '/memora/rawFiles'
+                    MemoraFrontendUrls::rawFileListPath($rawFile->project_uuid)
                 );
 
                 app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(

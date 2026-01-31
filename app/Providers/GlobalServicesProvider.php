@@ -13,6 +13,7 @@ use App\Services\Payment\Providers\PaystackProvider;
 use App\Services\Payment\Providers\StripeProvider;
 use App\Services\Pricing\PricingService;
 use App\Services\Quotas\QuotaService;
+use App\Services\Subscription\TierService;
 use App\Services\Upload\Contracts\UploadProviderInterface;
 use App\Services\Upload\Providers\CloudflareR2Provider;
 use App\Services\Upload\Providers\CloudinaryProvider;
@@ -59,6 +60,7 @@ class GlobalServicesProvider extends ServiceProvider
         $this->app->singleton(CurrencyService::class);
         $this->app->singleton(PricingService::class);
         $this->app->singleton(PaginationService::class);
+        $this->app->singleton(TierService::class);
         $this->app->singleton(QuotaService::class);
 
         // Register UploadService and PaymentService (they depend on providers)

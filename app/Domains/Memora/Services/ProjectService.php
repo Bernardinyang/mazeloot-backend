@@ -6,7 +6,10 @@ use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraProject;
 use App\Services\Notification\NotificationService;
 use App\Services\Pagination\PaginationService;
+use App\Services\Subscription\TierService;
+use App\Support\MemoraFrontendUrls;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class ProjectService
 {
@@ -14,10 +17,13 @@ class ProjectService
 
     protected NotificationService $notificationService;
 
-    public function __construct(PaginationService $paginationService, NotificationService $notificationService)
+    protected TierService $tierService;
+
+    public function __construct(PaginationService $paginationService, NotificationService $notificationService, TierService $tierService)
     {
         $this->paginationService = $paginationService;
         $this->notificationService = $notificationService;
+        $this->tierService = $tierService;
     }
 
     /**
@@ -211,6 +217,26 @@ class ProjectService
      */
     public function create(array $data, string $userUuid): MemoraProject
     {
+        $user = Auth::user();
+        if ($user && ! $user->isAdmin()) {
+            $projectLimit = $this->tierService->getProjectLimit($user);
+            if ($projectLimit !== null) {
+                $currentCount = MemoraProject::where('user_uuid', $userUuid)->count();
+                if ($currentCount >= $projectLimit) {
+                    throw ValidationException::withMessages([
+                        'limit' => ['Project limit reached. Upgrade your plan for more projects.'],
+                    ]);
+                }
+            }
+            if ($data['hasProofing'] ?? false) {
+                if (! $this->tierService->canUseProofing($user)) {
+                    throw ValidationException::withMessages([
+                        'proofing' => ['Proofing phase requires Pro plan or higher. Upgrade to unlock.'],
+                    ]);
+                }
+            }
+        }
+
         $project = MemoraProject::create([
             'user_uuid' => $userUuid,
             'name' => $data['name'],
@@ -299,7 +325,7 @@ class ProjectService
             "Project '{$project->name}' has been created successfully.",
             "Your new project '{$project->name}' is now available to use.",
             null,
-            "/memora/projects/{$project->uuid}"
+            MemoraFrontendUrls::projectDetailPath($project->uuid)
         );
 
         return $project;
@@ -517,7 +543,7 @@ class ProjectService
             "Project '{$project->name}' has been updated successfully.",
             "Your project '{$project->name}' settings have been saved.",
             null,
-            "/memora/projects/{$project->uuid}"
+            MemoraFrontendUrls::projectDetailPath($project->uuid)
         );
 
         return $project;
@@ -570,7 +596,7 @@ class ProjectService
                 "Project '{$name}' has been deleted.",
                 "The project '{$name}' has been permanently removed.",
                 null,
-                '/memora/projects'
+                MemoraFrontendUrls::projectListPath()
             );
         }
 

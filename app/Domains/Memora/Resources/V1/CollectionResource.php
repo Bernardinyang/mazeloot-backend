@@ -2,6 +2,7 @@
 
 namespace App\Domains\Memora\Resources\V1;
 
+use App\Support\MemoraFrontendUrls;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Auth;
 
@@ -201,6 +202,7 @@ class CollectionResource extends JsonResource
             'userId' => $this->user_uuid,
             'folderId' => $this->folder_uuid,
             'projectId' => $this->project_uuid,
+            'brandingDomain' => MemoraFrontendUrls::getBrandingDomainForUser($this->user_uuid),
             'project' => $this->whenLoaded('project', function () {
                 return new ProjectResource($this->project);
             }, null),

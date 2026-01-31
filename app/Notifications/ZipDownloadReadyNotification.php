@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Domains\Memora\Models\MemoraCollection;
 use App\Support\Mail\MailMessage;
+use App\Support\MemoraFrontendUrls;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
@@ -25,8 +26,10 @@ class ZipDownloadReadyNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $projectId = $this->collection->project_uuid ?? 'standalone';
-        $downloadUrl = config('app.frontend_url', config('app.url'))."/p/{$projectId}/collection/download?token={$this->token}&collectionId={$this->collection->uuid}";
+        $brandingDomain = MemoraFrontendUrls::getBrandingDomainForUser($this->collection->user_uuid);
+        $domain = $brandingDomain ?? $this->collection->project_uuid ?? 'standalone';
+        $downloadUrl = MemoraFrontendUrls::publicCollectionDownloadFullUrl($domain, $this->collection->uuid)
+            .'?token='.urlencode($this->token).'&collectionId='.urlencode($this->collection->uuid);
 
         return MailMessage::withLogo()
             ->subject('Your Photos Are Ready to Download')

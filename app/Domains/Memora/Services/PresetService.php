@@ -344,6 +344,18 @@ class PresetService
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
+        if (! $user->isAdmin()) {
+            $presetLimit = app(\App\Services\Subscription\TierService::class)->getPresetLimit($user);
+            if ($presetLimit !== null) {
+                $currentCount = MemoraPreset::where('user_uuid', $user->uuid)->count();
+                if ($currentCount >= $presetLimit) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'limit' => ['Preset limit reached. Upgrade your plan for more presets.'],
+                    ]);
+                }
+            }
+        }
+
         // Ensure name is present (should be validated by request, but be defensive)
         if (empty($data['name'])) {
             throw new \Illuminate\Validation\ValidationException(

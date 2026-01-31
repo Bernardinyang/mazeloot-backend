@@ -691,8 +691,9 @@ class PublicCollectionController extends Controller
 
                             // Create in-app notification
                             $notificationService = app(\App\Services\Notification\NotificationService::class);
-                            $projectId = $collection->project_uuid ?? 'standalone';
-                            $collectionUrl = config('app.frontend_url', config('app.url'))."/p/{$projectId}/collection?collectionId={$collection->uuid}";
+                            $brandingDomain = \App\Support\MemoraFrontendUrls::getBrandingDomainForUser($collection->user_uuid);
+                            $domain = $brandingDomain ?? $collection->project_uuid ?? 'standalone';
+                            $collectionUrl = \App\Support\MemoraFrontendUrls::publicCollectionFullUrl($domain, $collection->uuid);
 
                             $downloaderInfo = $downloaderEmail ? "by **{$downloaderEmail}**" : 'by a visitor';
                             $notificationService->create(

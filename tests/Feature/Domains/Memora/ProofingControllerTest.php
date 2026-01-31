@@ -37,7 +37,7 @@ class ProofingControllerTest extends TestCase
 
     public function test_create_proofing(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['memora_tier' => 'pro']);
         Sanctum::actingAs($user);
         $project = MemoraProject::factory()->create(['user_uuid' => $user->uuid]);
 

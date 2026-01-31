@@ -10,6 +10,7 @@ use App\Domains\Memora\Models\MemoraProject;
 use App\Services\ActivityLog\ActivityLogService;
 use App\Services\Notification\NotificationService;
 use App\Services\Pagination\PaginationService;
+use App\Support\MemoraFrontendUrls;
 use Illuminate\Support\Facades\Auth;
 
 class CollectionService
@@ -383,6 +384,18 @@ class CollectionService
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
+        if (! $user->isAdmin()) {
+            $collectionLimit = app(\App\Services\Subscription\TierService::class)->getCollectionLimit($user);
+            if ($collectionLimit !== null) {
+                $currentCount = MemoraCollection::where('user_uuid', $user->uuid)->count();
+                if ($currentCount >= $collectionLimit) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'limit' => ['Collection limit reached. Upgrade your plan for more collections.'],
+                    ]);
+                }
+            }
+        }
+
         $project = null;
         if ($projectId) {
             // Validate project exists and belongs to user
@@ -464,7 +477,7 @@ class CollectionService
                 "Collection '{$collection->name}' has been published successfully.",
                 "Your collection '{$collection->name}' is now live and accessible.",
                 null,
-                "/memora/collections/{$collection->uuid}",
+                MemoraFrontendUrls::collectionDetailPath($collection->uuid, $collection->project_uuid),
                 $coverPhoto ? ['coverPhoto' => $coverPhoto] : null
             );
 
@@ -489,7 +502,7 @@ class CollectionService
                 "Collection '{$collection->name}' has been created successfully.",
                 "Your collection '{$collection->name}' is ready to use.",
                 null,
-                "/memora/collections/{$collection->uuid}",
+                MemoraFrontendUrls::collectionDetailPath($collection->uuid, $collection->project_uuid),
                 $coverPhoto ? ['coverPhoto' => $coverPhoto] : null
             );
         }
@@ -776,7 +789,7 @@ class CollectionService
                 "Collection '{$collection->name}' has been published successfully.",
                 "Your collection '{$collection->name}' is now live and accessible to viewers.",
                 null,
-                "/memora/collections/{$collection->uuid}",
+                MemoraFrontendUrls::collectionDetailPath($collection->uuid, $collection->project_uuid),
                 $coverPhoto ? ['coverPhoto' => $coverPhoto] : null
             );
 
@@ -802,7 +815,7 @@ class CollectionService
                 "Collection '{$collection->name}' has been updated successfully.",
                 "Your collection '{$collection->name}' settings have been saved.",
                 null,
-                $collection->project_uuid ? "/memora/projects/{$collection->project_uuid}/collections/{$collection->uuid}" : "/memora/collections/{$collection->uuid}",
+                MemoraFrontendUrls::collectionDetailPath($collection->uuid, $collection->project_uuid),
                 $coverPhoto ? ['coverPhoto' => $coverPhoto] : null
             );
         }
@@ -989,7 +1002,7 @@ class CollectionService
                 "Collection '{$name}' has been deleted.",
                 "The collection '{$name}' has been permanently removed.",
                 null,
-                '/memora/collections'
+                MemoraFrontendUrls::collectionListPath($collection->project_uuid)
             );
 
             $this->activityLogService->log(

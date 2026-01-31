@@ -58,6 +58,7 @@ class User extends Authenticatable
         'provider_id',
         'email_verified_at',
         'profile_photo',
+        'memora_tier',
     ];
 
     /**

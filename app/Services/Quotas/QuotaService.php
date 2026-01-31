@@ -2,13 +2,16 @@
 
 namespace App\Services\Quotas;
 
+use App\Models\User;
 use App\Services\Storage\UserStorageService;
+use App\Services\Subscription\TierService;
 use App\Services\Upload\Exceptions\UploadException;
 
 class QuotaService
 {
     public function __construct(
-        protected UserStorageService $storageService
+        protected UserStorageService $storageService,
+        protected TierService $tierService
     ) {}
 
     /**
@@ -16,20 +19,19 @@ class QuotaService
      *
      * @param  int  $fileSize  Size in bytes
      * @param  string|null  $domain  Domain name (e.g., 'memora')
-     * @param  int|null  $userId  User ID
+     * @param  int|string|null  $userIdOrUuid  User ID (int) or UUID (string)
      *
      * @throws UploadException
      */
-    public function checkUploadQuota(int $fileSize, ?string $domain = null, ?int $userId = null): void
+    public function checkUploadQuota(int $fileSize, ?string $domain = null, int|string|null $userIdOrUuid = null): void
     {
-        $quota = $this->getUploadQuota($domain, $userId);
+        $quota = $this->getUploadQuota($domain, $userIdOrUuid);
 
         if ($quota === null) {
-            // No quota limits
             return;
         }
 
-        $used = $this->getUsedQuota($domain, $userId);
+        $used = $this->getUsedQuota($domain, $userIdOrUuid);
 
         if (($used + $fileSize) > $quota) {
             throw UploadException::quotaExceeded(
@@ -39,41 +41,35 @@ class QuotaService
     }
 
     /**
-     * Get upload quota for domain/user
+     * Get upload quota for domain/user. Uses tier-based limits when user has Memora tier.
      *
+     * @param  int|string|null  $userIdOrUuid  User ID (int) or UUID (string)
      * @return int|null Quota in bytes, null if unlimited
      */
-    public function getUploadQuota(?string $domain = null, ?int $userId = null): ?int
+    public function getUploadQuota(?string $domain = null, int|string|null $userIdOrUuid = null): ?int
     {
+        $user = $this->resolveUser($userIdOrUuid);
+
+        if ($user) {
+            $tierLimit = $this->tierService->getStorageLimit($user);
+            if ($tierLimit !== null) {
+                $earlyAccessMultiplier = method_exists($user, 'getStorageMultiplier') ? $user->getStorageMultiplier() : 1.0;
+                if ($earlyAccessMultiplier > 1.0) {
+                    return (int) round($tierLimit * $earlyAccessMultiplier);
+                }
+
+                return $tierLimit;
+            }
+        }
+
         $config = config('upload.quota', []);
-
-        $baseQuota = null;
-
-        // Check per-domain quota first
-        if ($domain && isset($config['per_domain'][$domain])) {
-            $baseQuota = $config['per_domain'][$domain];
-        }
-        // Check per-user quota
-        elseif ($userId && isset($config['per_user'][$userId])) {
-            $baseQuota = $config['per_user'][$userId];
-        }
-        // Check default user quota
-        elseif (isset($config['per_user']['default'])) {
-            $baseQuota = $config['per_user']['default'];
-        }
+        $baseQuota = $config['per_domain'][$domain] ?? $config['per_user']['default'] ?? null;
 
         if (! $baseQuota) {
             return null;
         }
 
-        // Apply early access storage multiplier
-        if ($userId) {
-            $user = \App\Models\User::find($userId);
-        } else {
-            $user = auth()->user();
-        }
-
-        if ($user) {
+        if ($user && method_exists($user, 'getStorageMultiplier')) {
             $multiplier = $user->getStorageMultiplier();
             if ($multiplier > 1.0) {
                 return (int) round($baseQuota * $multiplier);
@@ -83,27 +79,27 @@ class QuotaService
         return $baseQuota;
     }
 
-    /**
-     * Get used quota
-     *
-     * @return int Used quota in bytes
-     */
-    protected function getUsedQuota(?string $domain = null, ?int $userId = null): int
+    protected function getUsedQuota(?string $domain = null, int|string|null $userIdOrUuid = null): int
     {
-        if (! $userId) {
-            $user = auth()->user();
-            if (! $user) {
-                return 0;
-            }
-            $userUuid = $user->uuid;
-        } else {
-            $user = \App\Models\User::find($userId);
-            if (! $user) {
-                return 0;
-            }
-            $userUuid = $user->uuid;
+        $user = $this->resolveUser($userIdOrUuid);
+
+        if (! $user) {
+            return 0;
         }
 
-        return $this->storageService->getTotalStorageUsed($userUuid);
+        return $this->storageService->getTotalStorageUsed($user->uuid);
+    }
+
+    protected function resolveUser(int|string|null $userIdOrUuid): ?User
+    {
+        if ($userIdOrUuid === null) {
+            return auth()->user();
+        }
+
+        if (is_string($userIdOrUuid)) {
+            return User::find($userIdOrUuid);
+        }
+
+        return User::where('id', $userIdOrUuid)->first();
     }
 }

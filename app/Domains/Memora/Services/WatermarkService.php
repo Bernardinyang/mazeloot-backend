@@ -95,6 +95,18 @@ class WatermarkService
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
+        if (! $user->isAdmin()) {
+            $watermarkLimit = app(\App\Services\Subscription\TierService::class)->getWatermarkLimit($user);
+            if ($watermarkLimit !== null) {
+                $currentCount = MemoraWatermark::where('user_uuid', $user->uuid)->count();
+                if ($currentCount >= $watermarkLimit) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'limit' => ['Watermark limit reached. Upgrade your plan for more watermarks.'],
+                    ]);
+                }
+            }
+        }
+
         $watermarkData = [
             'user_uuid' => $user->uuid,
             'name' => $data['name'],

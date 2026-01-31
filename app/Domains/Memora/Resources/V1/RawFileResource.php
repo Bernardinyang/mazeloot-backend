@@ -3,6 +3,7 @@
 namespace App\Domains\Memora\Resources\V1;
 
 use App\Services\Storage\UserStorageService;
+use App\Support\MemoraFrontendUrls;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Auth;
 
@@ -20,6 +21,7 @@ class RawFileResource extends JsonResource
             'id' => $this->uuid,
             'projectId' => $this->project_uuid,
             'userUuid' => $this->user_uuid,
+            'brandingDomain' => MemoraFrontendUrls::getBrandingDomainForUser($this->user_uuid),
             'name' => $this->name,
             'description' => $this->description,
             'status' => $this->status?->value ?? $this->status,

@@ -6,8 +6,9 @@ return [
     | Upload Quotas
     |--------------------------------------------------------------------------
     |
-    | Configure upload quotas per domain and per user
-    | Values are in bytes
+    | Configure upload quotas per domain and per user.
+    | Values are in bytes.
+    | Per-user limits are overridden by tier (config/pricing.php) when user has a subscription.
     |
     */
 
@@ -16,7 +17,7 @@ return [
             // 'memora' => 1073741824, // 1GB
         ],
         'per_user' => [
-            'default' => 524288000, // 500MB default
+            'default' => 5 * 1024 * 1024 * 1024, // 5GB (Starter-equivalent for unsubscribed users)
         ],
     ],
 ];

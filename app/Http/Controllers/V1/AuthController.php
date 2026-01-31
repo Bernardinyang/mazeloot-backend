@@ -656,12 +656,18 @@ class AuthController extends Controller
             // Get storage quota/limit from config (default 500MB, but can be overridden per user)
             // If no quota is set, default to 5GB for display purposes
             $quotaService = app(\App\Services\Quotas\QuotaService::class);
-            $totalLimit = $quotaService->getUploadQuota(null, $user->id);
+            $totalLimit = $quotaService->getUploadQuota(null, $user->uuid);
 
             // If no quota is set (unlimited), use 5GB as default for UI display
             if ($totalLimit === null) {
                 $totalLimit = 5 * 1024 * 1024 * 1024; // 5GB default
             }
+
+            $tierService = app(\App\Services\Subscription\TierService::class);
+            $projectLimit = $tierService->getProjectLimit($user);
+            $collectionLimit = $tierService->getCollectionLimit($user);
+            $projectCount = \App\Domains\Memora\Models\MemoraProject::where('user_uuid', $user->uuid)->count();
+            $collectionCount = \App\Domains\Memora\Models\MemoraCollection::where('user_uuid', $user->uuid)->count();
 
             return ApiResponse::successOk([
                 'total_used_bytes' => $totalUsed,
@@ -670,6 +676,11 @@ class AuthController extends Controller
                 'total_storage_bytes' => $totalLimit,
                 'total_storage_mb' => round($totalLimit / (1024 * 1024), 2),
                 'total_storage_gb' => round($totalLimit / (1024 * 1024 * 1024), 2),
+                'tier' => $tierService->getTier($user),
+                'project_count' => $projectCount,
+                'project_limit' => $projectLimit,
+                'collection_count' => $collectionCount,
+                'collection_limit' => $collectionLimit,
             ]);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Failed to get storage usage', [

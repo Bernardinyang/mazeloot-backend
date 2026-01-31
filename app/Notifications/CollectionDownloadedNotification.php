@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Domains\Memora\Models\MemoraCollection;
 use App\Support\Mail\MailMessage;
+use App\Support\MemoraFrontendUrls;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
@@ -26,8 +27,9 @@ class CollectionDownloadedNotification extends Notification implements ShouldQue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $projectId = $this->collection->project_uuid ?? 'standalone';
-        $collectionUrl = config('app.frontend_url', config('app.url'))."/p/{$projectId}/collection?collectionId={$this->collection->uuid}";
+        $brandingDomain = MemoraFrontendUrls::getBrandingDomainForUser($this->collection->user_uuid);
+        $domain = $brandingDomain ?? $this->collection->project_uuid ?? 'standalone';
+        $collectionUrl = MemoraFrontendUrls::publicCollectionFullUrl($domain, $this->collection->uuid);
 
         $downloaderInfo = $this->downloaderEmail ? "by **{$this->downloaderEmail}**" : 'by a visitor';
 

@@ -10,6 +10,7 @@ use App\Domains\Memora\Resources\V1\SelectionResource;
 use App\Services\ActivityLog\ActivityLogService;
 use App\Services\Notification\NotificationService;
 use App\Services\Pagination\PaginationService;
+use App\Support\MemoraFrontendUrls;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -72,7 +73,7 @@ class SelectionService
             "Selection '{$selection->name}' has been created successfully.",
             "Your new selection '{$selection->name}' is now available to use.",
             null,
-            $selection->project_uuid ? "/memora/projects/{$selection->project_uuid}/selections/{$selection->uuid}" : "/memora/selections/{$selection->uuid}",
+            MemoraFrontendUrls::selectionDetailPath($selection->uuid, $selection->project_uuid),
             ['coverPhoto' => $selection->cover_photo_url]
         );
 
@@ -315,7 +316,7 @@ class SelectionService
                     "Selection '{$selection->name}' has been republished.",
                     "Selection '{$selection->name}' has been republished and is now available to clients.",
                     null,
-                    "/memora/selections/{$selection->uuid}",
+                    MemoraFrontendUrls::selectionDetailPath($selection->uuid, $selection->project_uuid),
                     ['coverPhoto' => $selection->cover_photo_url]
                 );
             } catch (\Exception $e) {
@@ -475,7 +476,7 @@ class SelectionService
             "Selection '{$selection->name}' has been updated successfully.",
             "Your selection '{$selection->name}' settings have been saved.",
             null,
-            $selection->project_uuid ? "/memora/projects/{$selection->project_uuid}/selections/{$selection->uuid}" : "/memora/selections/{$selection->uuid}",
+            MemoraFrontendUrls::selectionDetailPath($selection->uuid, $selection->project_uuid),
             ['coverPhoto' => $selection->cover_photo_url]
         );
 
@@ -556,6 +557,7 @@ class SelectionService
 
             // Notify the selection owner when a client completes the selection
             try {
+                $actionUrl = MemoraFrontendUrls::selectionDetailPath($selection->uuid, $selection->project_uuid);
                 $this->notificationService->create(
                     $selection->user_uuid,
                     'memora',
@@ -566,8 +568,8 @@ class SelectionService
                         ? "Selection '{$selection->name}' has been completed by {$completedByEmail}."
                         : "Selection '{$selection->name}' has been completed.",
                     null,
-                    "/memora/selections/{$selection->uuid}",
-                    ['coverPhoto' => $selection->cover_photo_url]
+                    $actionUrl,
+                    ['coverPhoto' => $selection->cover_photo_url, 'selection_uuid' => $selection->uuid]
                 );
             } catch (\Exception $e) {
                 Log::error('Failed to send selection completion notification', [
@@ -902,7 +904,7 @@ class SelectionService
             "Selection '{$duplicated->name}' has been created from '{$original->name}'.",
             'Your duplicate is ready with the same media and settings.',
             null,
-            $duplicated->project_uuid ? "/memora/projects/{$duplicated->project_uuid}/selections/{$duplicated->uuid}" : "/memora/selections/{$duplicated->uuid}",
+            MemoraFrontendUrls::selectionDetailPath($duplicated->uuid, $duplicated->project_uuid),
             ['coverPhoto' => $original->cover_photo_url ?? $duplicated->cover_photo_url]
         );
 
@@ -958,7 +960,7 @@ class SelectionService
                     "Selection '{$name}' has been deleted.",
                     "The selection '{$name}' has been permanently removed.",
                     null,
-                    '/memora/selections'
+                    MemoraFrontendUrls::selectionListPath($selection->project_uuid)
                 );
 
                 $this->activityLogService->log(

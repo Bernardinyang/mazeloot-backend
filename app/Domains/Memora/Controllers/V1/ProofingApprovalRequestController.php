@@ -85,6 +85,7 @@ class ProofingApprovalRequestController extends Controller
                         'has_password' => ! empty($approvalRequest->proofing->password),
                         'project_uuid' => $approvalRequest->proofing->project_uuid,
                         'max_revisions' => $approvalRequest->proofing->max_revisions,
+                        'branding_domain' => \App\Support\MemoraFrontendUrls::getBrandingDomainForUser($approvalRequest->proofing->user_uuid),
                     ],
                     'creative_email' => $approvalRequest->user->email ?? null,
                     'media' => [

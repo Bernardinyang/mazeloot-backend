@@ -8,6 +8,8 @@ use App\Domains\Memora\Models\MemoraProofingApprovalRequest;
 use App\Notifications\ProofingApprovalApprovedNotification;
 use App\Notifications\ProofingApprovalRejectedNotification;
 use App\Notifications\ProofingApprovalRequestedNotification;
+use App\Services\Notification\NotificationService;
+use App\Support\MemoraFrontendUrls;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -238,6 +240,33 @@ class ProofingApprovalRequestService
                 ]);
             }
 
+            if ($approvalRequest->user_uuid) {
+                try {
+                    $proofing = $approvalRequest->proofing;
+                    $actionUrl = MemoraFrontendUrls::proofingDetailPath($proofing->uuid, $proofing->project_uuid);
+                    app(NotificationService::class)->create(
+                        $approvalRequest->user_uuid,
+                        'memora',
+                        'proofing_approval_approved',
+                        'Approval request approved',
+                        "The client approved the approval request for media in proofing \"{$proofing->name}\".",
+                        null,
+                        null,
+                        $actionUrl,
+                        [
+                            'approval_request_uuid' => $approvalRequest->uuid,
+                            'proofing_uuid' => $proofing->uuid,
+                            'media_uuid' => $approvalRequest->media_uuid,
+                        ]
+                    );
+                } catch (\Throwable $e) {
+                    Log::error('Failed to create in-app notification for approval approved', [
+                        'approval_request_uuid' => $approvalRequest->uuid ?? null,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
             return $approvalRequest->fresh();
         });
     }
@@ -345,6 +374,38 @@ class ProofingApprovalRequestService
                 ]);
             }
 
+            if ($approvalRequest->user_uuid) {
+                try {
+                    $proofing = $approvalRequest->proofing;
+                    $actionUrl = MemoraFrontendUrls::proofingDetailPath($proofing->uuid, $proofing->project_uuid);
+                    $message = "The client rejected the approval request for media in proofing \"{$proofing->name}\".";
+                    if ($reason) {
+                        $message .= ' Reason: '.$reason;
+                    }
+                    app(NotificationService::class)->create(
+                        $approvalRequest->user_uuid,
+                        'memora',
+                        'proofing_approval_rejected',
+                        'Approval request rejected',
+                        $message,
+                        null,
+                        null,
+                        $actionUrl,
+                        [
+                            'approval_request_uuid' => $approvalRequest->uuid,
+                            'proofing_uuid' => $proofing->uuid,
+                            'media_uuid' => $approvalRequest->media_uuid,
+                            'rejection_reason' => $reason,
+                        ]
+                    );
+                } catch (\Throwable $e) {
+                    Log::error('Failed to create in-app notification for approval rejected', [
+                        'approval_request_uuid' => $approvalRequest->uuid ?? null,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
             return $approvalRequest->fresh();
         });
     }
@@ -372,6 +433,6 @@ class ProofingApprovalRequestService
 
     public function getPublicUrl(string $token): string
     {
-        return config('app.frontend_url').'/p/approval-request/'.$token;
+        return \App\Support\MemoraFrontendUrls::approvalRequestFullUrl($token);
     }
 }

@@ -5,8 +5,10 @@ namespace App\Domains\Memora\Services;
 use App\Domains\Memora\Models\MemoraClosureRequest;
 use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraProofing;
+use App\Support\MemoraFrontendUrls;
 use App\Notifications\ProofingClosureApprovedNotification;
 use App\Notifications\ProofingClosureRequestedNotification;
+use App\Services\Notification\NotificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -92,6 +94,105 @@ class ClosureRequestService
                 ]);
             }
         }
+
+        // In-app notification for the creative (proofing owner)
+        try {
+            $notificationService = app(NotificationService::class);
+            $actionUrl = MemoraFrontendUrls::proofingDetailPath($proofing->uuid, $proofing->project_uuid);
+            $notificationService->create(
+                $userId,
+                'memora',
+                'proofing_closure_requested',
+                'Closure request sent',
+                "Closure request sent for media in proofing \"{$proofing->name}\". The client will be notified by email.",
+                null,
+                null,
+                $actionUrl,
+                [
+                    'closure_request_uuid' => $closureRequest->uuid,
+                    'proofing_uuid' => $proofing->uuid,
+                    'media_uuid' => $media->uuid,
+                ]
+            );
+        } catch (\Throwable $e) {
+            Log::error('Failed to create in-app notification for closure request', [
+                'closure_request_uuid' => $closureRequest->uuid ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $closureRequest;
+    }
+
+    /**
+     * Resend closure request email to primary email only (authenticated - creative only).
+     */
+    public function resendNotification(string $closureRequestUuid, string $userId): void
+    {
+        $closureRequest = MemoraClosureRequest::with('proofing')->findOrFail($closureRequestUuid);
+        $proofing = $closureRequest->proofing;
+
+        if ($proofing->user_uuid !== $userId) {
+            throw new \Exception('Unauthorized: You do not own this closure request');
+        }
+
+        if ($closureRequest->status !== 'pending') {
+            throw new \Exception('Can only resend notification for pending closure requests');
+        }
+
+        $primaryEmail = $proofing->primary_email;
+        if (! $primaryEmail) {
+            return;
+        }
+
+        try {
+            Notification::route('mail', $primaryEmail)
+                ->notify(new ProofingClosureRequestedNotification($closureRequest));
+
+            try {
+                app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(
+                    'notification_sent',
+                    $closureRequest,
+                    'Proofing closure request email resent',
+                    [
+                        'channel' => 'email',
+                        'notification' => 'ProofingClosureRequestedNotification',
+                        'recipient_email' => $primaryEmail,
+                        'proofing_uuid' => $proofing->uuid,
+                        'media_uuid' => $closureRequest->media_uuid,
+                    ]
+                );
+            } catch (\Throwable $logException) {
+                Log::error('Failed to log closure request resend activity', [
+                    'closure_request_uuid' => $closureRequest->uuid ?? null,
+                    'email' => $primaryEmail,
+                    'error' => $logException->getMessage(),
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to resend closure request notification', [
+                'closure_request_uuid' => $closureRequest->uuid,
+                'email' => $primaryEmail,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Cancel a pending closure request (authenticated - creative only).
+     * Use when the client is unresponsive so you can send a new request or continue editing.
+     */
+    public function cancel(string $closureRequestUuid, string $userId): MemoraClosureRequest
+    {
+        $closureRequest = MemoraClosureRequest::with('proofing')->findOrFail($closureRequestUuid);
+        if ($closureRequest->proofing->user_uuid !== $userId) {
+            throw new \Exception('Unauthorized: You do not own this closure request');
+        }
+        if ($closureRequest->status !== 'pending') {
+            throw new \Exception('Can only cancel pending closure requests');
+        }
+        $closureRequest->update(['status' => 'cancelled']);
 
         return $closureRequest;
     }
@@ -202,6 +303,33 @@ class ClosureRequestService
                 ]);
             }
 
+            if ($closureRequest->user_uuid) {
+                try {
+                    $proofing = $closureRequest->proofing;
+                    $actionUrl = MemoraFrontendUrls::proofingDetailPath($proofing->uuid, $proofing->project_uuid);
+                    app(NotificationService::class)->create(
+                        $closureRequest->user_uuid,
+                        'memora',
+                        'proofing_closure_approved',
+                        'Closure request approved',
+                        "The client approved the closure request for media in proofing \"{$proofing->name}\". You can upload a revision.",
+                        null,
+                        null,
+                        $actionUrl,
+                        [
+                            'closure_request_uuid' => $closureRequest->uuid,
+                            'proofing_uuid' => $proofing->uuid,
+                            'media_uuid' => $closureRequest->media_uuid,
+                        ]
+                    );
+                } catch (\Throwable $e) {
+                    Log::error('Failed to create in-app notification for closure approved', [
+                        'closure_request_uuid' => $closureRequest->uuid ?? null,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
             return $closureRequest->fresh();
         });
     }
@@ -290,6 +418,38 @@ class ClosureRequestService
             ]);
         }
 
+        if ($closureRequest->user_uuid) {
+            try {
+                $proofing = $closureRequest->proofing;
+                $actionUrl = MemoraFrontendUrls::proofingDetailPath($proofing->uuid, $proofing->project_uuid);
+                $message = "The client rejected the closure request for media in proofing \"{$proofing->name}\".";
+                if ($reason) {
+                    $message .= ' Reason: '.$reason;
+                }
+                app(NotificationService::class)->create(
+                    $closureRequest->user_uuid,
+                    'memora',
+                    'proofing_closure_rejected',
+                    'Closure request rejected',
+                    $message,
+                    null,
+                    null,
+                    $actionUrl,
+                    [
+                        'closure_request_uuid' => $closureRequest->uuid,
+                        'proofing_uuid' => $proofing->uuid,
+                        'media_uuid' => $closureRequest->media_uuid,
+                        'rejection_reason' => $reason,
+                    ]
+                );
+            } catch (\Throwable $e) {
+                Log::error('Failed to create in-app notification for closure rejected', [
+                    'closure_request_uuid' => $closureRequest->uuid ?? null,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
         return $closureRequest->fresh();
     }
 
@@ -301,29 +461,23 @@ class ClosureRequestService
                 ->orderBy('created_at', 'asc');
         }])->findOrFail($mediaUuid);
 
-        return $media->feedback->map(function ($feedback) {
+        $mapFeedback = function ($feedback) use (&$mapFeedback) {
+            $feedback->loadNestedReplies();
             return [
                 'id' => $feedback->uuid,
                 'content' => $feedback->content,
                 'created_by' => $feedback->created_by,
                 'created_at' => $feedback->created_at,
-                'replies' => $feedback->replies->map(function ($reply) {
-                    return [
-                        'id' => $reply->uuid,
-                        'content' => $reply->content,
-                        'created_by' => $reply->created_by,
-                        'created_at' => $reply->created_at,
-                    ];
-                })->toArray(),
+                'replies' => $feedback->replies->map(fn ($reply) => $mapFeedback($reply))->values()->toArray(),
             ];
-        })->toArray();
+        };
+
+        return $media->feedback->map(fn ($f) => $mapFeedback($f))->toArray();
     }
 
     public function getPublicUrl(string $token): string
     {
-        $baseUrl = config('app.frontend_url', config('app.url'));
-
-        return rtrim($baseUrl, '/').'/closure-request/'.$token;
+        return MemoraFrontendUrls::closureRequestFullUrl($token);
     }
 
     public function getByMedia(string $mediaId, string $userId): array
