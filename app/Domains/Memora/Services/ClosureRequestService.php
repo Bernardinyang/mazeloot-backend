@@ -5,10 +5,10 @@ namespace App\Domains\Memora\Services;
 use App\Domains\Memora\Models\MemoraClosureRequest;
 use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraProofing;
-use App\Support\MemoraFrontendUrls;
 use App\Notifications\ProofingClosureApprovedNotification;
 use App\Notifications\ProofingClosureRequestedNotification;
 use App\Services\Notification\NotificationService;
+use App\Support\MemoraFrontendUrls;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -463,6 +463,7 @@ class ClosureRequestService
 
         $mapFeedback = function ($feedback) use (&$mapFeedback) {
             $feedback->loadNestedReplies();
+
             return [
                 'id' => $feedback->uuid,
                 'content' => $feedback->content,

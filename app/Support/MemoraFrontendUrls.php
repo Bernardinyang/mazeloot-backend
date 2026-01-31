@@ -48,7 +48,6 @@ class MemoraFrontendUrls
     }
 
     /**
-     * @param  string  $proofingId
      * @param  string|null  $brandingDomain  Creative branding slug (preferred for public URLs)
      * @param  string|null  $projectIdFallback  Fallback when brandingDomain not set
      */
