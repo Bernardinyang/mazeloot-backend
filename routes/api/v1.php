@@ -2,13 +2,19 @@
 
 use App\Http\Controllers\V1\AuthController;
 use App\Http\Controllers\V1\CacheController;
+use App\Http\Controllers\V1\PricingController;
 use App\Http\Controllers\V1\EarlyAccessController;
 use App\Http\Controllers\V1\ImageUploadController;
+use App\Http\Controllers\V1\Memora\SubscriptionController;
 use App\Http\Controllers\V1\NotificationController;
 use App\Http\Controllers\V1\OnboardingController;
 use App\Http\Controllers\V1\ProductController;
 use App\Http\Controllers\V1\ProductSelectionController;
 use App\Http\Controllers\V1\UploadController;
+use App\Http\Controllers\V1\Webhooks\FlutterwaveWebhookController;
+use App\Http\Controllers\V1\Webhooks\PayPalWebhookController;
+use App\Http\Controllers\V1\Webhooks\PaystackWebhookController;
+use App\Http\Controllers\V1\Webhooks\StripeWebhookController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -27,6 +33,17 @@ Route::prefix('cache')->group(function () {
 
 // Products (public or authenticated)
 Route::get('/products', [ProductController::class, 'index']);
+
+// Pricing (public)
+Route::get('/pricing/tiers', [PricingController::class, 'tiers']);
+Route::get('/pricing/build-your-own', [PricingController::class, 'buildYourOwn']);
+Route::get('/pricing/config', [SubscriptionController::class, 'config']);
+
+// Webhooks (public, signature verified in controller)
+Route::post('/webhooks/stripe', [StripeWebhookController::class, 'handle']);
+Route::post('/webhooks/paypal', [PayPalWebhookController::class, 'handle']);
+Route::post('/webhooks/paystack', [PaystackWebhookController::class, 'handle'])->middleware('paystack.webhook.body');
+Route::post('/webhooks/flutterwave', [FlutterwaveWebhookController::class, 'handle'])->middleware('flutterwave.webhook.body');
 
 // Token verification (public, but requires valid token)
 Route::get('/onboarding/verify-token', [OnboardingController::class, 'verifyToken']);

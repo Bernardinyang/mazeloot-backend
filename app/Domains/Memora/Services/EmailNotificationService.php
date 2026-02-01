@@ -9,7 +9,8 @@ use Illuminate\Support\Facades\DB;
 class EmailNotificationService
 {
     /**
-     * Get all email notifications for the authenticated user
+     * Get all email notifications for the authenticated user (type => enabled)
+     * Missing types default to config default (true)
      */
     public function getByUser(): array
     {
@@ -18,12 +19,63 @@ class EmailNotificationService
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
-        return MemoraEmailNotification::where('user_uuid', $user->uuid)
+        $events = config('email_notifications.events', []);
+        $userPrefs = MemoraEmailNotification::where('user_uuid', $user->uuid)
             ->get()
-            ->mapWithKeys(function ($notification) {
-                return [$notification->notification_type => $notification->is_enabled];
-            })
+            ->mapWithKeys(fn ($n) => [$n->notification_type => $n->is_enabled])
             ->toArray();
+
+        $result = [];
+        foreach ($events as $type => $config) {
+            $result[$type] = $userPrefs[$type] ?? ($config['default'] ?? true);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get all events with user preferences for UI (types with label, description, enabled, group)
+     */
+    public function getEventsWithPreferences(): array
+    {
+        $prefs = $this->getByUser();
+        $events = config('email_notifications.events', []);
+        $groups = config('email_notifications.groups', []);
+
+        $items = [];
+        foreach ($events as $type => $config) {
+            $items[] = [
+                'type' => $type,
+                'label' => $config['label'] ?? $type,
+                'description' => $config['description'] ?? '',
+                'enabled' => $prefs[$type] ?? ($config['default'] ?? true),
+                'group' => $config['group'] ?? 'general',
+                'groupLabel' => $groups[$config['group'] ?? ''] ?? ucfirst($config['group'] ?? 'general'),
+                'critical' => $config['critical'] ?? false,
+            ];
+        }
+
+        $groupOrder = array_flip(array_keys($groups));
+        return collect($items)->sortBy(fn ($i) => ($groupOrder[$i['group']] ?? 99) . '_' . $i['type'])->values()->toArray();
+    }
+
+    /**
+     * Check if user has email notification enabled (used when sending)
+     * Default true when no record
+     */
+    public function isEnabledForUser(string $userUuid, string $type): bool
+    {
+        $pref = MemoraEmailNotification::where('user_uuid', $userUuid)
+            ->where('notification_type', $type)
+            ->first();
+
+        if ($pref === null) {
+            $events = config('email_notifications.events', []);
+
+            return $events[$type]['default'] ?? true;
+        }
+
+        return $pref->is_enabled;
     }
 
     /**
@@ -57,9 +109,14 @@ class EmailNotificationService
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
+        $events = config('email_notifications.events', []);
+
         DB::beginTransaction();
         try {
             foreach ($notifications as $type => $enabled) {
+                if (! isset($events[$type])) {
+                    continue;
+                }
                 MemoraEmailNotification::updateOrCreate(
                     [
                         'user_uuid' => $user->uuid,
@@ -80,14 +137,10 @@ class EmailNotificationService
     }
 
     /**
-     * Get available notification types (for admin)
+     * Get available notification types from config
      */
     public function getAvailableTypes(): array
     {
-        return MemoraEmailNotification::distinct()
-            ->pluck('notification_type')
-            ->sort()
-            ->values()
-            ->toArray();
+        return array_keys(config('email_notifications.events', []));
     }
 }

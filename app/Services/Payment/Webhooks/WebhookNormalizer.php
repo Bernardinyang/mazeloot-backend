@@ -41,16 +41,23 @@ class WebhookNormalizer
 
     protected function normalizePayPal(array $payload): array
     {
-        // Normalize PayPal webhook to internal format
         $eventType = $payload['event_type'] ?? 'unknown';
+        $resource = $payload['resource'] ?? [];
+
+        $amount = $resource['amount']['total'] ?? null;
+        $currency = $resource['amount']['currency'] ?? null;
+        if ($amount === null && isset($resource['billing_info']['last_payment']['amount']['value'])) {
+            $amount = $resource['billing_info']['last_payment']['amount']['value'];
+            $currency = $resource['billing_info']['last_payment']['amount']['currency_code'] ?? null;
+        }
 
         return [
             'event_type' => $this->mapPayPalEventType($eventType),
-            'transaction_id' => $payload['resource']['id'] ?? null,
-            'status' => $payload['resource']['status'] ?? null,
-            'amount' => $payload['resource']['amount']['total'] ?? null,
-            'currency' => $payload['resource']['amount']['currency'] ?? null,
-            'metadata' => $payload['resource'] ?? [],
+            'transaction_id' => $resource['id'] ?? null,
+            'status' => $resource['status'] ?? null,
+            'amount' => $amount,
+            'currency' => $currency,
+            'metadata' => $resource,
             'raw_payload' => $payload,
         ];
     }
@@ -74,17 +81,16 @@ class WebhookNormalizer
 
     protected function normalizeFlutterwave(array $payload): array
     {
-        // Normalize Flutterwave webhook to internal format
-        $event = $payload['event'] ?? 'unknown';
+        $event = $payload['type'] ?? $payload['event'] ?? 'unknown';
         $data = $payload['data'] ?? [];
 
         return [
             'event_type' => $this->mapFlutterwaveEventType($event),
-            'transaction_id' => $data['tx_ref'] ?? null,
+            'transaction_id' => $data['reference'] ?? $data['tx_ref'] ?? null,
             'status' => $data['status'] ?? null,
             'amount' => $data['amount'] ?? null,
             'currency' => $data['currency'] ?? null,
-            'metadata' => $data['meta'] ?? [],
+            'metadata' => $data['meta'] ?? $data['metadata'] ?? [],
             'raw_payload' => $payload,
         ];
     }
@@ -116,6 +122,12 @@ class WebhookNormalizer
             'PAYMENT.CAPTURE.COMPLETED' => 'payment.completed',
             'PAYMENT.CAPTURE.DENIED' => 'payment.failed',
             'PAYMENT.CAPTURE.REFUNDED' => 'payment.refunded',
+            'BILLING.SUBSCRIPTION.ACTIVATED' => 'checkout.completed',
+            'BILLING.SUBSCRIPTION.CANCELLED' => 'subscription.cancelled',
+            'BILLING.SUBSCRIPTION.SUSPENDED' => 'subscription.cancelled',
+            'BILLING.SUBSCRIPTION.EXPIRED' => 'subscription.cancelled',
+            'BILLING.SUBSCRIPTION.PAYMENT.FAILED' => 'payment.failed',
+            'PAYMENT.SALE.COMPLETED' => 'payment.completed',
             default => $type,
         };
     }

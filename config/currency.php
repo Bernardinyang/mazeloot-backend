@@ -3,6 +3,22 @@
 return [
     /*
     |--------------------------------------------------------------------------
+    | Exchange Rate Provider
+    |--------------------------------------------------------------------------
+    |
+    | frankfurter: Free, no API key, ECB reference rates (may lack some African currencies)
+    | exchangerate: open.er-api.com, no key, 165+ currencies, rate-limited (cache 12h+)
+    | fallback: Config rates used when API fails or currency unsupported
+    |
+    */
+
+    'provider' => env('EXCHANGE_RATE_PROVIDER', 'exchangerate'),
+
+    'frankfurter_url' => 'https://api.frankfurter.dev/v1/latest',
+    'exchangerate_url' => 'https://open.er-api.com/v6/latest',
+
+    /*
+    |--------------------------------------------------------------------------
     | Supported Currencies
     |--------------------------------------------------------------------------
     |
@@ -25,11 +41,10 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Exchange Rates
+    | Fallback Exchange Rates (used when API fails or currency unsupported)
     |--------------------------------------------------------------------------
     |
-    | Cached exchange rates (updated periodically)
-    | Format: 'FROM_TO' => rate
+    | Format: 'FROM_TO' => rate (USD as base)
     |
     */
 
@@ -42,6 +57,7 @@ return [
         'USD_KES' => 130.00,
         'USD_GHS' => 12.00,
         'USD_JPY' => 150.00,
-        // Add more rates as needed
+        'USD_CAD' => 1.36,
+        'USD_AUD' => 1.53,
     ],
 ];

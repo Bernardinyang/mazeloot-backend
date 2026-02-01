@@ -3,7 +3,7 @@
 namespace App\Domains\Memora\Services;
 
 use App\Domains\Memora\Models\MemoraProofing;
-use App\Models\GuestProofingToken;
+use App\Domains\Memora\Models\MemoraGuestProofingToken;
 use Carbon\Carbon;
 
 class GuestProofingService
@@ -11,7 +11,7 @@ class GuestProofingService
     /**
      * Generate a guest token for a proofing
      */
-    public function generateToken(string $proofingId, string $email): GuestProofingToken
+    public function generateToken(string $proofingId, string $email): MemoraGuestProofingToken
     {
         $proofing = MemoraProofing::findOrFail($proofingId);
 
@@ -27,7 +27,7 @@ class GuestProofingService
         }
 
         // Create token that expires in 7 days
-        return GuestProofingToken::create([
+        return MemoraGuestProofingToken::create([
             'proofing_uuid' => $proofingId,
             'email' => $email,
             'expires_at' => Carbon::now()->addDays(7),
@@ -39,7 +39,7 @@ class GuestProofingService
      */
     public function getProofingByToken(string $token): MemoraProofing
     {
-        $guestToken = GuestProofingToken::where('token', $token)
+        $guestToken = MemoraGuestProofingToken::where('token', $token)
             ->where('expires_at', '>', now())
             ->firstOrFail();
 
@@ -51,7 +51,7 @@ class GuestProofingService
      */
     public function markTokenAsUsed(string $token): void
     {
-        $guestToken = GuestProofingToken::where('token', $token)->first();
+        $guestToken = MemoraGuestProofingToken::where('token', $token)->first();
         if ($guestToken) {
             $guestToken->markAsUsed();
         }

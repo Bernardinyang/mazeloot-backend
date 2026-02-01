@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Route;
 */
 
 // Authenticated Selection Routes
-Route::middleware(['auth:sanctum'])->prefix('selections')->group(function () {
+Route::middleware(['auth:sanctum', 'memora.feature:selection'])->prefix('selections')->group(function () {
     // Selection CRUD
     Route::get('/', [SelectionController::class, 'index']);
     Route::post('/', [SelectionController::class, 'store']);

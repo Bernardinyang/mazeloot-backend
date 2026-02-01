@@ -15,7 +15,7 @@ class UserFileResource extends JsonResource
         $isPublicSelection = false;
         $guestToken = $request->attributes->get('guest_token');
         if ($guestToken) {
-            // Check if guest token has selection_uuid property (could be GuestSelectionToken model)
+            // Check if guest token has selection_uuid property (could be MemoraGuestSelectionToken model)
             $selectionUuid = null;
             if (is_object($guestToken)) {
                 $selectionUuid = $guestToken->selection_uuid ?? ($guestToken->getAttribute('selection_uuid') ?? null);

@@ -3,7 +3,7 @@
 namespace App\Domains\Memora\Services;
 
 use App\Domains\Memora\Models\MemoraRawFile;
-use App\Models\GuestRawFileToken;
+use App\Domains\Memora\Models\MemoraGuestRawFileToken;
 use Carbon\Carbon;
 
 class GuestRawFileService
@@ -11,7 +11,7 @@ class GuestRawFileService
     /**
      * Generate a guest token for a raw file
      */
-    public function generateToken(string $rawFileId, string $email): GuestRawFileToken
+    public function generateToken(string $rawFileId, string $email): MemoraGuestRawFileToken
     {
         $rawFile = MemoraRawFile::findOrFail($rawFileId);
 
@@ -27,7 +27,7 @@ class GuestRawFileService
         }
 
         // Create token that expires in 7 days
-        return GuestRawFileToken::create([
+        return MemoraGuestRawFileToken::create([
             'raw_file_uuid' => $rawFileId,
             'email' => $email,
             'expires_at' => Carbon::now()->addDays(7),
@@ -39,7 +39,7 @@ class GuestRawFileService
      */
     public function getRawFileByToken(string $token): MemoraRawFile
     {
-        $guestToken = GuestRawFileToken::where('token', $token)
+        $guestToken = MemoraGuestRawFileToken::where('token', $token)
             ->where('expires_at', '>', now())
             ->firstOrFail();
 
@@ -51,7 +51,7 @@ class GuestRawFileService
      */
     public function markTokenAsUsed(string $token): void
     {
-        $guestToken = GuestRawFileToken::where('token', $token)->first();
+        $guestToken = MemoraGuestRawFileToken::where('token', $token)->first();
         if ($guestToken) {
             $guestToken->markAsUsed();
         }

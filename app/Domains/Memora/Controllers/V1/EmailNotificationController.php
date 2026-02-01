@@ -18,13 +18,23 @@ class EmailNotificationController extends Controller
     }
 
     /**
-     * Get user's email notification settings
+     * Get user's email notification settings (legacy: type => enabled)
      */
     public function index(): JsonResponse
     {
         $notifications = $this->notificationService->getByUser();
 
         return ApiResponse::success($notifications);
+    }
+
+    /**
+     * Get all events with user preferences (for UI)
+     */
+    public function events(): JsonResponse
+    {
+        $events = $this->notificationService->getEventsWithPreferences();
+
+        return ApiResponse::success($events);
     }
 
     /**

@@ -26,7 +26,7 @@ class CollectionServicePresetTest extends TestCase
         $mockPaginationService = \Mockery::mock(PaginationService::class);
         $mockNotificationService = \Mockery::mock(\App\Services\Notification\NotificationService::class);
         $mockActivityLogService = \Mockery::mock(\App\Services\ActivityLog\ActivityLogService::class);
-        $mockActivityLogService->shouldReceive('log')->andReturn(null);
+        $mockActivityLogService->shouldReceive('log')->andReturn(new \App\Models\ActivityLog);
         $mockNotification = new \App\Models\Notification;
         $mockNotificationService->shouldReceive('create')->andReturn($mockNotification);
 

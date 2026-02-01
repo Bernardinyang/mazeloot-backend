@@ -2,10 +2,10 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\GuestCollectionToken;
-use App\Models\GuestProofingToken;
-use App\Models\GuestRawFileToken;
-use App\Models\GuestSelectionToken;
+use App\Domains\Memora\Models\MemoraGuestCollectionToken;
+use App\Domains\Memora\Models\MemoraGuestProofingToken;
+use App\Domains\Memora\Models\MemoraGuestRawFileToken;
+use App\Domains\Memora\Models\MemoraGuestSelectionToken;
 use App\Support\Responses\ApiResponse;
 use Closure;
 use Illuminate\Http\Request;
@@ -31,21 +31,21 @@ class GuestTokenAuth
         }
 
         // Try to find selection token first
-        $guestToken = GuestSelectionToken::where('token', $token)->first();
+        $guestToken = MemoraGuestSelectionToken::where('token', $token)->first();
 
         // If not found, try proofing token
         if (! $guestToken) {
-            $guestToken = GuestProofingToken::where('token', $token)->first();
+            $guestToken = MemoraGuestProofingToken::where('token', $token)->first();
         }
 
         // If not found, try raw file token
         if (! $guestToken) {
-            $guestToken = GuestRawFileToken::where('token', $token)->first();
+            $guestToken = MemoraGuestRawFileToken::where('token', $token)->first();
         }
 
         // If not found, try collection token
         if (! $guestToken) {
-            $guestToken = GuestCollectionToken::where('token', $token)->first();
+            $guestToken = MemoraGuestCollectionToken::where('token', $token)->first();
         }
 
         if (! $guestToken) {

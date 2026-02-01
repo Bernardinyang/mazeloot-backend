@@ -22,9 +22,11 @@ return new class extends Migration
             $table->timestamp('reviewed_at')->nullable();
             $table->text('rejection_reason')->nullable();
             $table->timestamps();
+            $table->softDeletes();
 
             $table->index(['status', 'created_at']);
             $table->index('user_uuid');
+            $table->index(['user_uuid', 'status'], 'early_access_requests_user_status_index');
         });
     }
 

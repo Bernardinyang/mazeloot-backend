@@ -17,10 +17,17 @@ return Application::configure(basePath: dirname(__DIR__))
             'guest.token' => \App\Http\Middleware\GuestTokenAuth::class,
             'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
             'superadmin' => \App\Http\Middleware\EnsureUserIsSuperAdmin::class,
+            'memora.feature' => \App\Http\Middleware\MemoraFeature::class,
+            'memora.not_starter' => \App\Http\Middleware\EnsureNotStarterPlan::class,
+            'paystack.webhook.body' => \App\Http\Middleware\CapturePaystackWebhookBody::class,
+            'flutterwave.webhook.body' => \App\Http\Middleware\CaptureFlutterwaveWebhookBody::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [
             'broadcasting/auth',
+            'api/v1/webhooks/stripe',
+            'api/v1/webhooks/paystack',
+            'api/v1/webhooks/flutterwave',
         ]);
 
         // Ensure CORS middleware handles OPTIONS requests

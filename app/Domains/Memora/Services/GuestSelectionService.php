@@ -3,7 +3,7 @@
 namespace App\Domains\Memora\Services;
 
 use App\Domains\Memora\Models\MemoraSelection;
-use App\Models\GuestSelectionToken;
+use App\Domains\Memora\Models\MemoraGuestSelectionToken;
 use Carbon\Carbon;
 
 class GuestSelectionService
@@ -11,7 +11,7 @@ class GuestSelectionService
     /**
      * Generate a guest token for a selection
      */
-    public function generateToken(string $selectionId, string $email): GuestSelectionToken
+    public function generateToken(string $selectionId, string $email): MemoraGuestSelectionToken
     {
         $selection = MemoraSelection::findOrFail($selectionId);
 
@@ -27,7 +27,7 @@ class GuestSelectionService
         }
 
         // Create token that expires in 7 days
-        return GuestSelectionToken::create([
+        return MemoraGuestSelectionToken::create([
             'selection_uuid' => $selectionId,
             'email' => $email,
             'expires_at' => Carbon::now()->addDays(7),
@@ -39,7 +39,7 @@ class GuestSelectionService
      */
     public function getSelectionByToken(string $token): MemoraSelection
     {
-        $guestToken = GuestSelectionToken::where('token', $token)
+        $guestToken = MemoraGuestSelectionToken::where('token', $token)
             ->where('expires_at', '>', now())
             ->firstOrFail();
 
@@ -51,7 +51,7 @@ class GuestSelectionService
      */
     public function markTokenAsUsed(string $token): void
     {
-        $guestToken = GuestSelectionToken::where('token', $token)->first();
+        $guestToken = MemoraGuestSelectionToken::where('token', $token)->first();
         if ($guestToken) {
             $guestToken->markAsUsed();
         }

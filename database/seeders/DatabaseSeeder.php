@@ -63,6 +63,16 @@ class DatabaseSeeder extends Seeder
             ProductSeeder::class,
         ]);
 
+        // Seed BYO pricing
+        $this->call([
+            MemoraByoPricingSeeder::class,
+        ]);
+
+        // Seed fixed pricing tiers
+        $this->call([
+            MemoraPricingTiersSeeder::class,
+        ]);
+
         // Seed super admin
         $this->call([
             SuperAdminSeeder::class,

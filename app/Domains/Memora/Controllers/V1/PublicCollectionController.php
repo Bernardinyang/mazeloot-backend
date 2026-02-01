@@ -8,7 +8,7 @@ use App\Domains\Memora\Resources\V1\MediaSetResource;
 use App\Domains\Memora\Resources\V1\PublicCollectionResource;
 use App\Domains\Memora\Services\MediaSetService;
 use App\Http\Controllers\Controller;
-use App\Models\GuestCollectionToken;
+use App\Domains\Memora\Models\MemoraGuestCollectionToken;
 use App\Support\Responses\ApiResponse;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -108,7 +108,7 @@ class PublicCollectionController extends Controller
             $isClientVerified = false;
             $token = $request->bearerToken() ?? $request->header('X-Guest-Token') ?? $request->query('guest_token');
             if ($token) {
-                $clientToken = GuestCollectionToken::where('token', $token)
+                $clientToken = MemoraGuestCollectionToken::where('token', $token)
                     ->where('collection_uuid', $id)
                     ->where('expires_at', '>', now())
                     ->first();
@@ -120,7 +120,7 @@ class PublicCollectionController extends Controller
                 $guestToken = null;
 
                 if ($token) {
-                    $guestToken = GuestCollectionToken::where('token', $token)
+                    $guestToken = MemoraGuestCollectionToken::where('token', $token)
                         ->where('collection_uuid', $id)
                         ->where('expires_at', '>', now())
                         ->first();
@@ -230,7 +230,7 @@ class PublicCollectionController extends Controller
 
             if ($verified) {
                 // Generate guest token that expires in 30 minutes
-                $guestToken = GuestCollectionToken::create([
+                $guestToken = MemoraGuestCollectionToken::create([
                     'collection_uuid' => $id,
                     'expires_at' => Carbon::now()->addMinutes(30),
                 ]);
@@ -338,7 +338,7 @@ class PublicCollectionController extends Controller
 
             if ($verified) {
                 // Generate guest token that expires in 30 minutes
-                $guestToken = GuestCollectionToken::create([
+                $guestToken = MemoraGuestCollectionToken::create([
                     'collection_uuid' => $id,
                     'expires_at' => Carbon::now()->addMinutes(30),
                 ]);
@@ -383,7 +383,7 @@ class PublicCollectionController extends Controller
             $isClientVerified = false;
             $token = $request->bearerToken() ?? $request->header('X-Guest-Token') ?? $request->query('guest_token');
             if ($token) {
-                $guestToken = GuestCollectionToken::where('token', $token)
+                $guestToken = MemoraGuestCollectionToken::where('token', $token)
                     ->where('collection_uuid', $id)
                     ->where('expires_at', '>', now())
                     ->first();
@@ -774,7 +774,7 @@ class PublicCollectionController extends Controller
             $guestToken = null;
 
             if ($token) {
-                $guestToken = GuestCollectionToken::where('token', $token)
+                $guestToken = MemoraGuestCollectionToken::where('token', $token)
                     ->where('collection_uuid', $id)
                     ->where('expires_at', '>', now())
                     ->first();

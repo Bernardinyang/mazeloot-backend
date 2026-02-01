@@ -6,7 +6,8 @@
         "build": "vite build",
         "dev": "vite",
         "format": "prettier --write \"resources/**/*.{js,css}\"",
-        "format:check": "prettier --check \"resources/**/*.{js,css}\""
+        "format:check": "prettier --check \"resources/**/*.{js,css}\"",
+        "webhook:tunnel": "ngrok http 8000"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",

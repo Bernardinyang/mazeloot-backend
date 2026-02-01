@@ -1,37 +1,23 @@
 <?php
 
-namespace App\Models;
+namespace App\Domains\Memora\Models;
 
-use App\Domains\Memora\Models\MemoraSelection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
-class GuestSelectionToken extends Model
+class MemoraGuestProofingToken extends Model
 {
-    /**
-     * The primary key for the model.
-     *
-     * @var string
-     */
+    protected $table = 'memora_guest_proofing_tokens';
+
     protected $primaryKey = 'uuid';
 
-    /**
-     * The "type" of the primary key ID.
-     *
-     * @var string
-     */
     protected $keyType = 'string';
 
-    /**
-     * Indicates if the IDs are auto-incrementing.
-     *
-     * @var bool
-     */
     public $incrementing = false;
 
     protected $fillable = [
-        'selection_uuid',
+        'proofing_uuid',
         'email',
         'token',
         'expires_at',
@@ -43,9 +29,6 @@ class GuestSelectionToken extends Model
         'used_at' => 'datetime',
     ];
 
-    /**
-     * Boot the model.
-     */
     protected static function boot()
     {
         parent::boot();
@@ -60,33 +43,21 @@ class GuestSelectionToken extends Model
         });
     }
 
-    /**
-     * Get the selection this token belongs to
-     */
-    public function selection(): BelongsTo
+    public function proofing(): BelongsTo
     {
-        return $this->belongsTo(MemoraSelection::class, 'selection_uuid', 'uuid');
+        return $this->belongsTo(MemoraProofing::class, 'proofing_uuid', 'uuid');
     }
 
-    /**
-     * Check if token is expired
-     */
     public function isExpired(): bool
     {
         return $this->expires_at->isPast();
     }
 
-    /**
-     * Check if token has been used
-     */
     public function isUsed(): bool
     {
         return $this->used_at !== null;
     }
 
-    /**
-     * Mark token as used
-     */
     public function markAsUsed(): void
     {
         $this->update(['used_at' => now()]);

@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Route;
 */
 
 // Authenticated Raw File Routes
-Route::middleware(['auth:sanctum'])->prefix('raw-files')->group(function () {
+Route::middleware(['auth:sanctum', 'memora.feature:raw_files'])->prefix('raw-files')->group(function () {
     // Raw File CRUD
     Route::get('/', [RawFileController::class, 'index']);
     Route::post('/', [RawFileController::class, 'store']);

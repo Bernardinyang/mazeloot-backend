@@ -14,7 +14,7 @@ use App\Domains\Memora\Resources\V1\MediaFeedbackResource;
 use App\Domains\Memora\Resources\V1\MediaResource;
 use App\Domains\Memora\Services\MediaService;
 use App\Http\Controllers\Controller;
-use App\Models\GuestCollectionToken;
+use App\Domains\Memora\Models\MemoraGuestCollectionToken;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -522,7 +522,7 @@ class PublicMediaController extends Controller
             $isClientVerified = false;
             $token = $request->bearerToken() ?? $request->header('X-Guest-Token') ?? $request->query('guest_token');
             if ($token) {
-                $guestToken = GuestCollectionToken::where('token', $token)
+                $guestToken = MemoraGuestCollectionToken::where('token', $token)
                     ->where('collection_uuid', $id)
                     ->where('expires_at', '>', now())
                     ->first();
@@ -590,7 +590,7 @@ class PublicMediaController extends Controller
                 $guestToken = null;
 
                 if ($token) {
-                    $guestToken = GuestCollectionToken::where('token', $token)
+                    $guestToken = MemoraGuestCollectionToken::where('token', $token)
                         ->where('collection_uuid', $collectionId)
                         ->where('expires_at', '>', now())
                         ->first();
@@ -1268,7 +1268,7 @@ class PublicMediaController extends Controller
             $isClientVerified = false;
 
             if ($token) {
-                $guestToken = GuestCollectionToken::where('token', $token)
+                $guestToken = MemoraGuestCollectionToken::where('token', $token)
                     ->where('collection_uuid', $id)
                     ->where('expires_at', '>', now())
                     ->first();

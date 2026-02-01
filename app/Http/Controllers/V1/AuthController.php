@@ -87,6 +87,8 @@ class AuthController extends Controller
             ]);
         }
 
+        $tierService = app(\App\Services\Subscription\TierService::class);
+
         return ApiResponse::successOk([
             'user' => [
                 'uuid' => $user->uuid,
@@ -96,6 +98,8 @@ class AuthController extends Controller
                 'profile_photo' => $user->profile_photo,
                 'email_verified_at' => $user->email_verified_at,
                 'role' => $user->role->value,
+                'memora_tier' => $user->memora_tier ?? 'starter',
+                'memora_features' => $tierService->getFeatures($user),
                 'status' => $user->status ? [
                     'uuid' => $user->status->uuid,
                     'name' => $user->status->name,
@@ -137,6 +141,8 @@ class AuthController extends Controller
             ]);
         }
 
+        $tierService = app(\App\Services\Subscription\TierService::class);
+
         return ApiResponse::successCreated([
             'message' => 'Registration successful. Please verify your email.',
             'user' => [
@@ -145,6 +151,8 @@ class AuthController extends Controller
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
                 'email_verified_at' => $user->email_verified_at,
+                'memora_tier' => $user->memora_tier ?? 'starter',
+                'memora_features' => $tierService->getFeatures($user),
             ],
             'requires_verification' => true,
         ]);
@@ -191,6 +199,8 @@ class AuthController extends Controller
             ]);
         }
 
+        $tierService = app(\App\Services\Subscription\TierService::class);
+
         return ApiResponse::successOk([
             'message' => 'Email verified successfully.',
             'user' => [
@@ -200,6 +210,8 @@ class AuthController extends Controller
                 'last_name' => $user->last_name,
                 'email_verified_at' => $user->email_verified_at,
                 'role' => $user->role->value,
+                'memora_tier' => $user->memora_tier ?? 'starter',
+                'memora_features' => $tierService->getFeatures($user),
             ],
             'token' => $token,
         ]);
@@ -563,6 +575,8 @@ class AuthController extends Controller
             ]);
         }
 
+        $tierService = app(\App\Services\Subscription\TierService::class);
+
         return ApiResponse::successOk([
             'message' => 'Magic link verified successfully.',
             'user' => [
@@ -573,6 +587,8 @@ class AuthController extends Controller
                 'profile_photo' => $user->profile_photo,
                 'email_verified_at' => $user->email_verified_at,
                 'role' => $user->role->value,
+                'memora_tier' => $user->memora_tier ?? 'starter',
+                'memora_features' => $tierService->getFeatures($user),
                 'status' => $user->status ? [
                     'uuid' => $user->status->uuid,
                     'name' => $user->status->name,
@@ -603,6 +619,8 @@ class AuthController extends Controller
             $user->load('earlyAccess');
         }
 
+        $tierService = app(\App\Services\Subscription\TierService::class);
+
         return ApiResponse::successOk([
             'user' => [
                 'uuid' => $user->uuid,
@@ -612,6 +630,8 @@ class AuthController extends Controller
                 'profile_photo' => $user->profile_photo,
                 'email_verified_at' => $user->email_verified_at,
                 'role' => $user->role->value,
+                'memora_tier' => $user->memora_tier ?? 'starter',
+                'memora_features' => $tierService->getFeatures($user),
                 'status' => $user->status ? [
                     'uuid' => $user->status->uuid,
                     'name' => $user->status->name,
@@ -677,6 +697,7 @@ class AuthController extends Controller
                 'total_storage_mb' => round($totalLimit / (1024 * 1024), 2),
                 'total_storage_gb' => round($totalLimit / (1024 * 1024 * 1024), 2),
                 'tier' => $tierService->getTier($user),
+                'memora_features' => $tierService->getFeatures($user),
                 'project_count' => $projectCount,
                 'project_limit' => $projectLimit,
                 'collection_count' => $collectionCount,

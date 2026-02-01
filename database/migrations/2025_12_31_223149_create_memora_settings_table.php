@@ -19,6 +19,7 @@ return new class extends Migration
 
             // Branding fields
             $table->string('branding_domain')->nullable();
+            $table->unique('branding_domain', 'memora_settings_branding_domain_unique');
             $table->string('branding_custom_domain')->nullable();
             $table->foreignUuid('branding_logo_uuid')->nullable()->constrained('user_files', 'uuid')->nullOnDelete();
             $table->foreignUuid('branding_favicon_uuid')->nullable()->constrained('user_files', 'uuid')->nullOnDelete();

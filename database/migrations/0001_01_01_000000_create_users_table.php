@@ -18,6 +18,7 @@ return new class extends Migration
             $table->uuid('uuid')->primary()->default(DB::raw('(UUID())'));
             $table->foreignUuid('status_uuid')->nullable()->constrained('user_statuses', 'uuid')->nullOnDelete();
             $table->enum('role', UserRoleEnum::values())->default(UserRoleEnum::USER->value);
+            $table->string('memora_tier', 32)->default('starter');
             $table->string('first_name');
             $table->string('last_name');
             $table->string('middle_name')->nullable();

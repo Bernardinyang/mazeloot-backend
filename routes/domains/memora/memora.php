@@ -16,6 +16,7 @@ use App\Domains\Memora\Controllers\V1\SearchController;
 use App\Domains\Memora\Controllers\V1\SettingsController;
 use App\Domains\Memora\Controllers\V1\SocialLinkController;
 use App\Domains\Memora\Controllers\V1\WatermarkController;
+use App\Http\Controllers\V1\Memora\SubscriptionController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -28,63 +29,74 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
+    // Subscription
+    Route::prefix('subscription')->group(function () {
+        Route::get('/checkout-options', [SubscriptionController::class, 'checkoutOptions']);
+        Route::get('/preview', [SubscriptionController::class, 'preview']);
+        Route::get('/order-summary', [SubscriptionController::class, 'orderSummary']);
+        Route::post('/checkout', [SubscriptionController::class, 'checkout']);
+        Route::post('/complete-test-checkout', [SubscriptionController::class, 'completeTestCheckout']);
+        Route::post('/portal', [SubscriptionController::class, 'portal']);
+        Route::get('/status', [SubscriptionController::class, 'status']);
+        Route::get('/can-downgrade', [SubscriptionController::class, 'canDowngrade']);
+        Route::post('/cancel', [SubscriptionController::class, 'cancel']);
+        Route::get('/history', [SubscriptionController::class, 'history']);
+        Route::get('/usage', [SubscriptionController::class, 'usage']);
+    });
+
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'stats']);
 
     // Unified Search
     Route::get('/search', [SearchController::class, 'search']);
 
-    // Proofing (unified routes - works for both standalone and project-based)
-    // For project-based: pass ?projectId=xxx as query parameter
-    Route::get('/proofing', [ProofingController::class, 'index']);
-    Route::post('/proofing', [ProofingController::class, 'store']);
-    Route::get('/proofing/{id}', [ProofingController::class, 'show']);
-    Route::patch('/proofing/{id}', [ProofingController::class, 'update']);
-    Route::delete('/proofing/{id}', [ProofingController::class, 'destroy']);
-    Route::post('/proofing/{id}/publish', [ProofingController::class, 'publish']);
-    Route::post('/proofing/{id}/star', [ProofingController::class, 'toggleStar']);
-    Route::post('/proofing/{id}/duplicate', [ProofingController::class, 'duplicate']);
-    Route::post('/proofing/{id}/cover-photo', [ProofingController::class, 'setCoverPhoto']);
-    Route::post('/proofing/{id}/recover', [ProofingController::class, 'recover']);
-    Route::post('/proofing/{id}/revisions', [ProofingController::class, 'uploadRevision']);
-    Route::post('/proofing/{id}/complete', [ProofingController::class, 'complete']);
-    Route::post('/proofing/{id}/move-to-collection', [ProofingController::class, 'moveToCollection']);
+    // Proofing (unified routes - requires proofing feature)
+    Route::middleware(['memora.feature:proofing'])->group(function () {
+        Route::get('/proofing', [ProofingController::class, 'index']);
+        Route::post('/proofing', [ProofingController::class, 'store']);
+        Route::get('/proofing/{id}', [ProofingController::class, 'show']);
+        Route::patch('/proofing/{id}', [ProofingController::class, 'update']);
+        Route::delete('/proofing/{id}', [ProofingController::class, 'destroy']);
+        Route::post('/proofing/{id}/publish', [ProofingController::class, 'publish']);
+        Route::post('/proofing/{id}/star', [ProofingController::class, 'toggleStar']);
+        Route::post('/proofing/{id}/duplicate', [ProofingController::class, 'duplicate']);
+        Route::post('/proofing/{id}/cover-photo', [ProofingController::class, 'setCoverPhoto']);
+        Route::post('/proofing/{id}/recover', [ProofingController::class, 'recover']);
+        Route::post('/proofing/{id}/revisions', [ProofingController::class, 'uploadRevision']);
+        Route::post('/proofing/{id}/complete', [ProofingController::class, 'complete']);
+        Route::post('/proofing/{id}/move-to-collection', [ProofingController::class, 'moveToCollection']);
 
-    // Closure Requests
-    Route::post('/closure-requests', [ClosureRequestController::class, 'store']);
-    Route::post('/closure-requests/{uuid}/resend', [ClosureRequestController::class, 'resend']);
-    Route::post('/closure-requests/{uuid}/cancel', [ClosureRequestController::class, 'cancel']);
-    Route::get('/media/{mediaId}/closure-requests', [ClosureRequestController::class, 'getByMedia']);
+        Route::post('/closure-requests', [ClosureRequestController::class, 'store']);
+        Route::post('/closure-requests/{uuid}/resend', [ClosureRequestController::class, 'resend']);
+        Route::post('/closure-requests/{uuid}/cancel', [ClosureRequestController::class, 'cancel']);
+        Route::get('/media/{mediaId}/closure-requests', [ClosureRequestController::class, 'getByMedia']);
 
-    // Approval Requests
-    Route::post('/approval-requests', [ProofingApprovalRequestController::class, 'store']);
-    Route::get('/media/{mediaId}/approval-requests', [ProofingApprovalRequestController::class, 'getByMedia']);
+        Route::post('/approval-requests', [ProofingApprovalRequestController::class, 'store']);
+        Route::get('/media/{mediaId}/approval-requests', [ProofingApprovalRequestController::class, 'getByMedia']);
 
-    // Media Sets within proofing (unified - works for both standalone and project-based)
-    // For project-based: pass ?projectId=xxx as query parameter
-    Route::prefix('proofing/{proofingId}/sets')->group(function () {
-        Route::get('/', [MediaSetController::class, 'indexForProofing']);
-        Route::post('/', [MediaSetController::class, 'storeForProofing']);
-        Route::get('/{id}', [MediaSetController::class, 'showForProofing']);
-        Route::patch('/{id}', [MediaSetController::class, 'updateForProofing']);
-        Route::delete('/{id}', [MediaSetController::class, 'destroyForProofing']);
-        Route::post('/reorder', [MediaSetController::class, 'reorderForProofing']);
+        Route::prefix('proofing/{proofingId}/sets')->group(function () {
+            Route::get('/', [MediaSetController::class, 'indexForProofing']);
+            Route::post('/', [MediaSetController::class, 'storeForProofing']);
+            Route::get('/{id}', [MediaSetController::class, 'showForProofing']);
+            Route::patch('/{id}', [MediaSetController::class, 'updateForProofing']);
+            Route::delete('/{id}', [MediaSetController::class, 'destroyForProofing']);
+            Route::post('/reorder', [MediaSetController::class, 'reorderForProofing']);
 
-        // Media within a set
-        Route::prefix('{setId}/media')->group(function () {
-            Route::get('/', [MediaController::class, 'getSetMedia']);
-            Route::post('/', [MediaController::class, 'uploadToSet']);
-            Route::post('/move', [MediaController::class, 'moveToSet']);
-            Route::post('/copy', [MediaController::class, 'copyToSet']);
-            Route::patch('/{mediaId}/rename', [MediaController::class, 'rename']);
-            Route::patch('/{mediaId}/replace', [MediaController::class, 'replace']);
-            Route::post('/{mediaId}/watermark', [MediaController::class, 'applyWatermark']);
-            Route::delete('/{mediaId}/watermark', [MediaController::class, 'removeWatermark']);
-            Route::post('/{mediaId}/star', [MediaController::class, 'toggleStar']);
-            Route::delete('/{mediaId}', [MediaController::class, 'deleteFromSet']);
-            Route::post('/{mediaId}/feedback', [MediaController::class, 'addFeedback']);
-            Route::patch('/{mediaId}/feedback/{feedbackId}', [MediaController::class, 'updateFeedback']);
-            Route::delete('/{mediaId}/feedback/{feedbackId}', [MediaController::class, 'deleteFeedback']);
+            Route::prefix('{setId}/media')->group(function () {
+                Route::get('/', [MediaController::class, 'getSetMedia']);
+                Route::post('/', [MediaController::class, 'uploadToSet']);
+                Route::post('/move', [MediaController::class, 'moveToSet']);
+                Route::post('/copy', [MediaController::class, 'copyToSet']);
+                Route::patch('/{mediaId}/rename', [MediaController::class, 'rename']);
+                Route::patch('/{mediaId}/replace', [MediaController::class, 'replace']);
+                Route::post('/{mediaId}/watermark', [MediaController::class, 'applyWatermark']);
+                Route::delete('/{mediaId}/watermark', [MediaController::class, 'removeWatermark']);
+                Route::post('/{mediaId}/star', [MediaController::class, 'toggleStar']);
+                Route::delete('/{mediaId}', [MediaController::class, 'deleteFromSet']);
+                Route::post('/{mediaId}/feedback', [MediaController::class, 'addFeedback']);
+                Route::patch('/{mediaId}/feedback/{feedbackId}', [MediaController::class, 'updateFeedback']);
+                Route::delete('/{mediaId}/feedback/{feedbackId}', [MediaController::class, 'deleteFeedback']);
+            });
         });
     });
 
@@ -166,6 +178,7 @@ Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
 
         // Email Notifications
         Route::get('/notifications', [EmailNotificationController::class, 'index']);
+        Route::get('/notifications/events', [EmailNotificationController::class, 'events']);
         Route::patch('/notifications', [EmailNotificationController::class, 'update']);
 
         // Social Links
@@ -178,8 +191,8 @@ Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
             Route::post('/reorder', [SocialLinkController::class, 'reorder']);
         });
 
-        // Watermarks
-        Route::prefix('watermarks')->group(function () {
+        // Watermarks (paid plans only)
+        Route::middleware(['memora.not_starter'])->prefix('watermarks')->group(function () {
             Route::get('/', [WatermarkController::class, 'index']);
             Route::post('/', [WatermarkController::class, 'store']);
             Route::post('/upload-image', [WatermarkController::class, 'uploadImage']);
@@ -190,8 +203,8 @@ Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
             Route::get('/{id}/usage', [WatermarkController::class, 'usage']);
         });
 
-        // Presets
-        Route::prefix('presets')->group(function () {
+        // Presets (paid plans only)
+        Route::middleware(['memora.not_starter'])->prefix('presets')->group(function () {
             Route::get('/', [PresetController::class, 'index']);
             Route::post('/', [PresetController::class, 'store']);
             Route::patch('/reorder', [PresetController::class, 'reorder']);

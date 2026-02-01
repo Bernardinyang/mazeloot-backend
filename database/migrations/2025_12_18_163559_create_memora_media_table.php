@@ -48,6 +48,8 @@ return new class extends Migration
             // Featured status
             $table->boolean('is_featured')->default(false); // Whether this media is featured on homepage
             $table->timestamp('featured_at')->nullable(); // Timestamp when media was featured
+            $table->boolean('is_recommended')->default(false);
+            $table->timestamp('recommended_at')->nullable();
 
             // Ordering
             $table->integer('order')->default(0); // Display order within the media set

@@ -31,9 +31,9 @@ class ProofingServiceTest extends TestCase
         $this->mockUploadService = \Mockery::mock(UploadService::class);
         $this->mockPaginationService = \Mockery::mock(PaginationService::class);
         $mockNotificationService = \Mockery::mock(\App\Services\Notification\NotificationService::class);
-        $mockNotificationService->shouldReceive('create')->andReturn(null);
+        $mockNotificationService->shouldReceive('create')->andReturn(new \App\Models\Notification);
         $mockActivityLogService = \Mockery::mock(\App\Services\ActivityLog\ActivityLogService::class);
-        $mockActivityLogService->shouldReceive('log')->andReturn(null);
+        $mockActivityLogService->shouldReceive('log')->andReturn(new \App\Models\ActivityLog);
         $this->service = new ProofingService($this->mockUploadService, $this->mockPaginationService, $mockNotificationService, $mockActivityLogService);
     }
 

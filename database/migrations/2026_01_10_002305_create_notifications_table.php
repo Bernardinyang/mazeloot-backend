@@ -21,6 +21,7 @@ return new class extends Migration
             $table->string('title');
             $table->text('message');
             $table->text('description')->nullable();
+            $table->longText('detail')->nullable();
             $table->string('action_url')->nullable(); // Optional navigation path
             $table->json('metadata')->nullable(); // Additional data
             $table->timestamp('read_at')->nullable();

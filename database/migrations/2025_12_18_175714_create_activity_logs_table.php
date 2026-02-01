@@ -40,7 +40,9 @@ return new class extends Migration
 
             // Indexes for better query performance
             $table->index(['user_uuid', 'created_at']);
+            $table->index(['user_uuid', 'action', 'created_at'], 'activity_logs_user_action_created_idx');
             $table->index(['subject_type', 'subject_uuid']);
+            $table->index(['subject_type', 'action', 'created_at'], 'activity_logs_subject_action_created_idx');
             $table->index(['action', 'created_at']);
             $table->index('created_at');
         });

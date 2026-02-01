@@ -39,6 +39,11 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
         });
+
+        Schema::table('memora_media_sets', function (Blueprint $table) {
+            $table->foreignUuid('raw_file_uuid')->nullable()->after('selection_uuid')->constrained('memora_raw_files', 'uuid')->cascadeOnDelete();
+            $table->integer('raw_file_limit')->nullable()->after('selection_limit');
+        });
     }
 
     /**
@@ -46,6 +51,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::table('memora_media_sets', function (Blueprint $table) {
+            $table->dropForeign(['raw_file_uuid']);
+            $table->dropColumn(['raw_file_uuid', 'raw_file_limit']);
+        });
         Schema::dropIfExists('memora_raw_files');
     }
 };

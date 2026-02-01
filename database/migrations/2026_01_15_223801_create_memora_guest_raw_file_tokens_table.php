@@ -12,10 +12,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('guest_proofing_tokens', static function (Blueprint $table) {
+        Schema::create('memora_guest_raw_file_tokens', static function (Blueprint $table) {
             $table->unsignedBigInteger('id')->autoIncrement();
             $table->uuid('uuid')->default(DB::raw('(UUID())'))->unique();
-            $table->foreignUuid('proofing_uuid')->constrained('memora_proofing', 'uuid')->cascadeOnDelete();
+            $table->foreignUuid('raw_file_uuid')->constrained('memora_raw_files', 'uuid')->cascadeOnDelete();
             $table->string('email');
             $table->string('token', 64)->unique();
             $table->timestamp('expires_at');
@@ -24,7 +24,7 @@ return new class extends Migration
 
             $table->primary('id');
             $table->index(['token', 'expires_at']);
-            $table->index('proofing_uuid');
+            $table->index('raw_file_uuid');
         });
     }
 
@@ -33,6 +33,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('guest_proofing_tokens');
+        Schema::dropIfExists('memora_guest_raw_file_tokens');
     }
 };
