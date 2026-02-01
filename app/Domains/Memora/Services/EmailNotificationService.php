@@ -56,7 +56,8 @@ class EmailNotificationService
         }
 
         $groupOrder = array_flip(array_keys($groups));
-        return collect($items)->sortBy(fn ($i) => ($groupOrder[$i['group']] ?? 99) . '_' . $i['type'])->values()->toArray();
+
+        return collect($items)->sortBy(fn ($i) => ($groupOrder[$i['group']] ?? 99).'_'.$i['type'])->values()->toArray();
     }
 
     /**

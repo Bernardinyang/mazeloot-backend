@@ -61,6 +61,7 @@ class PaystackProvider implements PaymentProviderInterface, SubscriptionProvider
         }
 
         $plan = $data['data'] ?? [];
+
         return (string) ($plan['plan_code'] ?? $plan['id'] ?? '');
     }
 
@@ -91,6 +92,7 @@ class PaystackProvider implements PaymentProviderInterface, SubscriptionProvider
         }
 
         $accessData = $data['data'] ?? [];
+
         return [
             'authorization_url' => (string) ($accessData['authorization_url'] ?? ''),
             'access_code' => $accessData['access_code'] ?? null,
@@ -231,6 +233,7 @@ class PaystackProvider implements PaymentProviderInterface, SubscriptionProvider
             return false;
         }
         $computed = hash_hmac('sha512', $payload, $secretKey);
+
         return hash_equals($computed, $signature);
     }
 

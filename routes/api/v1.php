@@ -2,12 +2,12 @@
 
 use App\Http\Controllers\V1\AuthController;
 use App\Http\Controllers\V1\CacheController;
-use App\Http\Controllers\V1\PricingController;
 use App\Http\Controllers\V1\EarlyAccessController;
 use App\Http\Controllers\V1\ImageUploadController;
 use App\Http\Controllers\V1\Memora\SubscriptionController;
 use App\Http\Controllers\V1\NotificationController;
 use App\Http\Controllers\V1\OnboardingController;
+use App\Http\Controllers\V1\PricingController;
 use App\Http\Controllers\V1\ProductController;
 use App\Http\Controllers\V1\ProductSelectionController;
 use App\Http\Controllers\V1\UploadController;

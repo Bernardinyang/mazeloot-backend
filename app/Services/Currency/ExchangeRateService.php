@@ -82,6 +82,7 @@ class ExchangeRateService
 
         if (! $response->successful()) {
             Log::warning('Frankfurter API failed', ['status' => $response->status()]);
+
             return $this->getConfigRates();
         }
 
@@ -109,6 +110,7 @@ class ExchangeRateService
 
         if (! $response->successful()) {
             Log::warning('Exchangerate API failed', ['status' => $response->status()]);
+
             return $this->getConfigRates();
         }
 

@@ -3,12 +3,12 @@
 namespace App\Domains\Memora\Controllers\V1;
 
 use App\Domains\Memora\Models\MemoraCollection;
+use App\Domains\Memora\Models\MemoraGuestCollectionToken;
 use App\Domains\Memora\Resources\V1\CollectionResource;
 use App\Domains\Memora\Resources\V1\MediaSetResource;
 use App\Domains\Memora\Resources\V1\PublicCollectionResource;
 use App\Domains\Memora\Services\MediaSetService;
 use App\Http\Controllers\Controller;
-use App\Domains\Memora\Models\MemoraGuestCollectionToken;
 use App\Support\Responses\ApiResponse;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;

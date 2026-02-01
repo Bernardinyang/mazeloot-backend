@@ -2,8 +2,8 @@
 
 namespace App\Domains\Memora\Services;
 
-use App\Domains\Memora\Models\MemoraSelection;
 use App\Domains\Memora\Models\MemoraGuestSelectionToken;
+use App\Domains\Memora\Models\MemoraSelection;
 use Carbon\Carbon;
 
 class GuestSelectionService

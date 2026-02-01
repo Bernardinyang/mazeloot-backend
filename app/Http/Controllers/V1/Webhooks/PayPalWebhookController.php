@@ -27,17 +27,20 @@ class PayPalWebhookController extends Controller
 
         if ($payload === '') {
             Log::warning('PayPal webhook: empty body - ensure no middleware consumes request body before webhook');
+
             return response('Empty payload', 400);
         }
 
         if (! $this->paypal->verifyWebhook($request)) {
             Log::warning('PayPal webhook: Invalid signature', ['payload_length' => strlen($payload)]);
+
             return response('Invalid signature', 400);
         }
 
         $body = json_decode($payload, true);
         if (! is_array($body)) {
             Log::warning('PayPal webhook: Invalid payload (non-array JSON)', ['payload_preview' => substr($payload, 0, 200)]);
+
             return response('Invalid payload', 400);
         }
 
@@ -83,6 +86,7 @@ class PayPalWebhookController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]));
+
             return response('Webhook processing failed', 500);
         }
 

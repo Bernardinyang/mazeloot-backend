@@ -2,8 +2,8 @@
 
 namespace App\Domains\Memora\Services;
 
-use App\Domains\Memora\Models\MemoraRawFile;
 use App\Domains\Memora\Models\MemoraGuestRawFileToken;
+use App\Domains\Memora\Models\MemoraRawFile;
 use Carbon\Carbon;
 
 class GuestRawFileService

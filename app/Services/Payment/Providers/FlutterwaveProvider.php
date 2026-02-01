@@ -101,6 +101,7 @@ class FlutterwaveProvider implements PaymentProviderInterface, SubscriptionProvi
             if ($response->status() === 401) {
                 $userMessage = 'Flutterwave rejected the request. Ensure FLUTTERWAVE_TEST_SECRET_KEY is the exact Secret key from Dashboard → Settings → API Keys (Test). If it still fails, Flutterwave may require OAuth: add FLUTTERWAVE_TEST_CLIENT_ID and FLUTTERWAVE_TEST_CLIENT_SECRET (get them from Dashboard → Switch to v4 API keys, or from developersandbox.flutterwave.com).';
             }
+
             return new PaymentResult(
                 transactionId: $txRef,
                 status: 'failed',
@@ -206,6 +207,7 @@ class FlutterwaveProvider implements PaymentProviderInterface, SubscriptionProvi
 
         if ($signature !== '' && preg_match('/^[A-Za-z0-9+\/=]+$/', $signature)) {
             $computed = base64_encode(hash_hmac('sha256', $payload, $secretHash, true));
+
             return hash_equals($computed, $signature);
         }
 

@@ -22,8 +22,9 @@ class StripeWebhookController extends Controller
         $payload = $request->getContent();
         $signature = $request->header('Stripe-Signature');
 
-        if (!$signature) {
+        if (! $signature) {
             Log::warning('Stripe webhook: Missing signature');
+
             return response('Missing signature', 400);
         }
 
@@ -31,6 +32,7 @@ class StripeWebhookController extends Controller
             $event = $this->stripe->constructWebhookEvent($payload, $signature);
         } catch (\Exception $e) {
             Log::warning('Stripe webhook: Invalid signature', ['error' => $e->getMessage()]);
+
             return response('Invalid signature', 400);
         }
 
@@ -51,6 +53,7 @@ class StripeWebhookController extends Controller
                 'type' => $event->type,
                 'error' => $e->getMessage(),
             ]);
+
             // Return 200 to prevent Stripe from retrying
             return response('Error logged', 200);
         }
@@ -113,12 +116,12 @@ class StripeWebhookController extends Controller
         }
 
         $subscriptionId = $invoice->subscription ?? null;
-        if (!$subscriptionId) {
+        if (! $subscriptionId) {
             return;
         }
 
         $subscription = MemoraSubscription::where('stripe_subscription_id', $subscriptionId)->first();
-        if (!$subscription) {
+        if (! $subscription) {
             return;
         }
 
@@ -141,12 +144,12 @@ class StripeWebhookController extends Controller
         ]);
 
         $subscriptionId = $invoice->subscription ?? null;
-        if (!$subscriptionId) {
+        if (! $subscriptionId) {
             return;
         }
 
         $subscription = MemoraSubscription::where('stripe_subscription_id', $subscriptionId)->first();
-        if (!$subscription) {
+        if (! $subscription) {
             return;
         }
 

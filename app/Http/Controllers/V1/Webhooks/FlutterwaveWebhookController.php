@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\V1\Webhooks;
 
-use App\Http\Controllers\Controller;
 use App\Domains\Memora\Services\MemoraSubscriptionService;
+use App\Http\Controllers\Controller;
 use App\Services\Payment\Providers\FlutterwaveProvider;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -48,15 +48,18 @@ class FlutterwaveWebhookController extends Controller
                 Log::warning('Flutterwave webhook: No signature in test mode - accepting payload (use signature in production)');
             } else {
                 Log::warning('Flutterwave webhook: Missing signature (header and verif_hash)', ['has_payload' => ! empty($payload)]);
+
                 return response('Missing signature', 400);
             }
         } elseif (! $this->flutterwave->verifyWebhookSignature($payload, $signature)) {
             Log::warning('Flutterwave webhook: Invalid signature', ['payload_length' => strlen($payload)]);
+
             return response('Invalid signature', 400);
         }
 
         if (empty($body)) {
             Log::warning('Flutterwave webhook: Invalid payload (empty or non-array JSON)', ['payload_preview' => substr($payload, 0, 200)]);
+
             return response('Invalid payload', 400);
         }
 
@@ -94,6 +97,7 @@ class FlutterwaveWebhookController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]));
+
             return response('Webhook processing failed', 500);
         }
 
@@ -105,12 +109,14 @@ class FlutterwaveWebhookController extends Controller
         $status = strtolower((string) ($data['status'] ?? ''));
         if (! in_array($status, ['succeeded', 'successful'], true)) {
             Log::info('Flutterwave webhook: charge.completed with non-success status', ['status' => $data['status'] ?? null]);
+
             return;
         }
 
         $txRef = $data['tx_ref'] ?? $data['reference'] ?? null;
         if (! $txRef) {
             Log::warning('Flutterwave webhook: charge.completed missing tx_ref/reference');
+
             return;
         }
 

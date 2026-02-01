@@ -2,16 +2,15 @@
 
 namespace App\Http\Controllers\V1\Memora;
 
-use App\Services\Currency\CurrencyService;
 use App\Domains\Memora\Models\MemoraCollection;
 use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraProject;
 use App\Domains\Memora\Models\MemoraProofing;
 use App\Domains\Memora\Models\MemoraRawFile;
 use App\Domains\Memora\Models\MemoraSelection;
-use App\Domains\Memora\Models\MemoraSubscription;
 use App\Domains\Memora\Services\MemoraSubscriptionService;
 use App\Http\Controllers\Controller;
+use App\Services\Currency\CurrencyService;
 use App\Services\Subscription\TierService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -47,6 +46,7 @@ class SubscriptionController extends Controller
 
             $currencies = collect($config['currencies'] ?? [])->map(function ($code) use ($currencyInfo) {
                 $info = $currencyInfo[strtoupper($code)] ?? [];
+
                 return [
                     'code' => strtolower($code),
                     'symbol' => $info['symbol'] ?? $code,
@@ -340,7 +340,7 @@ class SubscriptionController extends Controller
             ], 422);
         }
 
-        $portalUrl = config('app.frontend_url') . '/memora/pricing';
+        $portalUrl = config('app.frontend_url').'/memora/pricing';
 
         try {
             $provider = $subscription->payment_provider ?? 'stripe';

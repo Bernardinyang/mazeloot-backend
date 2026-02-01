@@ -38,16 +38,7 @@ class MemoraSubscriptionHistory extends Model
     }
 
     /**
-     * @param  string  $userUuid
-     * @param  string  $eventType
-     * @param  string|null  $fromTier
-     * @param  string|null  $toTier
-     * @param  string|null  $billingCycle
      * @param  int|null  $amountCents  Amount in smallest unit (USD cents, NGN kobo, etc.)
-     * @param  string|null  $paymentProvider
-     * @param  string|null  $paymentReference
-     * @param  array|null  $metadata
-     * @param  string|null  $notes
      * @param  string|null  $currency  Currency of amount_cents (e.g. 'usd', 'ngn'). Paystack amounts are in kobo.
      */
     public static function record(
@@ -64,6 +55,7 @@ class MemoraSubscriptionHistory extends Model
         ?string $currency = null
     ): self {
         $currency = $currency ? strtoupper($currency) : 'USD';
+
         return self::create([
             'user_uuid' => $userUuid,
             'event_type' => $eventType,

@@ -11,6 +11,7 @@ return new class extends Migration
         Schema::create('memora_subscriptions', function (Blueprint $table) {
             $table->uuid('uuid')->primary();
             $table->uuid('user_uuid');
+            $table->string('payment_provider', 20)->nullable()->default('stripe');
             $table->string('stripe_subscription_id')->unique();
             $table->string('stripe_customer_id');
             $table->string('stripe_price_id');

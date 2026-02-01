@@ -99,6 +99,7 @@ return [
             $fwTestMode = $useTestKeys
                 || filter_var(env('FLUTTERWAVE_TEST_MODE'), FILTER_VALIDATE_BOOLEAN)
                 || (env('FLUTTERWAVE_TEST_MODE') === null && str_starts_with((string) (env('FLUTTERWAVE_TEST_SECRET_KEY') ?? env('FLUTTERWAVE_LIVE_SECRET_KEY') ?? ''), 'FLWSECK_TEST'));
+
             return [
                 'test_mode' => $fwTestMode,
                 'base_url' => 'https://api.flutterwave.com/v3',

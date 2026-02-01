@@ -8,6 +8,7 @@ use App\Services\Payment\DTOs\PaymentResult;
 use App\Services\Payment\DTOs\SubscriptionResult;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
+use Stripe\BillingPortal\Session as PortalSession;
 use Stripe\Checkout\Session;
 use Stripe\Customer;
 use Stripe\Exception\ApiErrorException;
@@ -16,7 +17,6 @@ use Stripe\Refund;
 use Stripe\Stripe;
 use Stripe\Subscription;
 use Stripe\Webhook;
-use Stripe\BillingPortal\Session as PortalSession;
 
 class StripeProvider implements PaymentProviderInterface, SubscriptionProviderInterface
 {
@@ -161,12 +161,13 @@ class StripeProvider implements PaymentProviderInterface, SubscriptionProviderIn
         }
 
         $webhookSecret = $this->config['webhook_secret'] ?? null;
-        if (!$webhookSecret) {
+        if (! $webhookSecret) {
             return false;
         }
 
         try {
             Webhook::constructEvent($payload, $signature, $webhookSecret);
+
             return true;
         } catch (\Exception $e) {
             return false;

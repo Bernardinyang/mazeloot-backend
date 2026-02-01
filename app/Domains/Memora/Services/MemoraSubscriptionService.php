@@ -14,7 +14,6 @@ use App\Notifications\PaymentFailedNotification;
 use App\Notifications\SubscriptionActivatedNotification;
 use App\Notifications\SubscriptionCancelledNotification;
 use App\Notifications\SubscriptionRenewedNotification;
-use App\Domains\Memora\Services\EmailNotificationService;
 use App\Services\Currency\CurrencyService;
 use App\Services\Notification\NotificationService;
 use App\Services\Payment\Contracts\SubscriptionProviderInterface;
@@ -42,6 +41,7 @@ class MemoraSubscriptionService
         if ($name === 'stripe') {
             return $this->stripe;
         }
+
         return match ($name) {
             'paystack' => app()->make(PaystackProvider::class),
             'flutterwave' => app()->make(FlutterwaveProvider::class),
@@ -76,6 +76,7 @@ class MemoraSubscriptionService
             if (! $testMode) {
                 throw new \RuntimeException('PayPal is not configured. Set PAYPAL_TEST_CLIENT_ID/SECRET or PAYPAL_LIVE_CLIENT_ID/SECRET.');
             }
+
             return $this->createTestCheckoutSession($user, $tier, $billingCycle, 'paypal', $currency, $byoAddons);
         }
 
@@ -317,8 +318,8 @@ class MemoraSubscriptionService
             'customer' => $customer->id,
             'mode' => 'subscription',
             'line_items' => $lineItems,
-            'success_url' => config('app.frontend_url') . '/subscription/success?session_id={CHECKOUT_SESSION_ID}',
-            'cancel_url' => config('app.frontend_url') . '/memora/pricing',
+            'success_url' => config('app.frontend_url').'/subscription/success?session_id={CHECKOUT_SESSION_ID}',
+            'cancel_url' => config('app.frontend_url').'/memora/pricing',
             'metadata' => $metadata,
             'subscription_data' => ['metadata' => $metadata],
         ]);
@@ -331,7 +332,7 @@ class MemoraSubscriptionService
 
     protected function createTestCheckoutSession(User $user, string $tier, string $billingCycle, string $paymentProvider, string $currency, ?array $byoAddons): array
     {
-        $sessionId = 'cs_' . $paymentProvider . '_test_' . Str::random(24);
+        $sessionId = 'cs_'.$paymentProvider.'_test_'.Str::random(24);
         $metadata = [
             'user_uuid' => $user->uuid,
             'tier' => $tier,
@@ -390,7 +391,9 @@ class MemoraSubscriptionService
                 $addons = MemoraByoAddon::whereIn('slug', array_keys($byoAddons))->get();
                 foreach ($addons as $addon) {
                     $qty = (int) ($byoAddons[$addon->slug] ?? 1);
-                    if ($qty <= 0) continue;
+                    if ($qty <= 0) {
+                        continue;
+                    }
                     $addonMonthly = (int) $addon->price_monthly_cents;
                     $addonAnnual = (int) $addon->price_annual_cents;
                     $addonPrice = $billingCycle === 'annual' ? $addonAnnual * $qty : $addonMonthly * $qty;
@@ -475,8 +478,8 @@ class MemoraSubscriptionService
         $billingCycle = $metadata['billing_cycle'] ?? 'monthly';
         $byoAddons = isset($metadata['byo_addons']) ? json_decode($metadata['byo_addons'], true) : null;
         $amount = $this->calculateAmount($tier, $billingCycle, $byoAddons);
-        $subscriptionId = 'sub_' . $provider . '_test_' . Str::random(14);
-        $customerId = $user->stripe_customer_id ?: 'cus_' . $provider . '_test_' . Str::random(14);
+        $subscriptionId = 'sub_'.$provider.'_test_'.Str::random(14);
+        $customerId = $user->stripe_customer_id ?: 'cus_'.$provider.'_test_'.Str::random(14);
 
         if (! $user->stripe_customer_id) {
             $user->update(['stripe_customer_id' => $customerId]);
@@ -629,6 +632,7 @@ class MemoraSubscriptionService
         if ($subscription->payment_provider === 'paystack') {
             $paystack = app()->make(PaystackProvider::class);
             $portalUrl = $paystack->getManageSubscriptionLink($subscription->stripe_subscription_id);
+
             return ['portal_url' => $portalUrl];
         }
 
@@ -650,7 +654,7 @@ class MemoraSubscriptionService
 
         $session = $this->stripe->createPortalSession(
             $customerId,
-            config('app.frontend_url') . '/memora/pricing'
+            config('app.frontend_url').'/memora/pricing'
         );
 
         return [
@@ -668,12 +672,12 @@ class MemoraSubscriptionService
         $customerId = $data['customer'];
 
         $userUuid = $metadata['user_uuid'] ?? null;
-        if (!$userUuid) {
+        if (! $userUuid) {
             return;
         }
 
         $user = User::where('uuid', $userUuid)->first();
-        if (!$user) {
+        if (! $user) {
             return;
         }
 
@@ -750,7 +754,7 @@ class MemoraSubscriptionService
         $status = $data['status'];
 
         $subscription = MemoraSubscription::where('stripe_subscription_id', $subscriptionId)->first();
-        if (!$subscription) {
+        if (! $subscription) {
             return;
         }
 
@@ -768,25 +772,25 @@ class MemoraSubscriptionService
         ]);
 
         // If subscription is no longer active, downgrade user
-        if (!in_array($status, ['active', 'trialing'])) {
+        if (! in_array($status, ['active', 'trialing'])) {
             $user = $subscription->user;
-            if ($user && $subscription->canceled_at && !$subscription->onGracePeriod()) {
+            if ($user && $subscription->canceled_at && ! $subscription->onGracePeriod()) {
                 $previousTier = $user->memora_tier;
                 $user->update(['memora_tier' => 'starter']);
 
-            MemoraSubscriptionHistory::record(
-                $user->uuid,
-                'downgraded',
-                $previousTier,
-                'starter',
-                null,
-                null,
-                'stripe',
-                $subscription->stripe_subscription_id,
-                null,
-                'Grace period ended'
-            );
-            $this->notifySubscriptionCancelled($user, $previousTier, $subscription->current_period_end);
+                MemoraSubscriptionHistory::record(
+                    $user->uuid,
+                    'downgraded',
+                    $previousTier,
+                    'starter',
+                    null,
+                    null,
+                    'stripe',
+                    $subscription->stripe_subscription_id,
+                    null,
+                    'Grace period ended'
+                );
+                $this->notifySubscriptionCancelled($user, $previousTier, $subscription->current_period_end);
             }
         }
     }
@@ -799,7 +803,7 @@ class MemoraSubscriptionService
         $subscriptionId = $data['id'];
 
         $subscription = MemoraSubscription::where('stripe_subscription_id', $subscriptionId)->first();
-        if (!$subscription) {
+        if (! $subscription) {
             return;
         }
 
@@ -889,18 +893,21 @@ class MemoraSubscriptionService
         $email = is_string($customer) ? null : ($customer['email'] ?? null);
         if (! $email) {
             \Illuminate\Support\Facades\Log::warning('Paystack subscription.create: missing customer email', ['data_keys' => array_keys($data)]);
+
             return;
         }
 
         $subscriptionCode = $subscription['subscription_code'] ?? $subscription['id'] ?? null;
         if (! $subscriptionCode) {
             \Illuminate\Support\Facades\Log::warning('Paystack subscription.create: missing subscription_code', ['subscription_keys' => array_keys($subscription)]);
+
             return;
         }
 
         if (MemoraSubscription::where('stripe_subscription_id', $subscriptionCode)->where('payment_provider', 'paystack')->exists()) {
             \Illuminate\Support\Facades\Log::info('Paystack subscription.create: already processed (idempotent)', ['subscription_code' => $subscriptionCode]);
             Cache::forget('paystack_pending:'.$email);
+
             return;
         }
 
@@ -914,12 +921,14 @@ class MemoraSubscriptionService
             $existingByRef->update(['stripe_subscription_id' => $subscriptionCode]);
             \Illuminate\Support\Facades\Log::info('Paystack subscription.create: linked subscription_code to existing record', ['subscription_code' => $subscriptionCode]);
             Cache::forget('paystack_pending:'.$email);
+
             return;
         }
 
         $pending = Cache::get('paystack_pending:'.$email);
         if (! $pending) {
             \Illuminate\Support\Facades\Log::warning('Paystack subscription.create: no pending context for email', ['email' => $email]);
+
             return;
         }
 
@@ -927,6 +936,7 @@ class MemoraSubscriptionService
         $user = $userUuid ? User::where('uuid', $userUuid)->first() : User::where('email', $email)->first();
         if (! $user) {
             \Illuminate\Support\Facades\Log::warning('Paystack subscription.create: user not found', ['email' => $email, 'user_uuid' => $userUuid]);
+
             return;
         }
 
@@ -1010,6 +1020,7 @@ class MemoraSubscriptionService
             ->first();
         if (! $model) {
             \Illuminate\Support\Facades\Log::warning('Paystack subscription.disable: subscription not found', ['subscription_code' => $subscriptionCode]);
+
             return;
         }
 
@@ -1043,6 +1054,7 @@ class MemoraSubscriptionService
         $subscriptionCode = is_array($subscription) ? ($subscription['subscription_code'] ?? $subscription['id'] ?? null) : null;
         if (! $subscriptionCode) {
             \Illuminate\Support\Facades\Log::warning('Paystack invoice.payment_failed: missing subscription_code', ['data_keys' => array_keys($data)]);
+
             return;
         }
 
@@ -1051,6 +1063,7 @@ class MemoraSubscriptionService
             ->first();
         if (! $model) {
             \Illuminate\Support\Facades\Log::warning('Paystack invoice.payment_failed: subscription not found', ['subscription_code' => $subscriptionCode]);
+
             return;
         }
 
@@ -1081,6 +1094,7 @@ class MemoraSubscriptionService
         }
         if (MemoraSubscription::where('payment_provider', 'paystack')->where('stripe_subscription_id', $reference)->exists()) {
             \Illuminate\Support\Facades\Log::info('Paystack initial charge: already processed (idempotent)', ['reference' => $reference]);
+
             return;
         }
         $tier = $metadata['tier'] ?? 'pro';
@@ -1146,6 +1160,7 @@ class MemoraSubscriptionService
         $txRef = $data['tx_ref'] ?? $data['reference'] ?? null;
         if (! $txRef) {
             \Illuminate\Support\Facades\Log::warning('Flutterwave initial charge: missing tx_ref/reference', ['data_keys' => array_keys($data)]);
+
             return;
         }
 
@@ -1155,6 +1170,7 @@ class MemoraSubscriptionService
             ->exists()) {
             \Illuminate\Support\Facades\Log::info('Flutterwave initial charge: already processed (idempotent)', ['tx_ref' => $txRef]);
             Cache::forget('flutterwave_pending:'.$txRef);
+
             return;
         }
         $metadata = $data['meta'] ?? $data['metadata'] ?? [];
@@ -1169,12 +1185,14 @@ class MemoraSubscriptionService
 
         if (! $userUuid) {
             \Illuminate\Support\Facades\Log::warning('Flutterwave initial charge: no user_uuid in meta or cache', ['tx_ref' => $txRef]);
+
             return;
         }
 
         $user = User::where('uuid', $userUuid)->first();
         if (! $user) {
             \Illuminate\Support\Facades\Log::warning('Flutterwave initial charge: user not found', ['user_uuid' => $userUuid]);
+
             return;
         }
 
@@ -1202,7 +1220,7 @@ class MemoraSubscriptionService
             $stripeCustomerId = 'fw_'.$transactionId;
         }
 
-        DB::transaction(function () use ($user, $transactionId, $txRef, $tier, $billingCycle, $amountSubunits, $currency, $periodEnd, $byoAddons, $stripeCustomerId) {
+        DB::transaction(function () use ($user, $transactionId, $tier, $billingCycle, $amountSubunits, $currency, $periodEnd, $byoAddons, $stripeCustomerId) {
             $existing = $this->getActiveSubscription($user);
             if ($existing) {
                 $existing->update(['status' => 'canceled', 'canceled_at' => now()]);
@@ -1287,6 +1305,7 @@ class MemoraSubscriptionService
 
         if (! $subscriptionId) {
             \Illuminate\Support\Facades\Log::warning('PayPal subscription.activated: missing id', ['data_keys' => array_keys($data)]);
+
             return;
         }
 
@@ -1295,12 +1314,14 @@ class MemoraSubscriptionService
             if ($customId) {
                 Cache::forget("paypal_pending:{$customId}");
             }
+
             return;
         }
 
         $pending = $customId ? Cache::get("paypal_pending:{$customId}") : null;
         if (! $pending) {
             \Illuminate\Support\Facades\Log::warning('PayPal subscription.activated: no pending context for custom_id', ['custom_id' => $customId]);
+
             return;
         }
 
@@ -1308,6 +1329,7 @@ class MemoraSubscriptionService
         $user = $userUuid ? User::where('uuid', $userUuid)->first() : null;
         if (! $user) {
             \Illuminate\Support\Facades\Log::warning('PayPal subscription.activated: user not found', ['user_uuid' => $userUuid]);
+
             return;
         }
 
@@ -1397,6 +1419,7 @@ class MemoraSubscriptionService
             ->first();
         if (! $model) {
             \Illuminate\Support\Facades\Log::warning('PayPal subscription.cancelled: subscription not found', ['subscription_id' => $subscriptionId]);
+
             return;
         }
 
@@ -1431,6 +1454,7 @@ class MemoraSubscriptionService
 
         if (! $subscriptionId) {
             \Illuminate\Support\Facades\Log::warning('PayPal payment.failed: missing subscription id', ['data_keys' => array_keys($data)]);
+
             return;
         }
 
@@ -1439,6 +1463,7 @@ class MemoraSubscriptionService
             ->first();
         if (! $model) {
             \Illuminate\Support\Facades\Log::warning('PayPal payment.failed: subscription not found', ['subscription_id' => $subscriptionId]);
+
             return;
         }
 
@@ -1578,7 +1603,9 @@ class MemoraSubscriptionService
                 $addons = MemoraByoAddon::whereIn('slug', array_keys($byoAddons))->get();
                 foreach ($addons as $addon) {
                     $quantity = (int) ($byoAddons[$addon->slug] ?? 1);
-                    if ($quantity <= 0) continue;
+                    if ($quantity <= 0) {
+                        continue;
+                    }
 
                     $addonPriceUsd = $billingCycle === 'annual'
                         ? (int) $addon->price_annual_cents
@@ -1649,7 +1676,9 @@ class MemoraSubscriptionService
                 $addons = MemoraByoAddon::whereIn('slug', array_keys($byoAddons))->get();
                 foreach ($addons as $addon) {
                     $quantity = (int) ($byoAddons[$addon->slug] ?? 1);
-                    if ($quantity <= 0) continue;
+                    if ($quantity <= 0) {
+                        continue;
+                    }
                     $addonPrice = $billingCycle === 'annual'
                         ? (int) $addon->price_annual_cents
                         : (int) $addon->price_monthly_cents;
@@ -1661,7 +1690,7 @@ class MemoraSubscriptionService
         }
 
         $tierData = MemoraPricingTier::getBySlug($tier);
-        if (!$tierData) {
+        if (! $tierData) {
             return 0;
         }
 

@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\V1\Webhooks;
 
-use App\Http\Controllers\Controller;
 use App\Domains\Memora\Services\MemoraSubscriptionService;
+use App\Http\Controllers\Controller;
 use App\Services\Payment\Providers\PaystackProvider;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -38,17 +38,20 @@ class PaystackWebhookController extends Controller
 
         if (! $signature) {
             Log::warning('Paystack webhook: Missing signature', ['has_payload' => ! empty($payload)]);
+
             return response('Missing signature', 400);
         }
 
         if (! $this->paystack->verifyWebhookSignature($payload, $signature)) {
             Log::warning('Paystack webhook: Invalid signature', ['payload_length' => strlen($payload)]);
+
             return response('Invalid signature', 400);
         }
 
         $body = json_decode($payload, true);
         if (! is_array($body)) {
             Log::warning('Paystack webhook: Invalid payload (non-array JSON)', ['payload_preview' => substr($payload, 0, 200)]);
+
             return response('Invalid payload', 400);
         }
 
@@ -99,6 +102,7 @@ class PaystackWebhookController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]));
+
             return response('Webhook processing failed', 500);
         }
 
@@ -112,6 +116,7 @@ class PaystackWebhookController extends Controller
             $subscriptionCode = $subscription['subscription_code'] ?? $subscription['id'] ?? null;
             if ($subscriptionCode) {
                 $this->subscriptionService->handlePaystackChargeSuccess($data);
+
                 return;
             }
         }

@@ -2,8 +2,8 @@
 
 namespace App\Domains\Memora\Services;
 
-use App\Domains\Memora\Models\MemoraProofing;
 use App\Domains\Memora\Models\MemoraGuestProofingToken;
+use App\Domains\Memora\Models\MemoraProofing;
 use Carbon\Carbon;
 
 class GuestProofingService

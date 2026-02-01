@@ -87,6 +87,7 @@ class TierService
     {
         if ($tier === 'byo') {
             $byo = config('pricing.build_your_own', []);
+
             return [
                 'storage_bytes' => $byo['base_storage_bytes'] ?? (5 * 1024 * 1024 * 1024),
                 'project_limit' => $byo['base_project_limit'] ?? 3,
