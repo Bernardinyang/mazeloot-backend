@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Enums\EarlyAccessRequestStatusEnum;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\EarlyAccessRequest>
@@ -19,6 +20,7 @@ class EarlyAccessRequestFactory extends Factory
     public function definition(): array
     {
         return [
+            'uuid' => (string) Str::uuid(),
             'user_uuid' => User::factory(),
             'reason' => fake()->optional()->sentence(),
             'status' => EarlyAccessRequestStatusEnum::PENDING,

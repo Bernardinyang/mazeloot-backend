@@ -45,6 +45,9 @@ class SocialLinkController extends Controller
      */
     public function store(StoreSocialLinkRequest $request): JsonResponse
     {
+        if (! app(\App\Services\Subscription\TierService::class)->getCapability('social_links_enabled', $request->user())) {
+            return ApiResponse::errorForbidden('Adding social links is not available on your plan.');
+        }
         $link = $this->socialLinkService->create($request->validated());
 
         return ApiResponse::success(new SocialLinkResource($link), 201);

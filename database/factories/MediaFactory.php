@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraMediaSet;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Domains\Memora\Models\MemoraMedia>
@@ -21,6 +22,7 @@ class MediaFactory extends Factory
     public function definition(): array
     {
         return [
+            'uuid' => (string) Str::uuid(),
             'user_uuid' => \App\Models\User::factory(),
             'is_selected' => false,
             'selected_at' => null,

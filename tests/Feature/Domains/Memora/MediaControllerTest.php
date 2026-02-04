@@ -6,6 +6,7 @@ use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraProject;
 use App\Models\User;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -31,19 +32,18 @@ class MediaControllerTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
         $set = MemoraMediaSet::factory()->create(['user_uuid' => $user->uuid]);
-        $media = MemoraMedia::factory()->create([
+        $mediaUuid = (string) Str::uuid();
+        MemoraMedia::factory()->create([
+            'uuid' => $mediaUuid,
             'user_uuid' => $user->uuid,
             'media_set_uuid' => $set->uuid,
             'is_selected' => false,
         ]);
 
-        // Use the direct media toggle-star endpoint
-        $response = $this->postJson("/api/v1/memora/media/{$media->uuid}/toggle-star", []);
+        $response = $this->postJson("/api/v1/memora/media/{$mediaUuid}/toggle-star", []);
 
-        $response->assertStatus(200);
-        $media->refresh();
-        // Verify the media was updated
-        $this->assertNotNull($media);
+        $response->assertStatus(200)
+            ->assertJsonStructure(['data' => ['starred']]);
     }
 
     public function test_get_media_revisions(): void

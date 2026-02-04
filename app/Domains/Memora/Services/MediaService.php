@@ -708,7 +708,7 @@ class MediaService
 
     /**
      * Format a display name from an email address
-     * Example: "bernardinyang.bci@gmail.com" -> "Bernardinyang Bci"
+     * Example: "bernodelimited@gmail.com" -> "Bernodelimited"
      */
     protected function formatNameFromEmail(string $email): string
     {

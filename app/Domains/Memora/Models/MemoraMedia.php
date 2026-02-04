@@ -37,6 +37,7 @@ class MemoraMedia extends Model
     public $incrementing = false;
 
     protected $fillable = [
+        'uuid',
         'user_uuid',
         'media_set_uuid',
         'is_selected',

@@ -69,15 +69,11 @@ class MemoraSubscriptionService
 
         if ($paymentProvider === 'paypal') {
             $paypalConfig = config('payment.providers.paypal', []);
-            if (! empty($paypalConfig['client_id']) && ! empty($paypalConfig['client_secret'])) {
-                return $this->createPayPalCheckoutSession($user, $tier, $billingCycle, $currency, $byoAddons);
-            }
-            $testMode = config('payment.providers.paypal.test_mode') ?? false;
-            if (! $testMode) {
-                throw new \RuntimeException('PayPal is not configured. Set PAYPAL_TEST_CLIENT_ID/SECRET or PAYPAL_LIVE_CLIENT_ID/SECRET.');
+            if (empty($paypalConfig['client_id']) || empty($paypalConfig['client_secret'])) {
+                throw new \RuntimeException('PayPal is not configured. For test mode set PAYPAL_TEST_CLIENT_ID and PAYPAL_TEST_CLIENT_SECRET; for live set PAYPAL_LIVE_CLIENT_ID and PAYPAL_LIVE_CLIENT_SECRET.');
             }
 
-            return $this->createTestCheckoutSession($user, $tier, $billingCycle, 'paypal', $currency, $byoAddons);
+            return $this->createPayPalCheckoutSession($user, $tier, $billingCycle, $currency, $byoAddons);
         }
 
         throw new \RuntimeException("Unknown payment provider: {$paymentProvider}");
@@ -93,13 +89,15 @@ class MemoraSubscriptionService
         $currencyLower = strtolower($currency);
         $currencyUpper = strtoupper($currency);
 
-        $amountUsdCents = $this->calculateAmount($tier, $billingCycle, $byoAddons);
-        if ($amountUsdCents < 1) {
+        $subtotalUsdCents = $this->calculateAmount($tier, $billingCycle, $byoAddons);
+        if ($subtotalUsdCents < 1) {
             throw new \InvalidArgumentException('Pricing not configured for the selected plan. Please contact support.');
         }
+        $vatUsdCents = $this->vatCents($subtotalUsdCents);
+        $totalUsdCents = $subtotalUsdCents + $vatUsdCents;
         $amountSubunits = $currencyLower === 'usd'
-            ? $amountUsdCents
-            : $this->currencyService->convert($amountUsdCents, 'USD', $currencyUpper);
+            ? $totalUsdCents
+            : $this->currencyService->convert($totalUsdCents, 'USD', $currencyUpper);
         if ($amountSubunits < 50) {
             throw new \InvalidArgumentException('Amount is below the minimum required for '.$currencyUpper.'.');
         }
@@ -165,13 +163,15 @@ class MemoraSubscriptionService
         $currencyLower = strtolower($currency);
         $currencyUpper = strtoupper($currency);
 
-        $amountUsdCents = $this->calculateAmount($tier, $billingCycle, $byoAddons);
-        if ($amountUsdCents < 1) {
+        $subtotalUsdCents = $this->calculateAmount($tier, $billingCycle, $byoAddons);
+        if ($subtotalUsdCents < 1) {
             throw new \InvalidArgumentException('Pricing not configured for the selected plan. Please contact support.');
         }
+        $vatUsdCents = $this->vatCents($subtotalUsdCents);
+        $totalUsdCents = $subtotalUsdCents + $vatUsdCents;
         $amountSubunits = $currencyLower === 'usd'
-            ? $amountUsdCents
-            : $this->currencyService->convert($amountUsdCents, 'USD', $currencyUpper);
+            ? $totalUsdCents
+            : $this->currencyService->convert($totalUsdCents, 'USD', $currencyUpper);
         $minSubunits = $currencyLower === 'ngn' ? 10000 : 50;
         if ($amountSubunits < $minSubunits) {
             throw new \InvalidArgumentException('Amount is below the minimum required for '.$currencyUpper.'.');
@@ -231,13 +231,15 @@ class MemoraSubscriptionService
         $currencyLower = strtolower($currency);
         $currencyUpper = strtoupper($currency);
 
-        $amountUsdCents = $this->calculateAmount($tier, $billingCycle, $byoAddons);
-        if ($amountUsdCents < 1) {
+        $subtotalUsdCents = $this->calculateAmount($tier, $billingCycle, $byoAddons);
+        if ($subtotalUsdCents < 1) {
             throw new \InvalidArgumentException('Pricing not configured for the selected plan. Please contact support.');
         }
+        $vatUsdCents = $this->vatCents($subtotalUsdCents);
+        $totalUsdCents = $subtotalUsdCents + $vatUsdCents;
         $amountSubunits = $currencyLower === 'usd'
-            ? $amountUsdCents
-            : $this->currencyService->convert($amountUsdCents, 'USD', $currencyUpper);
+            ? $totalUsdCents
+            : $this->currencyService->convert($totalUsdCents, 'USD', $currencyUpper);
         $minSubunits = $currencyLower === 'ngn' ? 10000 : 50;
         if ($amountSubunits < $minSubunits) {
             throw new \InvalidArgumentException('Amount is below the minimum required for '.$currencyUpper.'.');
@@ -305,6 +307,27 @@ class MemoraSubscriptionService
         }
 
         $lineItems = $this->buildLineItems($tier, $billingCycle, strtolower($currency), $byoAddons);
+        $summary = $this->getOrderSummary($tier, $billingCycle, $byoAddons);
+        $subtotalCents = $summary['subtotal_cents'];
+        $currencyUpper = strtoupper($currency);
+        $subtotalInCurrency = $currency === 'usd' ? $subtotalCents : $this->currencyService->convert($subtotalCents, 'USD', $currencyUpper);
+        $vatRate = (float) config('pricing.vat_rate', 0);
+        $vatInCurrency = $this->vatCents((int) $subtotalInCurrency);
+        if ($vatInCurrency > 0) {
+            $lineItems[] = [
+                'price_data' => [
+                    'currency' => $currency,
+                    'product_data' => [
+                        'name' => 'VAT ('.round($vatRate * 100, 2).'%)',
+                    ],
+                    'unit_amount' => $vatInCurrency,
+                    'recurring' => [
+                        'interval' => $billingCycle === 'annual' ? 'year' : 'month',
+                    ],
+                ],
+                'quantity' => 1,
+            ];
+        }
         $metadata = [
             'user_uuid' => $user->uuid,
             'tier' => $tier,
@@ -318,7 +341,7 @@ class MemoraSubscriptionService
             'customer' => $customer->id,
             'mode' => 'subscription',
             'line_items' => $lineItems,
-            'success_url' => config('app.frontend_url').'/subscription/success?session_id={CHECKOUT_SESSION_ID}',
+            'success_url' => config('app.frontend_url').'/memora/pricing/status?session_id={CHECKOUT_SESSION_ID}&provider=stripe',
             'cancel_url' => config('app.frontend_url').'/memora/pricing',
             'metadata' => $metadata,
             'subscription_data' => ['metadata' => $metadata],
@@ -476,8 +499,9 @@ class MemoraSubscriptionService
 
         $tier = $metadata['tier'] ?? 'starter';
         $billingCycle = $metadata['billing_cycle'] ?? 'monthly';
-        $byoAddons = isset($metadata['byo_addons']) ? json_decode($metadata['byo_addons'], true) : null;
-        $amount = $this->calculateAmount($tier, $billingCycle, $byoAddons);
+        $byoAddons = $this->normalizeByoAddons($metadata['byo_addons'] ?? null);
+        $subtotalUsdCents = $this->calculateAmount($tier, $billingCycle, $byoAddons);
+        $totalUsdCents = $subtotalUsdCents + $this->vatCents($subtotalUsdCents);
         $subscriptionId = 'sub_'.$provider.'_test_'.Str::random(14);
         $customerId = $user->stripe_customer_id ?: 'cus_'.$provider.'_test_'.Str::random(14);
 
@@ -500,7 +524,7 @@ class MemoraSubscriptionService
             'tier' => $tier,
             'billing_cycle' => $billingCycle,
             'status' => 'active',
-            'amount' => $amount,
+            'amount' => $totalUsdCents,
             'currency' => 'usd',
             'current_period_start' => now(),
             'current_period_end' => $billingCycle === 'annual' ? now()->addYear() : now()->addMonth(),
@@ -508,16 +532,20 @@ class MemoraSubscriptionService
         ]);
 
         $previousTier = $user->memora_tier ?? 'starter';
+        $historyMeta = ['test_mode' => true];
+        if ($tier === 'byo' && $byoAddons) {
+            $historyMeta['byo_addons'] = $byoAddons;
+        }
         MemoraSubscriptionHistory::record(
             $user->uuid,
             $previousTier === 'starter' ? 'created' : 'upgraded',
             $previousTier,
             $tier,
             $billingCycle,
-            $amount,
+            $totalUsdCents,
             $provider,
             $subscriptionId,
-            ['test_mode' => true],
+            $historyMeta,
             null,
             $metadata['currency'] ?? 'usd'
         );
@@ -663,98 +691,117 @@ class MemoraSubscriptionService
     }
 
     /**
-     * Handle successful checkout
+     * Handle successful checkout (Stripe webhook)
      */
     public function handleCheckoutCompleted(array $data): void
     {
         $metadata = $data['metadata'] ?? [];
-        $subscription = $data['subscription'];
+        $subscriptionId = $data['subscription'];
         $customerId = $data['customer'];
 
         $userUuid = $metadata['user_uuid'] ?? null;
         if (! $userUuid) {
+            \Illuminate\Support\Facades\Log::warning('Stripe checkout.session.completed: missing user_uuid in metadata');
+
             return;
         }
 
         $user = User::where('uuid', $userUuid)->first();
         if (! $user) {
+            \Illuminate\Support\Facades\Log::warning('Stripe checkout.session.completed: user not found', ['user_uuid' => $userUuid]);
+
             return;
         }
 
-        // Fetch full subscription details from Stripe
-        $stripeSubscription = $this->stripe->getSubscription($subscription);
+        if (MemoraSubscription::where('stripe_subscription_id', $subscriptionId)->where('payment_provider', 'stripe')->exists()) {
+            \Illuminate\Support\Facades\Log::info('Stripe checkout.session.completed: already processed (idempotent)', ['subscription_id' => $subscriptionId]);
 
+            return;
+        }
+
+        $stripeSubscription = $this->stripe->getSubscription($subscriptionId);
         $tier = $metadata['tier'] ?? 'starter';
         $billingCycle = $metadata['billing_cycle'] ?? 'monthly';
         $byoAddons = isset($metadata['byo_addons']) ? json_decode($metadata['byo_addons'], true) : null;
 
-        // Cancel any existing subscription (upgrade flow) so user is not double-charged
-        $existingSubscription = $this->getActiveSubscription($user);
-        if ($existingSubscription && $existingSubscription->stripe_subscription_id !== $subscription) {
-            try {
-                $this->stripe->cancelSubscription($existingSubscription->stripe_subscription_id);
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning('Failed to cancel previous subscription on upgrade', [
-                    'old_sub' => $existingSubscription->stripe_subscription_id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-            $existingSubscription->update(['status' => 'canceled', 'canceled_at' => now()]);
-        }
-
-        // Create subscription record
-        MemoraSubscription::create([
-            'uuid' => Str::uuid(),
-            'user_uuid' => $user->uuid,
-            'payment_provider' => 'stripe',
-            'stripe_subscription_id' => $subscription,
-            'stripe_customer_id' => $customerId,
-            'stripe_price_id' => $stripeSubscription->items->data[0]->price->id ?? '',
+        \Illuminate\Support\Facades\Log::info('Stripe checkout.session.completed: processing', [
+            'subscription_id' => $subscriptionId,
+            'user_uuid' => $userUuid,
             'tier' => $tier,
             'billing_cycle' => $billingCycle,
-            'status' => $stripeSubscription->status,
-            'amount' => $stripeSubscription->items->data[0]->price->unit_amount ?? 0,
-            'currency' => $stripeSubscription->currency,
-            'current_period_start' => date('Y-m-d H:i:s', $stripeSubscription->current_period_start),
-            'current_period_end' => date('Y-m-d H:i:s', $stripeSubscription->current_period_end),
-            'metadata' => $byoAddons ? ['byo_addons' => $byoAddons] : null,
         ]);
 
-        // Record history
-        $previousTier = $user->memora_tier ?? 'starter';
-        MemoraSubscriptionHistory::record(
-            $user->uuid,
-            $previousTier === 'starter' ? 'created' : 'upgraded',
-            $previousTier,
-            $tier,
-            $billingCycle,
-            $stripeSubscription->items->data[0]->price->unit_amount ?? 0,
-            'stripe',
-            $subscription,
-            ['checkout_session' => $data['id'] ?? null],
-            null,
-            'usd'
-        );
+        DB::transaction(function () use ($user, $subscriptionId, $customerId, $stripeSubscription, $tier, $billingCycle, $byoAddons, $data) {
+            $existingSubscription = $this->getActiveSubscription($user);
+            if ($existingSubscription && $existingSubscription->stripe_subscription_id !== $subscriptionId) {
+                try {
+                    $this->stripe->cancelSubscription($existingSubscription->stripe_subscription_id);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('Failed to cancel previous subscription on upgrade', [
+                        'old_sub' => $existingSubscription->stripe_subscription_id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+                $existingSubscription->update(['status' => 'canceled', 'canceled_at' => now()]);
+            }
 
-        // Update user's tier
-        $user->update([
-            'memora_tier' => $tier,
-            'stripe_customer_id' => $customerId,
-        ]);
+            MemoraSubscription::create([
+                'uuid' => Str::uuid(),
+                'user_uuid' => $user->uuid,
+                'payment_provider' => 'stripe',
+                'stripe_subscription_id' => $subscriptionId,
+                'stripe_customer_id' => $customerId,
+                'stripe_price_id' => $stripeSubscription->items->data[0]->price->id ?? '',
+                'tier' => $tier,
+                'billing_cycle' => $billingCycle,
+                'status' => $stripeSubscription->status,
+                'amount' => $stripeSubscription->items->data[0]->price->unit_amount ?? 0,
+                'currency' => $stripeSubscription->currency,
+                'current_period_start' => date('Y-m-d H:i:s', $stripeSubscription->current_period_start),
+                'current_period_end' => date('Y-m-d H:i:s', $stripeSubscription->current_period_end),
+                'metadata' => $byoAddons ? ['byo_addons' => $byoAddons] : null,
+            ]);
 
-        $this->notifySubscriptionActivated($user, $tier, $billingCycle);
+            $previousTier = $user->memora_tier ?? 'starter';
+            $historyMeta = ['checkout_session' => $data['id'] ?? null];
+            if ($tier === 'byo' && $byoAddons) {
+                $historyMeta['byo_addons'] = $byoAddons;
+            }
+            MemoraSubscriptionHistory::record(
+                $user->uuid,
+                $previousTier === 'starter' ? 'created' : 'upgraded',
+                $previousTier,
+                $tier,
+                $billingCycle,
+                $stripeSubscription->items->data[0]->price->unit_amount ?? 0,
+                'stripe',
+                $subscriptionId,
+                $historyMeta,
+                null,
+                'usd'
+            );
+
+            $user->update([
+                'memora_tier' => $tier,
+                'stripe_customer_id' => $customerId,
+            ]);
+        });
+
+        $this->notifySubscriptionActivated($user->fresh(), $tier, $billingCycle);
     }
 
     /**
-     * Handle subscription updated
+     * Handle subscription updated (Stripe webhook)
      */
     public function handleSubscriptionUpdated(array $data): void
     {
         $subscriptionId = $data['id'];
         $status = $data['status'];
 
-        $subscription = MemoraSubscription::where('stripe_subscription_id', $subscriptionId)->first();
+        $subscription = MemoraSubscription::where('stripe_subscription_id', $subscriptionId)->where('payment_provider', 'stripe')->first();
         if (! $subscription) {
+            \Illuminate\Support\Facades\Log::warning('Stripe subscription.updated: subscription not found', ['subscription_id' => $subscriptionId]);
+
             return;
         }
 
@@ -796,14 +843,16 @@ class MemoraSubscriptionService
     }
 
     /**
-     * Handle subscription deleted/canceled
+     * Handle subscription deleted/canceled (Stripe webhook)
      */
     public function handleSubscriptionDeleted(array $data): void
     {
         $subscriptionId = $data['id'];
 
-        $subscription = MemoraSubscription::where('stripe_subscription_id', $subscriptionId)->first();
+        $subscription = MemoraSubscription::where('stripe_subscription_id', $subscriptionId)->where('payment_provider', 'stripe')->first();
         if (! $subscription) {
+            \Illuminate\Support\Facades\Log::warning('Stripe subscription.deleted: subscription not found', ['subscription_id' => $subscriptionId]);
+
             return;
         }
 
@@ -948,7 +997,7 @@ class MemoraSubscriptionService
         $planInterval = strtolower((string) ($planData['interval'] ?? ''));
         $billingCycle = in_array($planInterval, ['annually', 'yearly'], true) ? 'annual' : 'monthly';
         $tier = $pending['tier'] ?? 'pro';
-        $byoAddons = $pending['byo_addons'] ?? null;
+        $byoAddons = $this->normalizeByoAddons($pending['byo_addons'] ?? null);
 
         \Illuminate\Support\Facades\Log::info('Paystack subscription.create: processing', [
             'subscription_code' => $subscriptionCode,
@@ -983,6 +1032,7 @@ class MemoraSubscriptionService
             ]);
 
             $previousTier = $user->memora_tier ?? 'starter';
+            $historyMeta = $tier === 'byo' && $byoAddons ? ['byo_addons' => $byoAddons] : null;
             MemoraSubscriptionHistory::record(
                 $user->uuid,
                 $previousTier === 'starter' ? 'created' : 'upgraded',
@@ -992,7 +1042,7 @@ class MemoraSubscriptionService
                 $amount,
                 'paystack',
                 $subscriptionCode,
-                null,
+                $historyMeta,
                 null,
                 $currency
             );
@@ -1107,10 +1157,7 @@ class MemoraSubscriptionService
         $customerCode = is_array($customer) ? ($customer['customer_code'] ?? null) : null;
         $interval = strtolower((string) ($plan['interval'] ?? 'monthly'));
         $periodEnd = in_array($interval, ['annually', 'yearly'], true) ? now()->addYear() : now()->addMonth();
-        $byoAddons = $metadata['byo_addons'] ?? null;
-        if (is_string($byoAddons)) {
-            $byoAddons = json_decode($byoAddons, true) ?: null;
-        }
+        $byoAddons = $this->normalizeByoAddons($metadata['byo_addons'] ?? null);
 
         DB::transaction(function () use ($user, $reference, $customerCode, $planCode, $amount, $currency, $periodEnd, $billingCycle, $byoAddons, $tier) {
             $existing = $this->getActiveSubscription($user);
@@ -1134,6 +1181,7 @@ class MemoraSubscriptionService
                 'metadata' => $byoAddons ? ['byo_addons' => $byoAddons] : null,
             ]);
             $previousTier = $user->memora_tier ?? 'starter';
+            $historyMeta = $tier === 'byo' && $byoAddons ? ['byo_addons' => $byoAddons] : null;
             MemoraSubscriptionHistory::record(
                 $user->uuid,
                 $previousTier === 'starter' ? 'created' : 'upgraded',
@@ -1143,7 +1191,7 @@ class MemoraSubscriptionService
                 $amount,
                 'paystack',
                 $reference,
-                null,
+                $historyMeta,
                 null,
                 $currency
             );
@@ -1199,10 +1247,7 @@ class MemoraSubscriptionService
         $pending = Cache::get('flutterwave_pending:'.$txRef);
         $tier = $metadata['tier'] ?? $pending['tier'] ?? 'pro';
         $billingCycle = $metadata['billing_cycle'] ?? $pending['billing_cycle'] ?? 'monthly';
-        $byoAddons = $metadata['byo_addons'] ?? $pending['byo_addons'] ?? null;
-        if (is_string($byoAddons)) {
-            $byoAddons = json_decode($byoAddons, true) ?: null;
-        }
+        $byoAddons = $this->normalizeByoAddons($metadata['byo_addons'] ?? $pending['byo_addons'] ?? null);
         $currency = strtolower((string) ($data['currency'] ?? $pending['currency'] ?? 'ngn'));
         $amountMain = (float) ($data['amount'] ?? 0);
         $amountSubunits = $amountMain >= 1 && $amountMain < 1000000
@@ -1242,6 +1287,7 @@ class MemoraSubscriptionService
                 'metadata' => $byoAddons ? ['byo_addons' => $byoAddons] : null,
             ]);
             $previousTier = $user->memora_tier ?? 'starter';
+            $historyMeta = $tier === 'byo' && $byoAddons ? ['byo_addons' => $byoAddons] : null;
             MemoraSubscriptionHistory::record(
                 $user->uuid,
                 $previousTier === 'starter' ? 'created' : 'upgraded',
@@ -1251,7 +1297,7 @@ class MemoraSubscriptionService
                 $amountSubunits,
                 'flutterwave',
                 $transactionId,
-                null,
+                $historyMeta,
                 null,
                 $currency
             );
@@ -1335,7 +1381,7 @@ class MemoraSubscriptionService
 
         $tier = $pending['tier'] ?? 'pro';
         $billingCycle = $pending['billing_cycle'] ?? 'monthly';
-        $byoAddons = $pending['byo_addons'] ?? null;
+        $byoAddons = $this->normalizeByoAddons($pending['byo_addons'] ?? null);
 
         $billingInfo = $resource['billing_info'] ?? [];
         $nextBillingTime = $billingInfo['next_billing_time'] ?? null;
@@ -1379,6 +1425,7 @@ class MemoraSubscriptionService
             ]);
 
             $previousTier = $user->memora_tier ?? 'starter';
+            $historyMeta = $tier === 'byo' && $byoAddons ? ['byo_addons' => $byoAddons] : null;
             MemoraSubscriptionHistory::record(
                 $user->uuid,
                 $previousTier === 'starter' ? 'created' : 'upgraded',
@@ -1388,7 +1435,7 @@ class MemoraSubscriptionService
                 $amount,
                 'paypal',
                 $subscriptionId,
-                null,
+                $historyMeta,
                 null,
                 $currency
             );
@@ -1658,6 +1705,23 @@ class MemoraSubscriptionService
     }
 
     /**
+     * VAT amount in same currency as subtotal (smallest unit). Rate from config; 0 = no VAT.
+     */
+    protected function vatCents(int $subtotalCents): int
+    {
+        $rate = (float) config('pricing.vat_rate', 0);
+        return $rate > 0 ? (int) floor($subtotalCents * $rate) : 0;
+    }
+
+    /**
+     * Total = subtotal + VAT. Use when charging; do not mutate subtotal.
+     */
+    protected function totalWithVat(int $subtotalCents): int
+    {
+        return $subtotalCents + $this->vatCents($subtotalCents);
+    }
+
+    /**
      * Calculate total amount for a subscription
      */
     protected function calculateAmount(string $tier, string $billingCycle, ?array $byoAddons): int
@@ -1712,22 +1776,49 @@ class MemoraSubscriptionService
      */
     public function getHistory(User $user, int $limit = 20): array
     {
+        $tierService = app(\App\Services\Subscription\TierService::class);
+
         return MemoraSubscriptionHistory::where('user_uuid', $user->uuid)
             ->orderBy('created_at', 'desc')
             ->limit($limit)
             ->get()
-            ->map(fn ($h) => [
-                'id' => $h->id,
-                'event_type' => $h->event_type,
-                'from_tier' => $h->from_tier,
-                'to_tier' => $h->to_tier,
-                'billing_cycle' => $h->billing_cycle,
-                'amount_cents' => $h->amount_cents,
-                'currency' => $h->currency,
-                'payment_provider' => $h->payment_provider,
-                'notes' => $h->notes,
-                'created_at' => $h->created_at->toIso8601String(),
-            ])
+            ->map(function ($h) use ($tierService, $user) {
+                $item = [
+                    'id' => $h->id,
+                    'event_type' => $h->event_type,
+                    'from_tier' => $h->from_tier,
+                    'to_tier' => $h->to_tier,
+                    'billing_cycle' => $h->billing_cycle,
+                    'amount_cents' => $h->amount_cents,
+                    'currency' => $h->currency,
+                    'payment_provider' => $h->payment_provider,
+                    'payment_reference' => $h->payment_reference,
+                    'metadata' => $h->metadata,
+                    'notes' => $h->notes,
+                    'created_at' => $h->created_at->toIso8601String(),
+                    'updated_at' => $h->updated_at->toIso8601String(),
+                ];
+                if ($h->to_tier === 'byo') {
+                    $addons = [];
+                    if (! empty($h->metadata['byo_addons'])) {
+                        $raw = $h->metadata['byo_addons'];
+                        $addons = is_array($raw) ? $raw : (is_string($raw) ? (json_decode($raw, true) ?? []) : []);
+                    }
+                    if ($addons !== []) {
+                        $resolved = $tierService->resolveByoPlanFromAddons($addons);
+                        $item['memora_features'] = $resolved['features'];
+                        $item['memora_capabilities'] = $resolved['capabilities'];
+                        $item['byo_addons_list'] = $tierService->getByoAddonsDisplay($addons);
+                    } elseif ($user->memora_tier === 'byo') {
+                        $display = $tierService->getByoPlanDisplay($user);
+                        $item['memora_features'] = $display['features'];
+                        $item['memora_capabilities'] = $display['capabilities'];
+                        $item['byo_addons_list'] = $display['byo_addons_list'];
+                    }
+                }
+
+                return $item;
+            })
             ->toArray();
     }
 }

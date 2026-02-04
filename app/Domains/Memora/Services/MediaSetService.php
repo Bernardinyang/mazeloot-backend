@@ -5,17 +5,17 @@ namespace App\Domains\Memora\Services;
 use App\Domains\Memora\Models\MemoraMediaSet;
 use App\Domains\Memora\Models\MemoraSelection;
 use App\Services\Pagination\PaginationService;
+use App\Services\Subscription\TierService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class MediaSetService
 {
-    protected PaginationService $paginationService;
-
-    public function __construct(PaginationService $paginationService)
-    {
-        $this->paginationService = $paginationService;
-    }
+    public function __construct(
+        protected PaginationService $paginationService,
+        protected TierService $tierService
+    ) {}
 
     /**
      * Create a media set in a selection
@@ -37,6 +37,16 @@ class MediaSetService
         // Check if selection is completed
         if ($selection->status->value === 'completed') {
             throw new \RuntimeException('Cannot create sets for a completed selection');
+        }
+
+        $setLimit = $this->tierService->getSetLimitPerPhase($user);
+        if ($setLimit !== null) {
+            $currentCount = MemoraMediaSet::where('selection_uuid', $selectionId)->count();
+            if ($currentCount >= $setLimit) {
+                throw ValidationException::withMessages([
+                    'limit' => ['Set limit per phase reached. Upgrade your plan for more sets.'],
+                ]);
+            }
         }
 
         // Get the maximum order for sets in this selection
@@ -307,6 +317,16 @@ class MediaSetService
             throw new \RuntimeException('Cannot create sets for a completed proofing');
         }
 
+        $setLimit = $this->tierService->getSetLimitPerPhase($user);
+        if ($setLimit !== null) {
+            $currentCount = MemoraMediaSet::where('proof_uuid', $proofingId)->count();
+            if ($currentCount >= $setLimit) {
+                throw ValidationException::withMessages([
+                    'limit' => ['Set limit per phase reached. Upgrade your plan for more sets.'],
+                ]);
+            }
+        }
+
         // Get the maximum order for sets in this proofing
         $maxOrder = MemoraMediaSet::where('proof_uuid', $proofingId)
             ->max('order') ?? -1;
@@ -501,6 +521,16 @@ class MediaSetService
         // Check if collection is completed
         if ($collection->status->value === 'completed') {
             throw new \RuntimeException('Cannot create sets for a completed collection');
+        }
+
+        $setLimit = $this->tierService->getSetLimitPerPhase($user);
+        if ($setLimit !== null) {
+            $currentCount = MemoraMediaSet::where('collection_uuid', $collectionId)->count();
+            if ($currentCount >= $setLimit) {
+                throw ValidationException::withMessages([
+                    'limit' => ['Set limit per phase reached. Upgrade your plan for more sets.'],
+                ]);
+            }
         }
 
         // Get the maximum order for sets in this collection

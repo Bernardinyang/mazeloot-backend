@@ -17,12 +17,14 @@ use App\Services\Notification\NotificationService;
 use App\Services\Pagination\PaginationService;
 use App\Support\Responses\ApiResponse;
 use Carbon\Carbon;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class EarlyAccessController extends Controller
 {
+    use AuthorizesRequests;
     public function __construct(
         protected EarlyAccessService $earlyAccessService,
         protected EarlyAccessFeatureService $featureService,
@@ -341,15 +343,15 @@ class EarlyAccessController extends Controller
                 ]);
             }
 
-            $admin = auth()->user();
-            $this->authorize('approve', $requestRecord);
-
             if ($requestRecord->status !== EarlyAccessRequestStatusEnum::PENDING) {
                 return ApiResponse::error('Request has already been processed', 'ALREADY_PROCESSED', 400, [
                     'request_uuid' => $uuid,
                     'current_status' => $requestRecord->status->value,
                 ]);
             }
+
+            $admin = auth()->user();
+            $this->authorize('approve', $requestRecord);
 
             // Prepare rewards
             $rewards = [
@@ -410,15 +412,15 @@ class EarlyAccessController extends Controller
                 ]);
             }
 
-            $admin = auth()->user();
-            $this->authorize('reject', $requestRecord);
-
             if ($requestRecord->status !== EarlyAccessRequestStatusEnum::PENDING) {
                 return ApiResponse::error('Request has already been processed', 'ALREADY_PROCESSED', 400, [
                     'request_uuid' => $uuid,
                     'current_status' => $requestRecord->status->value,
                 ]);
             }
+
+            $admin = auth()->user();
+            $this->authorize('reject', $requestRecord);
 
             $this->requestService->rejectRequest(
                 $requestRecord,
@@ -510,7 +512,7 @@ class EarlyAccessController extends Controller
 
                     $this->notificationService->create(
                         $requestRecord->user_uuid,
-                        'system',
+                        'general',
                         'early_access_approved',
                         'Early Access Approved',
                         'Your early access request has been approved!',
@@ -581,7 +583,7 @@ class EarlyAccessController extends Controller
 
                     $this->notificationService->create(
                         $requestRecord->user_uuid,
-                        'system',
+                        'general',
                         'early_access_rejected',
                         'Early Access Request Rejected',
                         'Your early access request has been rejected.',

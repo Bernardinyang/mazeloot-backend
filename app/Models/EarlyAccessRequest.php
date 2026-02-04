@@ -22,6 +22,7 @@ class EarlyAccessRequest extends Model
     public $incrementing = false;
 
     protected $fillable = [
+        'uuid',
         'user_uuid',
         'reason',
         'status',

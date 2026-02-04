@@ -12,8 +12,15 @@ class MemoraByoConfig extends Model
     protected $fillable = [
         'base_price_monthly_cents',
         'base_price_annual_cents',
+        'base_cost_monthly_cents',
+        'base_cost_annual_cents',
         'base_storage_bytes',
         'base_project_limit',
+        'base_selection_limit',
+        'base_proofing_limit',
+        'base_collection_limit',
+        'base_raw_file_limit',
+        'base_max_revisions',
         'annual_discount_months',
     ];
 

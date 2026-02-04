@@ -37,7 +37,7 @@ class EarlyAccessFeatureService
             // Send notification
             $this->notificationService->create(
                 $userUuid,
-                'system',
+                'general',
                 'early_access_feature_available',
                 'New Feature Available',
                 "You now have access to: {$feature}",
@@ -93,7 +93,7 @@ class EarlyAccessFeatureService
                         // Send notification
                         $this->notificationService->create(
                             $earlyAccess->user_uuid,
-                            'system',
+                            'general',
                             'early_access_feature_available',
                             'New Feature Available',
                             "You now have access to: {$feature}",
@@ -138,7 +138,7 @@ class EarlyAccessFeatureService
                         // Send notification
                         $this->notificationService->create(
                             $earlyAccess->user_uuid,
-                            'system',
+                            'general',
                             'early_access_feature_available',
                             'New Feature Available',
                             "You now have access to: {$feature}",

@@ -447,8 +447,13 @@ class CollectionService
         ]);
 
         // Create media sets from preset photo_sets if preset is selected and has sets
-        if ($preset && $preset->photo_sets && is_array($preset->photo_sets) && count($preset->photo_sets) > 0) {
-            foreach ($preset->photo_sets as $index => $setName) {
+        $setLimitPerPhase = app(\App\Services\Subscription\TierService::class)->getSetLimitPerPhase($user);
+        $photoSets = ($preset && $preset->photo_sets && is_array($preset->photo_sets)) ? $preset->photo_sets : [];
+        if ($photoSets !== []) {
+            $toCreate = $setLimitPerPhase !== null
+                ? array_slice($photoSets, 0, $setLimitPerPhase, true)
+                : $photoSets;
+            foreach ($toCreate as $index => $setName) {
                 MemoraMediaSet::create([
                     'user_uuid' => $user->uuid,
                     'collection_uuid' => $collection->uuid,

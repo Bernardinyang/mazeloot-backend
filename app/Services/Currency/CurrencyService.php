@@ -86,4 +86,22 @@ class CurrencyService
 
         return $this->toSmallestUnit($toAmount, $toCurrency);
     }
+
+    /**
+     * Convert USD cents to target currency smallest unit using the same formula as frontend:
+     * rate = convert(100, 'USD', target)/100; return round(usdCents * rate).
+     * Keeps order summary in sync with BYO dashboard display.
+     *
+     * @return int Amount in smallest unit of target currency
+     */
+    public function convertUsdCentsToTarget(int $usdCents, string $toCurrency): int
+    {
+        if (strtoupper($toCurrency) === 'USD') {
+            return $usdCents;
+        }
+        $oneUsdInTarget = $this->convert(100, 'USD', $toCurrency);
+        $rate = $oneUsdInTarget / 100;
+
+        return (int) round($usdCents * $rate);
+    }
 }

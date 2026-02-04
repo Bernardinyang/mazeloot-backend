@@ -191,8 +191,8 @@ Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
             Route::post('/reorder', [SocialLinkController::class, 'reorder']);
         });
 
-        // Watermarks (paid plans only)
-        Route::middleware(['memora.not_starter'])->prefix('watermarks')->group(function () {
+        // Watermarks (limit enforced per tier in WatermarkService)
+        Route::prefix('watermarks')->group(function () {
             Route::get('/', [WatermarkController::class, 'index']);
             Route::post('/', [WatermarkController::class, 'store']);
             Route::post('/upload-image', [WatermarkController::class, 'uploadImage']);

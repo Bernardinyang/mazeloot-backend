@@ -155,6 +155,11 @@ class CollectionServicePresetTest extends TestCase
         $user = User::factory()->create();
         Auth::login($user);
 
+        $tierService = \Mockery::mock(\App\Services\Subscription\TierService::class);
+        $tierService->shouldReceive('getSetLimitPerPhase')->andReturn(null);
+        $tierService->shouldReceive('getCollectionLimit')->andReturn(null);
+        $this->instance(\App\Services\Subscription\TierService::class, $tierService);
+
         // Create preset with photo_sets
         $preset = MemoraPreset::create([
             'user_uuid' => $user->uuid,

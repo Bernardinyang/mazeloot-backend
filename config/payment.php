@@ -63,23 +63,27 @@ return [
                 : env('STRIPE_LIVE_WEBHOOK_SECRET'),
         ],
 
-        'paypal' => [
-            'test_mode' => $useTestKeys
-                || filter_var(env('PAYPAL_TEST_MODE'), FILTER_VALIDATE_BOOLEAN),
-            'base_url' => $useTestKeys
-                ? 'https://api-m.sandbox.paypal.com'
-                : 'https://api-m.paypal.com',
-            'client_id' => $useTestKeys
-                ? env('PAYPAL_TEST_CLIENT_ID')
-                : env('PAYPAL_LIVE_CLIENT_ID'),
-            'client_secret' => $useTestKeys
-                ? env('PAYPAL_TEST_CLIENT_SECRET')
-                : env('PAYPAL_LIVE_CLIENT_SECRET'),
-            'mode' => $useTestKeys ? 'sandbox' : 'live',
-            'webhook_id' => $useTestKeys
-                ? env('PAYPAL_TEST_WEBHOOK_ID')
-                : env('PAYPAL_LIVE_WEBHOOK_ID'),
-        ],
+        'paypal' => (function () use ($useTestKeys) {
+            $paypalUseTestKeys = $useTestKeys
+                || filter_var(env('PAYPAL_TEST_MODE'), FILTER_VALIDATE_BOOLEAN);
+
+            return [
+                'test_mode' => $paypalUseTestKeys,
+                'base_url' => $paypalUseTestKeys
+                    ? 'https://api-m.sandbox.paypal.com'
+                    : 'https://api-m.paypal.com',
+                'client_id' => $paypalUseTestKeys
+                    ? env('PAYPAL_TEST_CLIENT_ID')
+                    : env('PAYPAL_LIVE_CLIENT_ID'),
+                'client_secret' => $paypalUseTestKeys
+                    ? env('PAYPAL_TEST_CLIENT_SECRET')
+                    : env('PAYPAL_LIVE_CLIENT_SECRET'),
+                'mode' => $paypalUseTestKeys ? 'sandbox' : 'live',
+                'webhook_id' => $paypalUseTestKeys
+                    ? env('PAYPAL_TEST_WEBHOOK_ID')
+                    : env('PAYPAL_LIVE_WEBHOOK_ID'),
+            ];
+        })(),
 
         'paystack' => [
             'test_mode' => $useTestKeys

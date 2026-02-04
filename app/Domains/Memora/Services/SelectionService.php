@@ -40,6 +40,23 @@ class SelectionService
      */
     public function create(array $data): SelectionResource
     {
+        $user = Auth::user();
+        if (! $user) {
+            throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
+        }
+
+        if (! $user->isAdmin()) {
+            $selectionLimit = app(\App\Services\Subscription\TierService::class)->getSelectionLimit($user);
+            if ($selectionLimit !== null) {
+                $currentCount = MemoraSelection::where('user_uuid', $user->uuid)->count();
+                if ($currentCount >= $selectionLimit) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'limit' => ['Selection limit reached. Upgrade your plan for more selections.'],
+                    ]);
+                }
+            }
+        }
+
         $projectUuid = $data['project_uuid'] ?? null;
 
         if ($projectUuid) {
@@ -47,7 +64,7 @@ class SelectionService
         }
 
         $selectionData = [
-            'user_uuid' => Auth::user()->uuid,
+            'user_uuid' => $user->uuid,
             'project_uuid' => $projectUuid,
             'name' => $data['name'],
             'description' => (isset($data['description']) && trim($data['description']) !== '') ? trim($data['description']) : null,
@@ -64,7 +81,6 @@ class SelectionService
 
         $selection = MemoraSelection::query()->create($selectionData);
 
-        $user = Auth::user();
         $this->notificationService->create(
             $user->uuid,
             'memora',
@@ -91,6 +107,7 @@ class SelectionService
 
         return new SelectionResource($this->findModel($selection->uuid));
     }
+
 
     /**
      * Get a selection model by ID (internal use)

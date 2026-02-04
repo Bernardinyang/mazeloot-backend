@@ -48,7 +48,9 @@ class SettingsResource extends JsonResource
                 'usePreviewWatermark' => $this->preference_use_preview_watermark ?? true,
             ],
             'homepage' => [
-                'status' => $this->homepage_status,
+                'status' => app(\App\Services\Subscription\TierService::class)->getCapability('homepage_enabled', request()->user())
+                    ? $this->homepage_status
+                    : false,
                 'password' => $this->homepage_password,
                 'biography' => $this->homepage_biography,
                 'info' => $this->homepage_info ?? [],

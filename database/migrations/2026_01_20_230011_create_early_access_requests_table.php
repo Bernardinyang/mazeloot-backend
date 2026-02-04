@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -14,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('early_access_requests', static function (Blueprint $table) {
             $table->unsignedBigInteger('id')->nullable();
-            $table->uuid('uuid')->primary()->default(DB::raw('(UUID())'));
+            $table->uuid('uuid')->primary();
             $table->foreignUuid('user_uuid')->constrained('users', 'uuid')->cascadeOnDelete();
             $table->text('reason')->nullable();
             $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');

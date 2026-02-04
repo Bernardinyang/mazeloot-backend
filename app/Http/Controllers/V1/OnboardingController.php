@@ -12,6 +12,7 @@ use App\Models\Product;
 use App\Models\UserOnboardingStatus;
 use App\Services\OnboardingTokenService;
 use App\Services\ProductService;
+use App\Services\Subscription\TierService;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,7 +24,8 @@ class OnboardingController extends Controller
         protected OnboardingTokenService $tokenService,
         protected ProductService $productService,
         protected DomainService $domainService,
-        protected SettingsService $settingsService
+        protected SettingsService $settingsService,
+        protected TierService $tierService
     ) {}
 
     /**
@@ -124,10 +126,9 @@ class OnboardingController extends Controller
 
         $product = Product::findOrFail($productUuid);
 
-        // Handle Memora-specific steps
+        // Handle Memora-specific steps (onboarding: domain and brand name allowed for all tiers)
         if ($product->slug === 'memora') {
             if ($step === 'domain') {
-                // Validate domain
                 $domain = $stepData['domain'] ?? null;
                 if (! $domain) {
                     return ApiResponse::errorValidation('Domain is required');
@@ -138,11 +139,10 @@ class OnboardingController extends Controller
                     return ApiResponse::errorValidation($validation['message']);
                 }
 
-                // Save domain
                 $this->domainService->saveDomain($user, $domain);
             } elseif ($step === 'branding') {
-                // Save branding settings
-                $this->settingsService->updateBranding($stepData);
+                $name = $stepData['name'] ?? '';
+                $this->settingsService->updateBranding(['name' => $name]);
             }
         }
 
@@ -207,16 +207,16 @@ class OnboardingController extends Controller
             ]
         );
 
-        // For Memora, ensure domain and branding are saved
+        // For Memora, apply onboarding domain and brand name for all tiers
         if ($product->slug === 'memora') {
             $onboardingData = $status->onboarding_data ?? [];
 
-            if (isset($onboardingData['domain'])) {
+            if (isset($onboardingData['domain']['domain'])) {
                 $this->domainService->saveDomain($user, $onboardingData['domain']['domain']);
             }
 
-            if (isset($onboardingData['branding'])) {
-                $this->settingsService->updateBranding($onboardingData['branding']);
+            if (isset($onboardingData['branding']['name'])) {
+                $this->settingsService->updateBranding(['name' => $onboardingData['branding']['name']]);
             }
         }
 

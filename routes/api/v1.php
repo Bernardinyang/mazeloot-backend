@@ -36,6 +36,7 @@ Route::get('/products', [ProductController::class, 'index']);
 
 // Pricing (public)
 Route::get('/pricing/tiers', [PricingController::class, 'tiers']);
+Route::get('/pricing/currency-rates', [PricingController::class, 'currencyRates']);
 Route::get('/pricing/build-your-own', [PricingController::class, 'buildYourOwn']);
 Route::get('/pricing/config', [SubscriptionController::class, 'config']);
 

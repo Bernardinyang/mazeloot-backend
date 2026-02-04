@@ -127,12 +127,10 @@ class EarlyAccessRequestServiceTest extends TestCase
             ->andReturn(\App\Models\EarlyAccessUser::factory()->make());
 
         $notificationService = $this->mock(NotificationService::class);
-        $notificationService->shouldReceive('create')
-            ->once();
+        $notificationService->shouldReceive('create')->andReturn(new \App\Models\Notification);
 
         $activityLogService = $this->mock(ActivityLogService::class);
-        $activityLogService->shouldReceive('logQueued')
-            ->once();
+        $activityLogService->shouldReceive('logQueued')->andReturn(null);
 
         $service = new EarlyAccessRequestService(
             $earlyAccessService,
@@ -140,6 +138,7 @@ class EarlyAccessRequestServiceTest extends TestCase
             $activityLogService
         );
 
+        $request->load('user');
         $earlyAccess = $service->approveRequest($request, $this->admin, $rewards);
 
         $this->assertInstanceOf(\App\Models\EarlyAccessUser::class, $earlyAccess);
@@ -159,12 +158,10 @@ class EarlyAccessRequestServiceTest extends TestCase
         ]);
 
         $notificationService = $this->mock(NotificationService::class);
-        $notificationService->shouldReceive('create')
-            ->once();
+        $notificationService->shouldReceive('create')->andReturn(new \App\Models\Notification);
 
         $activityLogService = $this->mock(ActivityLogService::class);
-        $activityLogService->shouldReceive('logQueued')
-            ->once();
+        $activityLogService->shouldReceive('logQueued')->andReturn(null);
 
         $service = new EarlyAccessRequestService(
             $this->mock(EarlyAccessService::class),
@@ -172,6 +169,7 @@ class EarlyAccessRequestServiceTest extends TestCase
             $activityLogService
         );
 
+        $request->load('user');
         $service->rejectRequest($request, $this->admin, 'Not eligible');
 
         $request->refresh();
@@ -208,12 +206,18 @@ class EarlyAccessRequestServiceTest extends TestCase
             }), \Mockery::any())
             ->andReturn(\App\Models\EarlyAccessUser::factory()->make());
 
+        $notificationService = $this->mock(NotificationService::class);
+        $notificationService->shouldReceive('create')->andReturn(new \App\Models\Notification);
+        $activityLogService = $this->mock(ActivityLogService::class);
+        $activityLogService->shouldReceive('logQueued')->andReturn(null);
+
         $service = new EarlyAccessRequestService(
             $earlyAccessService,
-            $this->mock(NotificationService::class),
-            $this->mock(ActivityLogService::class)
+            $notificationService,
+            $activityLogService
         );
 
+        $request->load('user');
         $service->approveRequest($request, $this->admin, $rewards);
     }
 }

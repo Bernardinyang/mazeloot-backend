@@ -22,6 +22,12 @@ class StripeWebhookController extends Controller
         $payload = $request->getContent();
         $signature = $request->header('Stripe-Signature');
 
+        Log::info('Stripe webhook: request received', [
+            'payload_length' => strlen($payload),
+            'has_signature' => ! empty($signature),
+            'content_type' => $request->header('content-type'),
+        ]);
+
         if (! $signature) {
             Log::warning('Stripe webhook: Missing signature');
 
@@ -36,25 +42,48 @@ class StripeWebhookController extends Controller
             return response('Invalid signature', 400);
         }
 
-        Log::info('Stripe webhook received', ['type' => $event->type]);
+        $ctx = ['type' => $event->type, 'id' => $event->id ?? null];
+        Log::info('Stripe webhook received', $ctx);
 
         try {
-            match ($event->type) {
-                'checkout.session.completed' => $this->handleCheckoutCompleted($event->data->object),
-                'customer.subscription.created' => $this->handleSubscriptionCreated($event->data->object),
-                'customer.subscription.updated' => $this->handleSubscriptionUpdated($event->data->object),
-                'customer.subscription.deleted' => $this->handleSubscriptionDeleted($event->data->object),
-                'invoice.payment_succeeded' => $this->handlePaymentSucceeded($event->data->object),
-                'invoice.payment_failed' => $this->handlePaymentFailed($event->data->object),
-                default => Log::info('Stripe webhook: Unhandled event type', ['type' => $event->type]),
-            };
-        } catch (\Exception $e) {
-            Log::error('Stripe webhook: Error handling event', [
-                'type' => $event->type,
+            $handled = false;
+            switch ($event->type) {
+                case 'checkout.session.completed':
+                    $this->handleCheckoutCompleted($event->data->object);
+                    $handled = true;
+                    break;
+                case 'customer.subscription.created':
+                    Log::info('Stripe webhook: Subscription created (handled by checkout.session.completed)', ['subscription_id' => $event->data->object->id ?? null]);
+                    $handled = true;
+                    break;
+                case 'customer.subscription.updated':
+                    $this->handleSubscriptionUpdated($event->data->object);
+                    $handled = true;
+                    break;
+                case 'customer.subscription.deleted':
+                    $this->handleSubscriptionDeleted($event->data->object);
+                    $handled = true;
+                    break;
+                case 'invoice.payment_succeeded':
+                    $this->handlePaymentSucceeded($event->data->object);
+                    $handled = true;
+                    break;
+                case 'invoice.payment_failed':
+                    $this->handlePaymentFailed($event->data->object);
+                    $handled = true;
+                    break;
+                default:
+                    Log::info('Stripe webhook: Unhandled event type', $ctx);
+            }
+            if ($handled) {
+                Log::info('Stripe webhook: handler completed', ['event' => $event->type]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Stripe webhook: Error handling event', array_merge($ctx, [
                 'error' => $e->getMessage(),
-            ]);
+                'trace' => $e->getTraceAsString(),
+            ]));
 
-            // Return 200 to prevent Stripe from retrying
             return response('Error logged', 200);
         }
 
@@ -63,19 +92,17 @@ class StripeWebhookController extends Controller
 
     protected function handleCheckoutCompleted($session): void
     {
-        Log::info('Stripe webhook: Checkout completed', ['session_id' => $session->id]);
+        $subscriptionId = is_object($session->subscription) ? ($session->subscription->id ?? null) : $session->subscription;
+        $customerId = is_object($session->customer) ? ($session->customer->id ?? null) : $session->customer;
+
+        Log::info('Stripe webhook: Checkout completed', ['session_id' => $session->id, 'subscription_id' => $subscriptionId]);
 
         $this->subscriptionService->handleCheckoutCompleted([
+            'id' => $session->id,
             'metadata' => $session->metadata?->toArray() ?? [],
-            'subscription' => $session->subscription,
-            'customer' => $session->customer,
+            'subscription' => $subscriptionId,
+            'customer' => $customerId,
         ]);
-    }
-
-    protected function handleSubscriptionCreated($subscription): void
-    {
-        Log::info('Stripe webhook: Subscription created', ['subscription_id' => $subscription->id]);
-        // Handled by checkout.session.completed
     }
 
     protected function handleSubscriptionUpdated($subscription): void
@@ -105,9 +132,11 @@ class StripeWebhookController extends Controller
 
     protected function handlePaymentSucceeded($invoice): void
     {
+        $subscriptionId = is_object($invoice->subscription ?? null) ? ($invoice->subscription->id ?? null) : ($invoice->subscription ?? null);
+
         Log::info('Stripe webhook: Payment succeeded', [
             'invoice_id' => $invoice->id,
-            'subscription' => $invoice->subscription,
+            'subscription_id' => $subscriptionId,
         ]);
 
         $billingReason = $invoice->billing_reason ?? null;
@@ -115,12 +144,11 @@ class StripeWebhookController extends Controller
             return;
         }
 
-        $subscriptionId = $invoice->subscription ?? null;
         if (! $subscriptionId) {
             return;
         }
 
-        $subscription = MemoraSubscription::where('stripe_subscription_id', $subscriptionId)->first();
+        $subscription = MemoraSubscription::where('stripe_subscription_id', $subscriptionId)->where('payment_provider', 'stripe')->first();
         if (! $subscription) {
             return;
         }
@@ -138,17 +166,18 @@ class StripeWebhookController extends Controller
 
     protected function handlePaymentFailed($invoice): void
     {
+        $subscriptionId = is_object($invoice->subscription ?? null) ? ($invoice->subscription->id ?? null) : ($invoice->subscription ?? null);
+
         Log::warning('Stripe webhook: Payment failed', [
             'invoice_id' => $invoice->id,
-            'subscription' => $invoice->subscription,
+            'subscription_id' => $subscriptionId,
         ]);
 
-        $subscriptionId = $invoice->subscription ?? null;
         if (! $subscriptionId) {
             return;
         }
 
-        $subscription = MemoraSubscription::where('stripe_subscription_id', $subscriptionId)->first();
+        $subscription = MemoraSubscription::where('stripe_subscription_id', $subscriptionId)->where('payment_provider', 'stripe')->first();
         if (! $subscription) {
             return;
         }

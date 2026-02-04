@@ -14,7 +14,15 @@ class MemoraByoAddon extends Model
         'type',
         'price_monthly_cents',
         'price_annual_cents',
+        'cost_monthly_cents',
+        'cost_annual_cents',
         'storage_bytes',
+        'selection_limit_granted',
+        'proofing_limit_granted',
+        'collection_limit_granted',
+        'project_limit_granted',
+        'raw_file_limit_granted',
+        'max_revisions_granted',
         'sort_order',
         'is_default',
         'is_active',
@@ -24,6 +32,12 @@ class MemoraByoAddon extends Model
         'is_default' => 'boolean',
         'is_active' => 'boolean',
         'storage_bytes' => 'integer',
+        'selection_limit_granted' => 'integer',
+        'proofing_limit_granted' => 'integer',
+        'collection_limit_granted' => 'integer',
+        'project_limit_granted' => 'integer',
+        'raw_file_limit_granted' => 'integer',
+        'max_revisions_granted' => 'integer',
     ];
 
     public function scopeActive($query)

@@ -18,6 +18,8 @@ class MemoraPricingTier extends Model
         'storage_bytes',
         'project_limit',
         'collection_limit',
+        'selection_limit',
+        'proofing_limit',
         'max_revisions',
         'watermark_limit',
         'preset_limit',
@@ -25,6 +27,8 @@ class MemoraPricingTier extends Model
         'raw_file_limit',
         'features',
         'features_display',
+        'set_limit_per_phase',
+        'capabilities',
         'sort_order',
         'is_popular',
         'is_active',
@@ -33,6 +37,7 @@ class MemoraPricingTier extends Model
     protected $casts = [
         'features' => 'array',
         'features_display' => 'array',
+        'capabilities' => 'array',
         'is_popular' => 'boolean',
         'is_active' => 'boolean',
     ];

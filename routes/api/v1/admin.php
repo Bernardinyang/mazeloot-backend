@@ -4,6 +4,7 @@ use App\Http\Controllers\V1\Admin\ActivityLogController;
 use App\Http\Controllers\V1\Admin\AnalyticsController;
 use App\Http\Controllers\V1\Admin\DashboardController;
 use App\Http\Controllers\V1\Admin\EarlyAccessController;
+use App\Http\Controllers\V1\Admin\PricingController;
 use App\Http\Controllers\V1\Admin\ProductController;
 use App\Http\Controllers\V1\Admin\UserController;
 use Illuminate\Support\Facades\Route;
@@ -39,22 +40,34 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('/products/{slug}/users', [ProductController::class, 'getProductUsers']);
     Route::get('/products/{slug}/stats', [ProductController::class, 'getProductStats']);
 
-    // Early Access
+    // Early Access (requests routes first so /early-access/requests is not matched by /early-access/{uuid})
     Route::get('/early-access', [EarlyAccessController::class, 'index']);
     Route::post('/early-access', [EarlyAccessController::class, 'store']);
-    Route::get('/early-access/{uuid}', [EarlyAccessController::class, 'show']);
-    Route::patch('/early-access/{uuid}', [EarlyAccessController::class, 'update']);
-    Route::delete('/early-access/{uuid}', [EarlyAccessController::class, 'destroy']);
-    Route::post('/early-access/rollout-feature', [EarlyAccessController::class, 'rolloutFeature']);
-    Route::post('/early-access/release-version', [EarlyAccessController::class, 'updateReleaseVersion']);
-
-    // Early Access Requests
     Route::get('/early-access/requests', [EarlyAccessController::class, 'listRequests']);
     Route::get('/early-access/requests/{uuid}', [EarlyAccessController::class, 'showRequest']);
     Route::post('/early-access/requests/{uuid}/approve', [EarlyAccessController::class, 'approveRequest']);
     Route::post('/early-access/requests/{uuid}/reject', [EarlyAccessController::class, 'rejectRequest']);
     Route::post('/early-access/requests/bulk-approve', [EarlyAccessController::class, 'bulkApprove']);
     Route::post('/early-access/requests/bulk-reject', [EarlyAccessController::class, 'bulkReject']);
+    Route::post('/early-access/rollout-feature', [EarlyAccessController::class, 'rolloutFeature']);
+    Route::post('/early-access/release-version', [EarlyAccessController::class, 'updateReleaseVersion']);
+    Route::get('/early-access/{uuid}', [EarlyAccessController::class, 'show']);
+    Route::patch('/early-access/{uuid}', [EarlyAccessController::class, 'update']);
+    Route::delete('/early-access/{uuid}', [EarlyAccessController::class, 'destroy']);
+
+    // Memora Pricing (fixed tiers + BYO config + addons)
+    Route::get('/pricing/tiers', [PricingController::class, 'tiers']);
+    Route::post('/pricing/tiers', [PricingController::class, 'storeTier']);
+    Route::get('/pricing/tiers/{slug}', [PricingController::class, 'showTier']);
+    Route::patch('/pricing/tiers/{slug}', [PricingController::class, 'updateTier']);
+    Route::delete('/pricing/tiers/{slug}', [PricingController::class, 'destroyTier']);
+    Route::get('/pricing/byo-config', [PricingController::class, 'byoConfig']);
+    Route::patch('/pricing/byo-config', [PricingController::class, 'updateByoConfig']);
+    Route::get('/pricing/byo-addon-slugs', [PricingController::class, 'byoAddonSlugs']);
+    Route::get('/pricing/byo-addons', [PricingController::class, 'byoAddons']);
+    Route::post('/pricing/byo-addons', [PricingController::class, 'storeByoAddon']);
+    Route::patch('/pricing/byo-addons/{id}', [PricingController::class, 'updateByoAddon']);
+    Route::delete('/pricing/byo-addons/{id}', [PricingController::class, 'destroyByoAddon']);
 
     // Analytics
     Route::get('/analytics/activity', [AnalyticsController::class, 'getActivityLogs']);

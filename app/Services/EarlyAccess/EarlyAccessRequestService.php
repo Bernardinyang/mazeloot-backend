@@ -13,6 +13,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class EarlyAccessRequestService
 {
@@ -30,6 +31,7 @@ class EarlyAccessRequestService
     public function createRequest(string $userUuid, ?string $reason = null): EarlyAccessRequest
     {
         $requestRecord = EarlyAccessRequest::create([
+            'uuid' => (string) Str::uuid(),
             'user_uuid' => $userUuid,
             'reason' => $reason,
             'status' => EarlyAccessRequestStatusEnum::PENDING,
@@ -94,7 +96,7 @@ class EarlyAccessRequestService
             // Notify user
             $this->notificationService->create(
                 $requestRecord->user_uuid,
-                'system',
+                'general',
                 'early_access_approved',
                 'Early Access Approved',
                 'Your early access request has been approved!',
@@ -150,7 +152,7 @@ class EarlyAccessRequestService
             // Notify user
             $this->notificationService->create(
                 $requestRecord->user_uuid,
-                'system',
+                'general',
                 'early_access_rejected',
                 'Early Access Request Rejected',
                 'Your early access request has been rejected.',

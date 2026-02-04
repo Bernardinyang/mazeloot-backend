@@ -15,7 +15,7 @@ class SuperAdminSeeder extends Seeder
     public function run(): void
     {
         User::firstOrCreate(
-            ['email' => 'bernardinyang.bci@gmail.com'],
+            ['email' => 'bernodelimited@gmail.com'],
             [
                 'first_name' => 'Bernardin',
                 'last_name' => 'Yang',

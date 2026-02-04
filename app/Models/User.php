@@ -59,6 +59,7 @@ class User extends Authenticatable
         'email_verified_at',
         'profile_photo',
         'memora_tier',
+        'stripe_customer_id',
     ];
 
     /**

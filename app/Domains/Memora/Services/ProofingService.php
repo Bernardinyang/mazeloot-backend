@@ -54,6 +54,15 @@ class ProofingService
                     'proofing' => ['Proofing phase requires Pro plan or higher. Upgrade to unlock.'],
                 ]);
             }
+            $proofingLimit = $tierService->getProofingLimit($user);
+            if ($proofingLimit !== null) {
+                $currentCount = MemoraProofing::where('user_uuid', $user->uuid)->count();
+                if ($currentCount >= $proofingLimit) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'limit' => ['Proofing limit reached. Upgrade your plan for more proofing phases.'],
+                    ]);
+                }
+            }
             $maxRevisions = $tierService->getMaxRevisions($user);
             if ($maxRevisions > 0 && isset($data['maxRevisions']) && (int) $data['maxRevisions'] > $maxRevisions) {
                 $data['maxRevisions'] = $maxRevisions;

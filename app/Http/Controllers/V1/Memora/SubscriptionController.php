@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\V1\Memora;
 
+use App\Domains\Memora\Models\MemoraByoConfig;
 use App\Domains\Memora\Models\MemoraCollection;
 use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraProject;
@@ -38,7 +39,9 @@ class SubscriptionController extends Controller
             $providerConfig = config("payment.providers.{$id}", []);
             $secretKey = $providerConfig['secret_key'] ?? $providerConfig['client_secret'] ?? null;
             $publicKey = $providerConfig['public_key'] ?? $providerConfig['client_id'] ?? null;
-            $isEnabled = ! empty($providerConfig['test_mode']) || (! empty($secretKey) && ! empty($publicKey));
+            $isEnabled = $id === 'stripe'
+                ? (! empty($secretKey) && ! empty($publicKey))
+                : (! empty($providerConfig['test_mode']) || (! empty($secretKey) && ! empty($publicKey)));
 
             if (! $isEnabled) {
                 continue;
@@ -64,14 +67,13 @@ class SubscriptionController extends Controller
     }
 
     /**
-     * Preview converted amount for a plan
+     * Preview plan amount in USD only. Frontend does conversion using /pricing/currency-rates.
      */
     public function preview(Request $request): JsonResponse
     {
         $request->validate([
             'tier' => 'required|string|in:starter,pro,studio,business,byo',
             'billing_cycle' => 'required|string|in:monthly,annual',
-            'currency' => 'required|string|in:usd,eur,gbp,ngn,zar,kes,ghs,jpy,cad,aud',
             'byo_addons' => 'nullable',
         ]);
 
@@ -87,22 +89,27 @@ class SubscriptionController extends Controller
             $byoAddons
         );
 
-        $currency = strtoupper($request->currency);
-        $convertedCents = $this->currencyService->convert($amountCents, 'USD', $currency);
-        $formatted = $this->currencyService->format($convertedCents, $currency);
-
         $data = [
-            'amount_cents' => $convertedCents,
-            'amount_formatted' => $formatted,
-            'base_amount_cents' => $amountCents,
-            'base_amount_formatted' => $this->currencyService->format($amountCents, 'USD'),
+            'amount_cents' => $amountCents,
+            'amount_formatted' => $this->currencyService->format($amountCents, 'USD'),
             'base_currency' => 'usd',
-            'currency' => strtolower($currency),
         ];
 
-        if ($currency !== 'USD') {
-            $oneUsdCents = $this->currencyService->convert(100, 'USD', $currency);
-            $data['one_usd_equals'] = $this->currencyService->format($oneUsdCents, $currency);
+        if ($request->tier === 'byo') {
+            $config = MemoraByoConfig::getConfig();
+            if ($config) {
+                $baseCents = $request->billing_cycle === 'annual'
+                    ? (int) $config->base_price_annual_cents
+                    : (int) $config->base_price_monthly_cents;
+                $data['base_amount_cents'] = $baseCents;
+                $data['base_amount_formatted'] = $this->currencyService->format($baseCents, 'USD');
+                if ($request->billing_cycle === 'annual') {
+                    $data['base_original_cents'] = (int) $config->base_price_monthly_cents * 12;
+                }
+            }
+        } else {
+            $data['base_amount_cents'] = $amountCents;
+            $data['base_amount_formatted'] = $this->currencyService->format($amountCents, 'USD');
         }
 
         return response()->json(['data' => $data]);
@@ -135,8 +142,8 @@ class SubscriptionController extends Controller
         $currency = strtoupper($request->currency);
         $lineItems = [];
         foreach ($summary['line_items'] as $item) {
-            $origCents = $this->currencyService->convert($item['original_cents'], 'USD', $currency);
-            $priceCents = $this->currencyService->convert($item['price_cents'], 'USD', $currency);
+            $origCents = $this->currencyService->convertUsdCentsToTarget($item['original_cents'], $currency);
+            $priceCents = $this->currencyService->convertUsdCentsToTarget($item['price_cents'], $currency);
             $lineItems[] = [
                 'name' => $item['name'],
                 'detail' => $item['detail'],
@@ -147,8 +154,12 @@ class SubscriptionController extends Controller
             ];
         }
 
-        $subtotalOriginal = $this->currencyService->convert($summary['subtotal_original_cents'], 'USD', $currency);
-        $subtotal = $this->currencyService->convert($summary['subtotal_cents'], 'USD', $currency);
+        $subtotalOriginal = $this->currencyService->convertUsdCentsToTarget($summary['subtotal_original_cents'], $currency);
+        $subtotal = $this->currencyService->convertUsdCentsToTarget($summary['subtotal_cents'], $currency);
+
+        $vatRate = (float) config('pricing.vat_rate', 0);
+        $vatCents = $vatRate > 0 ? (int) floor($subtotal * $vatRate) : 0;
+        $totalCents = $subtotal + $vatCents;
 
         $data = [
             'line_items' => $lineItems,
@@ -156,6 +167,11 @@ class SubscriptionController extends Controller
             'subtotal_original_formatted' => $this->currencyService->format($subtotalOriginal, $currency),
             'subtotal_cents' => $subtotal,
             'subtotal_original_cents' => $subtotalOriginal,
+            'vat_rate' => $vatRate,
+            'vat_cents' => $vatCents,
+            'vat_formatted' => $vatCents > 0 ? $this->currencyService->format($vatCents, $currency) : null,
+            'total_cents' => $totalCents,
+            'total_formatted' => $this->currencyService->format($totalCents, $currency),
             'has_discount' => $summary['has_discount'],
             'currency' => strtolower($currency),
         ];
@@ -165,7 +181,7 @@ class SubscriptionController extends Controller
             $data['base_subtotal_original_formatted'] = $summary['has_discount']
                 ? $this->currencyService->format($summary['subtotal_original_cents'], 'USD')
                 : null;
-            $oneUsdCents = $this->currencyService->convert(100, 'USD', $currency);
+            $oneUsdCents = $this->currencyService->convertUsdCentsToTarget(100, $currency);
             $data['one_usd_equals'] = $this->currencyService->format($oneUsdCents, $currency);
         }
 
@@ -264,24 +280,30 @@ class SubscriptionController extends Controller
         $user = Auth::user();
         $subscription = $this->subscriptionService->getActiveSubscription($user);
 
-        return response()->json([
-            'data' => [
-                'has_subscription' => $subscription !== null,
-                'subscription' => $subscription ? [
-                    'tier' => $subscription->tier,
-                    'billing_cycle' => $subscription->billing_cycle,
-                    'status' => $subscription->status,
-                    'amount' => $subscription->amount,
-                    'currency' => $subscription->currency,
-                    'payment_provider' => $subscription->payment_provider,
-                    'current_period_start' => $subscription->current_period_start,
-                    'current_period_end' => $subscription->current_period_end,
-                    'canceled_at' => $subscription->canceled_at,
-                    'on_grace_period' => $subscription->onGracePeriod(),
-                ] : null,
-                'current_tier' => $user->memora_tier ?? 'starter',
-            ],
-        ]);
+        $data = [
+            'has_subscription' => $subscription !== null,
+            'subscription' => $subscription ? [
+                'tier' => $subscription->tier,
+                'billing_cycle' => $subscription->billing_cycle,
+                'status' => $subscription->status,
+                'amount' => $subscription->amount,
+                'currency' => $subscription->currency,
+                'payment_provider' => $subscription->payment_provider,
+                'current_period_start' => $subscription->current_period_start,
+                'current_period_end' => $subscription->current_period_end,
+                'canceled_at' => $subscription->canceled_at,
+                'on_grace_period' => $subscription->onGracePeriod(),
+            ] : null,
+            'current_tier' => $user->memora_tier ?? 'starter',
+        ];
+        if ($user->memora_tier === 'byo') {
+            $byoDisplay = $this->tierService->getByoPlanDisplay($user);
+            $data['memora_features'] = $byoDisplay['features'];
+            $data['memora_capabilities'] = $byoDisplay['capabilities'];
+            $data['byo_addons_list'] = $byoDisplay['byo_addons_list'];
+        }
+
+        return response()->json(['data' => $data]);
     }
 
     /**
@@ -344,8 +366,7 @@ class SubscriptionController extends Controller
 
         try {
             $provider = $subscription->payment_provider ?? 'stripe';
-            $useDirectCancel = $provider === 'paypal'
-                || ($provider === 'stripe' && config('payment.providers.stripe.test_mode'));
+            $useDirectCancel = $provider === 'paypal';
 
             if ($useDirectCancel) {
                 $this->subscriptionService->cancelSubscriptionDirectly($user);
@@ -397,9 +418,9 @@ class SubscriptionController extends Controller
         $user = Auth::user();
         $userUuid = $user->uuid;
 
-        // Get tier limits
+        // Get tier limits (storage from getStorageLimit so BYO includes addon bytes)
         $tierConfig = $this->tierService->getTierConfig($user);
-        $storageLimit = $tierConfig['storage_bytes'] ?? (5 * 1024 * 1024 * 1024);
+        $storageLimit = $this->tierService->getStorageLimit($user) ?? $tierConfig['storage_bytes'] ?? (5 * 1024 * 1024 * 1024);
         $projectLimit = $tierConfig['project_limit'] ?? null;
         $collectionLimit = $tierConfig['collection_limit'] ?? null;
 

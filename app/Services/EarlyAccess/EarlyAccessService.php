@@ -49,7 +49,7 @@ class EarlyAccessService
             if ($user) {
                 $this->notificationService->create(
                     $userUuid,
-                    'system',
+                    'general',
                     'early_access_granted',
                     'Early Access Granted',
                     'You have been granted early access to Mazeloot!',
@@ -78,7 +78,7 @@ class EarlyAccessService
                 // Send notification
                 $this->notificationService->create(
                     $userUuid,
-                    'system',
+                    'general',
                     'early_access_revoked',
                     'Early Access Revoked',
                     'Your early access has been revoked.',
