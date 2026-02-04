@@ -4,10 +4,9 @@ namespace Tests\Unit\Domains\Memora\Services;
 
 use App\Domains\Memora\Models\MemoraSubscription;
 use App\Domains\Memora\Models\MemoraSubscriptionHistory;
+use App\Domains\Memora\Services\MemoraSubscriptionService;
 use App\Models\User;
 use App\Services\Payment\Providers\StripeProvider;
-use App\Domains\Memora\Services\MemoraSubscriptionService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
 use Tests\TestCase;
 

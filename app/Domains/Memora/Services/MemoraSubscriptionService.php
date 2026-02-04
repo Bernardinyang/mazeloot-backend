@@ -1710,6 +1710,7 @@ class MemoraSubscriptionService
     protected function vatCents(int $subtotalCents): int
     {
         $rate = (float) config('pricing.vat_rate', 0);
+
         return $rate > 0 ? (int) floor($subtotalCents * $rate) : 0;
     }
 

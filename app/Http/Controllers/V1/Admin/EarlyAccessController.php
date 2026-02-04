@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\DB;
 class EarlyAccessController extends Controller
 {
     use AuthorizesRequests;
+
     public function __construct(
         protected EarlyAccessService $earlyAccessService,
         protected EarlyAccessFeatureService $featureService,

@@ -3,7 +3,6 @@
 namespace Tests\Feature\Webhooks;
 
 use App\Domains\Memora\Models\MemoraSubscription;
-use App\Domains\Memora\Models\MemoraSubscriptionHistory;
 use App\Models\User;
 use App\Services\Payment\Providers\StripeProvider;
 use Tests\TestCase;

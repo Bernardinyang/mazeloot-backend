@@ -108,7 +108,6 @@ class SelectionService
         return new SelectionResource($this->findModel($selection->uuid));
     }
 
-
     /**
      * Get a selection model by ID (internal use)
      *

@@ -34,6 +34,7 @@ class PricingController extends Controller
 
         return ApiResponse::successOk($rates);
     }
+
     public function tiers(): JsonResponse
     {
         $tiers = MemoraPricingTier::getAllActive()->map(fn ($t) => [
