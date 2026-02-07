@@ -180,4 +180,12 @@ class MemoraFrontendUrls
     {
         return self::BASE.'/projects';
     }
+
+    /** Auth app route: plan summary / checkout (for notification link so user can proceed to payment). */
+    public static function planSummaryPath(bool $pending = false): string
+    {
+        $path = self::BASE.'/pricing/checkout';
+
+        return $pending ? $path.'?source=pending' : $path;
+    }
 }

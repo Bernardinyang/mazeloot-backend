@@ -42,7 +42,7 @@ class NotifyAdminsEarlyAccessRequest implements ShouldQueue
         foreach ($this->adminUuids as $adminUuid) {
             $notificationService->create(
                 $adminUuid,
-                'system',
+                'general',
                 'early_access_request',
                 'New Early Access Request',
                 "{$this->userFirstName} {$this->userLastName} ({$this->userEmail}) has requested early access",

@@ -137,6 +137,19 @@ class EarlyAccessController extends Controller
             $granted[] = $earlyAccess->uuid;
         }
 
+        try {
+            $this->activityLogService->log(
+                'early_access_granted',
+                null,
+                'Admin granted early access',
+                ['user_uuids' => $userUuids, 'granted_uuids' => $granted],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log early access activity', ['error' => $e->getMessage()]);
+        }
+
         return ApiResponse::successCreated([
             'message' => 'Early access granted successfully',
             'granted' => $granted,
@@ -205,6 +218,19 @@ class EarlyAccessController extends Controller
 
         $updated = $this->earlyAccessService->updateRewards($earlyAccess->user_uuid, $validated);
 
+        try {
+            $this->activityLogService->log(
+                'updated',
+                $updated,
+                'Admin updated early access',
+                ['user_uuid' => $earlyAccess->user_uuid],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log early access activity', ['error' => $e->getMessage()]);
+        }
+
         return ApiResponse::successOk([
             'message' => 'Early access updated successfully',
             'early_access' => [
@@ -216,7 +242,7 @@ class EarlyAccessController extends Controller
     /**
      * Revoke early access.
      */
-    public function destroy(string $uuid): JsonResponse
+    public function destroy(Request $request, string $uuid): JsonResponse
     {
         $earlyAccess = EarlyAccessUser::find($uuid);
 
@@ -224,7 +250,21 @@ class EarlyAccessController extends Controller
             return ApiResponse::errorNotFound('Early access record not found');
         }
 
-        $this->earlyAccessService->revokeEarlyAccess($earlyAccess->user_uuid);
+        $userUuid = $earlyAccess->user_uuid;
+        try {
+            $this->activityLogService->log(
+                'early_access_revoked',
+                $earlyAccess,
+                'Admin revoked early access',
+                ['user_uuid' => $userUuid],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log early access activity', ['error' => $e->getMessage()]);
+        }
+
+        $this->earlyAccessService->revokeEarlyAccess($userUuid);
 
         return ApiResponse::successOk([
             'message' => 'Early access revoked successfully',
@@ -526,6 +566,18 @@ class EarlyAccessController extends Controller
                     $approved[] = $uuid;
                 }
 
+                try {
+                    app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                        'early_access_bulk_approved',
+                        null,
+                        'Early access requests bulk approved',
+                        ['approved_count' => count($approved), 'approved_uuids' => $approved, 'failed_count' => count($failed)],
+                        $admin,
+                        request()
+                    );
+                } catch (\Throwable $e) {
+                    \Log::warning('Failed to log early access bulk approve activity', ['error' => $e->getMessage()]);
+                }
                 return ApiResponse::successOk([
                     'message' => 'Approved '.count($approved).' request(s), '.count($failed).' failed',
                     'approved' => $approved,
@@ -597,6 +649,18 @@ class EarlyAccessController extends Controller
                     $rejected[] = $uuid;
                 }
 
+                try {
+                    app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                        'early_access_bulk_rejected',
+                        null,
+                        'Early access requests bulk rejected',
+                        ['rejected_count' => count($rejected), 'rejected_uuids' => $rejected, 'failed_count' => count($failed)],
+                        $admin,
+                        request()
+                    );
+                } catch (\Throwable $e) {
+                    \Log::warning('Failed to log early access bulk reject activity', ['error' => $e->getMessage()]);
+                }
                 return ApiResponse::successOk([
                     'message' => 'Rejected '.count($rejected).' request(s), '.count($failed).' failed',
                     'rejected' => $rejected,
@@ -637,6 +701,19 @@ class EarlyAccessController extends Controller
                 }
             }
 
+            try {
+                $this->activityLogService->log(
+                    'early_access_feature_rolled_out',
+                    null,
+                    'Admin rolled out feature to users',
+                    ['feature' => $validated['feature'], 'user_uuids' => $validated['user_uuids'], 'updated' => $updated],
+                    $request->user(),
+                    $request
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Failed to log early access activity', ['error' => $e->getMessage()]);
+            }
+
             return ApiResponse::successOk([
                 'message' => "Feature rolled out to {$updated} user(s)",
                 'updated' => $updated,
@@ -646,6 +723,19 @@ class EarlyAccessController extends Controller
         if (isset($validated['percentage'])) {
             $updated = $this->featureService->rolloutPercentage($validated['feature'], $validated['percentage']);
 
+            try {
+                $this->activityLogService->log(
+                    'early_access_feature_rolled_out',
+                    null,
+                    'Admin rolled out feature by percentage',
+                    ['feature' => $validated['feature'], 'percentage' => $validated['percentage'], 'updated' => $updated],
+                    $request->user(),
+                    $request
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Failed to log early access activity', ['error' => $e->getMessage()]);
+            }
+
             return ApiResponse::successOk([
                 'message' => "Feature rolled out to {$updated} user(s)",
                 'updated' => $updated,
@@ -653,6 +743,19 @@ class EarlyAccessController extends Controller
         }
 
         $updated = $this->featureService->grantToAll($validated['feature']);
+
+        try {
+            $this->activityLogService->log(
+                'early_access_feature_rolled_out',
+                null,
+                'Admin rolled out feature to all',
+                ['feature' => $validated['feature'], 'updated' => $updated],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log early access activity', ['error' => $e->getMessage()]);
+        }
 
         return ApiResponse::successOk([
             'message' => "Feature rolled out to {$updated} user(s)",
@@ -670,6 +773,19 @@ class EarlyAccessController extends Controller
         ]);
 
         $updated = $this->featureService->updateReleaseVersion($validated['version']);
+
+        try {
+            $this->activityLogService->log(
+                'early_access_release_version_updated',
+                null,
+                'Admin updated early access release version',
+                ['version' => $validated['version'], 'updated_count' => $updated],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log early access activity', ['error' => $e->getMessage()]);
+        }
 
         return ApiResponse::successOk([
             'message' => "Release version updated for {$updated} user(s)",

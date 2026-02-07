@@ -65,4 +65,10 @@ return [
         'redirect' => env('ADOBE_REDIRECT_URI', env('APP_URL').'/api/v1/cloud-storage/oauth/adobe/callback'),
     ],
 
+    'twilio' => [
+        'account_sid' => env('TWILIO_ACCOUNT_SID'),
+        'auth_token' => env('TWILIO_AUTH_TOKEN'),
+        'whatsapp_from' => env('TWILIO_WHATSAPP_FROM'), // e.g. whatsapp:+14155238886
+    ],
+
 ];

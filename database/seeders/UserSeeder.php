@@ -37,5 +37,17 @@ class UserSeeder extends Seeder
                 'email_verified_at' => now(),
             ]
         );
+
+        // Operations admin
+        User::firstOrCreate(
+            ['email' => 'mazeloot.operations@gmail.com'],
+            [
+                'first_name' => 'Mazeloot',
+                'last_name' => 'Operations',
+                'password' => Hash::make('Mazeloot@2026'),
+                'role' => UserRoleEnum::ADMIN,
+                'email_verified_at' => now(),
+            ]
+        );
     }
 }

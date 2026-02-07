@@ -9,6 +9,7 @@ use App\Domains\Memora\Services\PresetService;
 use App\Http\Controllers\Controller;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class PresetController extends Controller
 {
@@ -58,6 +59,19 @@ class PresetController extends Controller
     {
         $preset = $this->presetService->create($request->validated());
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'created',
+                $preset,
+                'Preset created',
+                ['preset_uuid' => $preset->uuid],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log preset activity', ['error' => $e->getMessage()]);
+        }
+
         return ApiResponse::success(new PresetResource($preset), 201);
     }
 
@@ -68,15 +82,42 @@ class PresetController extends Controller
     {
         $preset = $this->presetService->update($id, $request->validated());
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'updated',
+                $preset,
+                'Preset updated',
+                ['preset_uuid' => $preset->uuid],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log preset activity', ['error' => $e->getMessage()]);
+        }
+
         return ApiResponse::success(new PresetResource($preset));
     }
 
     /**
      * Delete a preset
      */
-    public function destroy(string $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
+        $preset = $this->presetService->getById($id);
         $this->presetService->delete($id);
+
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'deleted',
+                null,
+                'Preset deleted',
+                ['preset_uuid' => $id, 'name' => $preset->name ?? null],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log preset activity', ['error' => $e->getMessage()]);
+        }
 
         return ApiResponse::success(null, 204);
     }
@@ -84,9 +125,22 @@ class PresetController extends Controller
     /**
      * Duplicate a preset
      */
-    public function duplicate(string $id): JsonResponse
+    public function duplicate(Request $request, string $id): JsonResponse
     {
         $duplicated = $this->presetService->duplicate($id);
+
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'preset_duplicated',
+                $duplicated,
+                'Preset duplicated',
+                ['source_preset_uuid' => $id, 'new_preset_uuid' => $duplicated->uuid],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log preset activity', ['error' => $e->getMessage()]);
+        }
 
         return ApiResponse::success(new PresetResource($duplicated), 201);
     }
@@ -94,10 +148,22 @@ class PresetController extends Controller
     /**
      * Apply preset to collection
      */
-    public function applyToCollection(string $id, string $collectionId): JsonResponse
+    public function applyToCollection(Request $request, string $id, string $collectionId): JsonResponse
     {
         $collection = $this->presetService->applyToCollection($id, $collectionId);
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'preset_applied_to_collection',
+                null,
+                'Preset applied to collection',
+                ['preset_uuid' => $id, 'collection_uuid' => $collectionId],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log preset activity', ['error' => $e->getMessage()]);
+        }
         return ApiResponse::success(['message' => 'Preset applied successfully']);
     }
 
@@ -114,19 +180,30 @@ class PresetController extends Controller
     /**
      * Set preset as default
      */
-    public function setDefault(string $id): JsonResponse
+    public function setDefault(Request $request, string $id): JsonResponse
     {
         $preset = $this->presetService->setAsDefault($id);
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'preset_set_default',
+                null,
+                'Preset set as default',
+                ['preset_uuid' => $id],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log preset activity', ['error' => $e->getMessage()]);
+        }
         return ApiResponse::success(new PresetResource($preset));
     }
 
     /**
      * Reorder presets
      */
-    public function reorder(): JsonResponse
+    public function reorder(Request $request): JsonResponse
     {
-        $request = request();
         $presetIds = $request->input('preset_ids', []);
 
         if (! is_array($presetIds) || empty($presetIds)) {
@@ -135,6 +212,18 @@ class PresetController extends Controller
 
         $this->presetService->reorder($presetIds);
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'presets_reordered',
+                null,
+                'Presets reordered',
+                ['preset_count' => count($presetIds)],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log preset activity', ['error' => $e->getMessage()]);
+        }
         return ApiResponse::success(['message' => 'Presets reordered successfully']);
     }
 }

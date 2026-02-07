@@ -50,6 +50,19 @@ class SocialLinkController extends Controller
         }
         $link = $this->socialLinkService->create($request->validated());
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'created',
+                $link,
+                'Social link created',
+                ['social_link_uuid' => $link->uuid],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log social link activity', ['error' => $e->getMessage()]);
+        }
+
         return ApiResponse::success(new SocialLinkResource($link), 201);
     }
 
@@ -60,15 +73,41 @@ class SocialLinkController extends Controller
     {
         $link = $this->socialLinkService->update($id, $request->validated());
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'updated',
+                $link,
+                'Social link updated',
+                ['social_link_uuid' => $link->uuid],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log social link activity', ['error' => $e->getMessage()]);
+        }
+
         return ApiResponse::success(new SocialLinkResource($link));
     }
 
     /**
      * Delete a social link
      */
-    public function destroy(string $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
         $this->socialLinkService->delete($id);
+
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'deleted',
+                null,
+                'Social link deleted',
+                ['social_link_uuid' => $id],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log social link activity', ['error' => $e->getMessage()]);
+        }
 
         return ApiResponse::success(null, 204);
     }
@@ -84,6 +123,19 @@ class SocialLinkController extends Controller
         ]);
 
         $links = $this->socialLinkService->reorder($request->input('order'));
+
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'social_links_reordered',
+                null,
+                'Social links reordered',
+                ['count' => count($request->input('order'))],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log social link activity', ['error' => $e->getMessage()]);
+        }
 
         return ApiResponse::success(SocialLinkResource::collection($links));
     }

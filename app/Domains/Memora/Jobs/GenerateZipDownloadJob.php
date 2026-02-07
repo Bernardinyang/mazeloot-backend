@@ -5,6 +5,8 @@ namespace App\Domains\Memora\Jobs;
 use App\Domains\Memora\Models\MemoraCollection;
 use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraMediaSet;
+use App\Services\Notification\NotificationService;
+use App\Support\MemoraFrontendUrls;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -293,6 +295,30 @@ class GenerateZipDownloadJob implements ShouldQueue
             if ($supportsZip && $fullZipPath && $cloudUploadUrl && file_exists($fullZipPath)) {
                 // Keep ZIP for device downloads, only delete if cloud-only and successful
                 // Actually, keep it for fallback - don't delete
+            }
+
+            // In-app notification for collection owner
+            if ($collection->user_uuid) {
+                try {
+                    app(NotificationService::class)->create(
+                        $collection->user_uuid,
+                        'memora',
+                        'collection_download_ready',
+                        'Download ready',
+                        $supportsZip
+                            ? 'Your collection download is ready.'
+                            : 'Your collection files are ready to upload to your cloud.',
+                        null,
+                        null,
+                        MemoraFrontendUrls::collectionDetailPath($collection->uuid),
+                        ['collection_uuid' => $collection->uuid, 'token' => $this->token]
+                    );
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to create in-app notification for zip download', [
+                        'collection_uuid' => $collection->uuid,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
 
             // Send email notification to downloader if email provided

@@ -112,6 +112,7 @@ class ProofingController extends Controller
             ? $this->proofingService->publish($projectId, $id)
             : $this->proofingService->publishStandalone($id);
 
+        $this->logProofingActivity('proofing_published', 'Proofing published', ['proofing_id' => $id], $request);
         return ApiResponse::success(new ProofingResource($proofing));
     }
 
@@ -126,6 +127,8 @@ class ProofingController extends Controller
             ? $this->proofingService->toggleStar($projectId, $id)
             : $this->proofingService->toggleStarStandalone($id);
 
+        $action = ($result['starred'] ?? false) ? 'proofing_starred' : 'proofing_unstarred';
+        $this->logProofingActivity($action, $result['starred'] ? 'Proofing starred' : 'Proofing unstarred', ['proofing_id' => $id], $request);
         return ApiResponse::success($result);
     }
 
@@ -138,6 +141,7 @@ class ProofingController extends Controller
         $projectId = $request->query('projectId');
         $duplicated = $this->proofingService->duplicate($projectId, $id);
 
+        $this->logProofingActivity('proofing_duplicated', 'Proofing duplicated', ['proofing_id' => $id, 'new_uuid' => $duplicated->uuid], $request);
         return ApiResponse::success(new ProofingResource($duplicated), 201);
     }
 
@@ -159,6 +163,7 @@ class ProofingController extends Controller
                 ? $this->proofingService->setCoverPhotoFromMedia($projectId, $id, $validated['media_uuid'], $focalPoint)
                 : $this->proofingService->setCoverPhotoFromMediaStandalone($id, $validated['media_uuid'], $focalPoint);
 
+            $this->logProofingActivity('proofing_cover_photo_set', 'Proofing cover photo set', ['proofing_id' => $id], $request);
             return ApiResponse::success(new ProofingResource($proofing));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ApiResponse::error('Proofing or media not found', 'NOT_FOUND', 404);
@@ -196,6 +201,7 @@ class ProofingController extends Controller
             ? $this->proofingService->recover($projectId, $id, $request->input('mediaIds'))
             : $this->proofingService->recoverStandalone($id, $request->input('mediaIds'));
 
+        $this->logProofingActivity('proofing_media_recovered', 'Proofing media recovered', ['proofing_id' => $id, 'media_count' => count($request->input('mediaIds'))], $request);
         return ApiResponse::success($result);
     }
 
@@ -225,6 +231,7 @@ class ProofingController extends Controller
             $request->input('completedTodos', [])
         );
 
+        $this->logProofingActivity('proofing_revision_uploaded', 'Proofing revision uploaded', ['proofing_id' => $id, 'media_id' => $request->input('mediaId')], $request);
         return ApiResponse::success(new \App\Domains\Memora\Resources\V1\MediaResource($revision), 201);
     }
 
@@ -239,6 +246,7 @@ class ProofingController extends Controller
             ? $this->proofingService->complete($projectId, $id)
             : $this->proofingService->completeStandalone($id);
 
+        $this->logProofingActivity('proofing_completed', 'Proofing completed', ['proofing_id' => $id], $request);
         return ApiResponse::success([
             'id' => $proofing->id,
             'status' => $proofing->status,
@@ -266,6 +274,23 @@ class ProofingController extends Controller
             $request->input('collectionId')
         );
 
+        $this->logProofingActivity('proofing_moved_to_collection', 'Proofing media moved to collection', ['proofing_id' => $id, 'collection_id' => $request->input('collectionId'), 'media_count' => count($request->input('mediaIds'))], $request);
         return ApiResponse::success($result);
+    }
+
+    private function logProofingActivity(string $action, string $description, array $properties, Request $request): void
+    {
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                $action,
+                null,
+                $description,
+                $properties,
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log proofing activity', ['error' => $e->getMessage()]);
+        }
     }
 }

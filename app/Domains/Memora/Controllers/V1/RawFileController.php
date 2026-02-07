@@ -65,6 +65,19 @@ class RawFileController extends Controller
     {
         $rawFile = $this->rawFileService->create($request->validated());
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'created',
+                $rawFile,
+                'Raw file created',
+                ['raw_file_uuid' => $rawFile->uuid],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log raw file activity', ['error' => $e->getMessage()]);
+        }
+
         return ApiResponse::success($rawFile, 201);
     }
 
@@ -75,15 +88,41 @@ class RawFileController extends Controller
     {
         $rawFile = $this->rawFileService->update($id, $request->validated());
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'updated',
+                $rawFile,
+                'Raw file updated',
+                ['raw_file_uuid' => $rawFile->uuid],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log raw file activity', ['error' => $e->getMessage()]);
+        }
+
         return ApiResponse::success($rawFile);
     }
 
     /**
      * Delete a raw file
      */
-    public function destroy(string $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
         $this->rawFileService->delete($id);
+
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'deleted',
+                null,
+                'Raw file deleted',
+                ['raw_file_uuid' => $id],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log raw file activity', ['error' => $e->getMessage()]);
+        }
 
         return ApiResponse::success(null, 204);
     }
@@ -91,9 +130,22 @@ class RawFileController extends Controller
     /**
      * Publish a raw file (creative can only publish to active, not complete)
      */
-    public function publish(string $id): JsonResponse
+    public function publish(Request $request, string $id): JsonResponse
     {
         $rawFile = $this->rawFileService->publish($id);
+
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'raw_file_published',
+                $rawFile,
+                'Raw file published',
+                ['raw_file_uuid' => $rawFile->uuid],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log raw file activity', ['error' => $e->getMessage()]);
+        }
 
         return ApiResponse::success($rawFile);
     }
@@ -104,6 +156,19 @@ class RawFileController extends Controller
     public function recover(RecoverMediaRequest $request, string $id): JsonResponse
     {
         $result = $this->rawFileService->recover($id, $request->validated()['mediaIds']);
+
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'raw_file_media_recovered',
+                null,
+                'Raw file media recovered',
+                ['raw_file_uuid' => $id, 'media_count' => count($request->validated()['mediaIds'])],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log raw file activity', ['error' => $e->getMessage()]);
+        }
 
         return ApiResponse::success($result);
     }
@@ -133,10 +198,23 @@ class RawFileController extends Controller
     /**
      * Reset raw file limit
      */
-    public function resetRawFileLimit(string $id): JsonResponse
+    public function resetRawFileLimit(Request $request, string $id): JsonResponse
     {
         try {
             $rawFile = $this->rawFileService->resetRawFileLimit($id);
+
+            try {
+                app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                    'raw_file_limit_reset',
+                    $rawFile,
+                    'Raw file selection limit reset',
+                    ['raw_file_uuid' => $id],
+                    $request->user(),
+                    $request
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Failed to log raw file activity', ['error' => $e->getMessage()]);
+            }
 
             return ApiResponse::success($rawFile);
         } catch (\RuntimeException $e) {
@@ -153,6 +231,19 @@ class RawFileController extends Controller
             $validated = $request->validated();
             $focalPoint = $validated['focal_point'] ?? null;
             $rawFile = $this->rawFileService->setCoverPhotoFromMedia($id, $validated['media_uuid'], $focalPoint);
+
+            try {
+                app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                    'raw_file_cover_photo_set',
+                    $rawFile,
+                    'Raw file cover photo set',
+                    ['raw_file_uuid' => $id],
+                    $request->user(),
+                    $request
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Failed to log raw file activity', ['error' => $e->getMessage()]);
+            }
 
             return ApiResponse::success($rawFile);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -173,9 +264,23 @@ class RawFileController extends Controller
     /**
      * Toggle star status for a raw file
      */
-    public function toggleStar(string $id): JsonResponse
+    public function toggleStar(Request $request, string $id): JsonResponse
     {
         $result = $this->rawFileService->toggleStar($id);
+
+        try {
+            $rawFile = $this->rawFileService->find($id);
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                $result['starred'] ? 'raw_file_starred' : 'raw_file_unstarred',
+                $rawFile,
+                $result['starred'] ? 'Raw file starred' : 'Raw file unstarred',
+                ['raw_file_uuid' => $id],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log raw file activity', ['error' => $e->getMessage()]);
+        }
 
         return ApiResponse::success($result);
     }
@@ -183,9 +288,22 @@ class RawFileController extends Controller
     /**
      * Duplicate a raw file
      */
-    public function duplicate(string $id): JsonResponse
+    public function duplicate(Request $request, string $id): JsonResponse
     {
         $duplicated = $this->rawFileService->duplicate($id);
+
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'raw_file_duplicated',
+                $duplicated,
+                'Raw file duplicated',
+                ['source_uuid' => $id, 'new_uuid' => $duplicated->uuid],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log raw file activity', ['error' => $e->getMessage()]);
+        }
 
         return ApiResponse::success($duplicated, 201);
     }

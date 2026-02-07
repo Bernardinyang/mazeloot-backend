@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\V1\AuthController;
+use App\Http\Controllers\V1\ContactController;
 use App\Http\Controllers\V1\CacheController;
 use App\Http\Controllers\V1\EarlyAccessController;
 use App\Http\Controllers\V1\ImageUploadController;
@@ -33,6 +34,17 @@ Route::prefix('cache')->group(function () {
 
 // Products (public or authenticated)
 Route::get('/products', [ProductController::class, 'index']);
+
+// Contact form (public)
+Route::post('/contact', [ContactController::class, 'submit'])->middleware('throttle:5,60');
+
+// Waitlist (public)
+Route::post('/public/waitlist', [\App\Http\Controllers\V1\WaitlistController::class, 'store'])->middleware('throttle:5,60');
+
+// Newsletter (public)
+Route::post('/public/newsletter', [\App\Http\Controllers\V1\NewsletterController::class, 'store'])->middleware('throttle:5,60');
+Route::get('/public/newsletter/token/{token}', [\App\Http\Controllers\V1\NewsletterController::class, 'getByToken'])->middleware('throttle:10,60');
+Route::get('/public/newsletter/unsubscribe/{token}', [\App\Http\Controllers\V1\NewsletterController::class, 'unsubscribe'])->middleware('throttle:10,60');
 
 // Pricing (public)
 Route::get('/pricing/tiers', [PricingController::class, 'tiers']);
@@ -72,6 +84,7 @@ Route::prefix('auth')->group(function () {
 // Note: API key auth middleware (ApiKeyAuth) can be added to support programmatic access
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/auth/user', [AuthController::class, 'user']);
+    Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/storage', [AuthController::class, 'storage']);
     Route::post('/uploads', [UploadController::class, 'upload']);
     Route::post('/images/upload', [ImageUploadController::class, 'upload']);

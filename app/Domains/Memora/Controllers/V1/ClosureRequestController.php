@@ -42,6 +42,19 @@ class ClosureRequestController extends Controller
                 userId: Auth::user()->uuid
             );
 
+            try {
+                app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                    'closure_request_created',
+                    $closureRequest,
+                    'Closure request created',
+                    ['closure_request_uuid' => $closureRequest->uuid, 'proofing_id' => $request->input('proofing_id'), 'media_id' => $request->input('media_id')],
+                    $request->user(),
+                    $request
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Failed to log closure request activity', ['error' => $e->getMessage()]);
+            }
+
             return ApiResponse::success([
                 'closure_request' => [
                     'uuid' => $closureRequest->uuid,
@@ -125,6 +138,19 @@ class ClosureRequestController extends Controller
                 email: $request->input('email')
             );
 
+            try {
+                app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                    'closure_request_approved',
+                    $closureRequest,
+                    'Closure request approved',
+                    ['closure_request_uuid' => $closureRequest->uuid],
+                    null,
+                    $request
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Failed to log closure request activity', ['error' => $e->getMessage()]);
+            }
+
             return ApiResponse::success([
                 'closure_request' => [
                     'uuid' => $closureRequest->uuid,
@@ -158,6 +184,19 @@ class ClosureRequestController extends Controller
                 reason: $request->input('reason')
             );
 
+            try {
+                app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                    'closure_request_rejected',
+                    $closureRequest,
+                    'Closure request rejected',
+                    ['closure_request_uuid' => $closureRequest->uuid],
+                    null,
+                    $request
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Failed to log closure request activity', ['error' => $e->getMessage()]);
+            }
+
             return ApiResponse::success([
                 'closure_request' => [
                     'uuid' => $closureRequest->uuid,
@@ -177,10 +216,23 @@ class ClosureRequestController extends Controller
     /**
      * Resend closure request email to client (authenticated - creative only).
      */
-    public function resend(string $uuid): JsonResponse
+    public function resend(Request $request, string $uuid): JsonResponse
     {
         try {
             $this->closureRequestService->resendNotification($uuid, Auth::user()->uuid);
+
+            try {
+                app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                    'closure_request_resent',
+                    null,
+                    'Closure request email resent',
+                    ['closure_request_uuid' => $uuid],
+                    $request->user(),
+                    $request
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Failed to log closure request activity', ['error' => $e->getMessage()]);
+            }
 
             return ApiResponse::success([
                 'message' => 'Closure request email resent to client.',
@@ -198,10 +250,23 @@ class ClosureRequestController extends Controller
     /**
      * Cancel a pending closure request (authenticated - creative only).
      */
-    public function cancel(string $uuid): JsonResponse
+    public function cancel(Request $request, string $uuid): JsonResponse
     {
         try {
             $this->closureRequestService->cancel($uuid, Auth::user()->uuid);
+
+            try {
+                app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                    'closure_request_cancelled',
+                    null,
+                    'Closure request cancelled',
+                    ['closure_request_uuid' => $uuid],
+                    $request->user(),
+                    $request
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Failed to log closure request activity', ['error' => $e->getMessage()]);
+            }
 
             return ApiResponse::success([
                 'message' => 'Closure request cancelled.',

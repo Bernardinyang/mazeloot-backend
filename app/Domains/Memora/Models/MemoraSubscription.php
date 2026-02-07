@@ -64,4 +64,23 @@ class MemoraSubscription extends Model
     {
         return $this->canceled_at !== null && $this->current_period_end?->isFuture();
     }
+
+    /**
+     * Return the effective period end for display (renewal date).
+     * If stored current_period_end is missing or not after period_start, derive from billing cycle.
+     */
+    public function getEffectivePeriodEnd(): ?\Illuminate\Support\Carbon
+    {
+        $start = $this->current_period_start;
+        $end = $this->current_period_end;
+        if ($start && $end && $end->gt($start)) {
+            return $end;
+        }
+        if (! $start) {
+            return $end;
+        }
+        return $this->billing_cycle === 'annual'
+            ? $start->copy()->addYear()
+            : $start->copy()->addMonth();
+    }
 }

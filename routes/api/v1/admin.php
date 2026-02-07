@@ -2,11 +2,15 @@
 
 use App\Http\Controllers\V1\Admin\ActivityLogController;
 use App\Http\Controllers\V1\Admin\AnalyticsController;
+use App\Http\Controllers\V1\Admin\ContactSubmissionController;
 use App\Http\Controllers\V1\Admin\DashboardController;
+use App\Http\Controllers\V1\Admin\DowngradeRequestController;
 use App\Http\Controllers\V1\Admin\EarlyAccessController;
+use App\Http\Controllers\V1\Admin\UpgradeRequestController;
 use App\Http\Controllers\V1\Admin\PricingController;
 use App\Http\Controllers\V1\Admin\ProductController;
 use App\Http\Controllers\V1\Admin\UserController;
+use App\Http\Controllers\V1\Admin\WaitlistController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -54,6 +58,29 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('/early-access/{uuid}', [EarlyAccessController::class, 'show']);
     Route::patch('/early-access/{uuid}', [EarlyAccessController::class, 'update']);
     Route::delete('/early-access/{uuid}', [EarlyAccessController::class, 'destroy']);
+
+    // Contact form submissions
+    Route::get('/contact-submissions', [ContactSubmissionController::class, 'index']);
+    Route::get('/contact-submissions/{uuid}', [ContactSubmissionController::class, 'show']);
+
+    // Waitlist
+    Route::get('/waitlist', [WaitlistController::class, 'index']);
+    Route::get('/waitlist/{uuid}', [WaitlistController::class, 'show']);
+
+    // Newsletter
+    Route::get('/newsletter', [\App\Http\Controllers\V1\Admin\NewsletterController::class, 'index']);
+
+    // Downgrade requests (Memora)
+    Route::get('/downgrade-requests', [DowngradeRequestController::class, 'index']);
+    Route::get('/downgrade-requests/{uuid}', [DowngradeRequestController::class, 'show']);
+    Route::post('/downgrade-requests/{uuid}/generate-invoice', [DowngradeRequestController::class, 'generateInvoice']);
+    Route::post('/downgrade-requests/{uuid}/cancel', [DowngradeRequestController::class, 'cancel']);
+
+    // Upgrade requests (Memora)
+    Route::get('/upgrade-requests', [UpgradeRequestController::class, 'index']);
+    Route::get('/upgrade-requests/{uuid}', [UpgradeRequestController::class, 'show']);
+    Route::post('/upgrade-requests/{uuid}/generate-invoice', [UpgradeRequestController::class, 'generateInvoice']);
+    Route::post('/upgrade-requests/{uuid}/cancel', [UpgradeRequestController::class, 'cancel']);
 
     // Memora Pricing (fixed tiers + BYO config + addons)
     Route::get('/pricing/tiers', [PricingController::class, 'tiers']);

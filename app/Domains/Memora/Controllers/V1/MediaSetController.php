@@ -50,6 +50,8 @@ class MediaSetController extends Controller
     {
         $set = $this->mediaSetService->create($selectionId, $request->validated());
 
+        $this->logMediaSetActivity('created', $set, 'Media set created (selection)', ['selection_id' => $selectionId], $request);
+
         return ApiResponse::success(new MediaSetResource($set), 201);
     }
 
@@ -60,15 +62,19 @@ class MediaSetController extends Controller
     {
         $set = $this->mediaSetService->update($selectionId, $id, $request->validated());
 
+        $this->logMediaSetActivity('updated', $set, 'Media set updated (selection)', ['selection_id' => $selectionId], $request);
+
         return ApiResponse::success(new MediaSetResource($set));
     }
 
     /**
      * Delete a media set
      */
-    public function destroy(string $selectionId, string $id): JsonResponse
+    public function destroy(Request $request, string $selectionId, string $id): JsonResponse
     {
         $this->mediaSetService->delete($selectionId, $id);
+
+        $this->logMediaSetActivity('deleted', null, 'Media set deleted (selection)', ['selection_id' => $selectionId, 'set_id' => $id], $request);
 
         return ApiResponse::success(null, 204);
     }
@@ -84,6 +90,8 @@ class MediaSetController extends Controller
         ]);
 
         $this->mediaSetService->reorder($selectionId, $request->input('setIds'));
+
+        $this->logMediaSetActivity('media_sets_reordered', null, 'Media sets reordered (selection)', ['selection_id' => $selectionId, 'count' => count($request->input('setIds'))], $request);
 
         return ApiResponse::success(['message' => 'Sets reordered successfully']);
     }
@@ -129,6 +137,8 @@ class MediaSetController extends Controller
         $projectId = $request->query('projectId');
         $set = $this->mediaSetService->createForProofing($proofingId, $request->validated(), $projectId);
 
+        $this->logMediaSetActivity('created', $set, 'Media set created (proofing)', ['proofing_id' => $proofingId], $request);
+
         return ApiResponse::success(new MediaSetResource($set), 201);
     }
 
@@ -142,6 +152,8 @@ class MediaSetController extends Controller
         $projectId = $request->query('projectId');
         $set = $this->mediaSetService->updateForProofing($proofingId, $id, $request->validated(), $projectId);
 
+        $this->logMediaSetActivity('updated', $set, 'Media set updated (proofing)', ['proofing_id' => $proofingId], $request);
+
         return ApiResponse::success(new MediaSetResource($set));
     }
 
@@ -154,6 +166,8 @@ class MediaSetController extends Controller
     {
         $projectId = $request->query('projectId');
         $this->mediaSetService->deleteForProofing($proofingId, $id, $projectId);
+
+        $this->logMediaSetActivity('deleted', null, 'Media set deleted (proofing)', ['proofing_id' => $proofingId, 'set_id' => $id], $request);
 
         return ApiResponse::success(null, 204);
     }
@@ -172,6 +186,8 @@ class MediaSetController extends Controller
 
         $projectId = $request->query('projectId');
         $this->mediaSetService->reorderForProofing($proofingId, $request->input('setIds'), $projectId);
+
+        $this->logMediaSetActivity('media_sets_reordered', null, 'Media sets reordered (proofing)', ['proofing_id' => $proofingId, 'count' => count($request->input('setIds'))], $request);
 
         return ApiResponse::success(['message' => 'Sets reordered successfully']);
     }
@@ -230,6 +246,8 @@ class MediaSetController extends Controller
         $projectId = $request->query('projectId');
         $set = $this->mediaSetService->updateForCollection($collectionId, $id, $request->validated(), $projectId);
 
+        $this->logMediaSetActivity('updated', $set, 'Media set updated (collection)', ['collection_id' => $collectionId], $request);
+
         return ApiResponse::success(new MediaSetResource($set));
     }
 
@@ -242,6 +260,8 @@ class MediaSetController extends Controller
     {
         $projectId = $request->query('projectId');
         $this->mediaSetService->deleteForCollection($collectionId, $id, $projectId);
+
+        $this->logMediaSetActivity('deleted', null, 'Media set deleted (collection)', ['collection_id' => $collectionId, 'set_id' => $id], $request);
 
         return ApiResponse::success(null, 204);
     }
@@ -260,6 +280,8 @@ class MediaSetController extends Controller
 
         $projectId = $request->query('projectId');
         $this->mediaSetService->reorderForCollection($collectionId, $request->input('setIds'), $projectId);
+
+        $this->logMediaSetActivity('media_sets_reordered', null, 'Media sets reordered (collection)', ['collection_id' => $collectionId, 'count' => count($request->input('setIds'))], $request);
 
         return ApiResponse::success(['message' => 'Sets reordered successfully']);
     }
@@ -296,6 +318,8 @@ class MediaSetController extends Controller
     {
         $set = $this->mediaSetService->createForRawFile($rawFileId, $request->validated());
 
+        $this->logMediaSetActivity('created', $set, 'Media set created (raw file)', ['raw_file_id' => $rawFileId], $request);
+
         return ApiResponse::success(new MediaSetResource($set), 201);
     }
 
@@ -306,15 +330,19 @@ class MediaSetController extends Controller
     {
         $set = $this->mediaSetService->updateForRawFile($rawFileId, $id, $request->validated());
 
+        $this->logMediaSetActivity('updated', $set, 'Media set updated (raw file)', ['raw_file_id' => $rawFileId], $request);
+
         return ApiResponse::success(new MediaSetResource($set));
     }
 
     /**
      * Delete a media set for raw file
      */
-    public function destroyForRawFile(string $rawFileId, string $id): JsonResponse
+    public function destroyForRawFile(Request $request, string $rawFileId, string $id): JsonResponse
     {
         $this->mediaSetService->deleteForRawFile($rawFileId, $id);
+
+        $this->logMediaSetActivity('deleted', null, 'Media set deleted (raw file)', ['raw_file_id' => $rawFileId, 'set_id' => $id], $request);
 
         return ApiResponse::success(null, 204);
     }
@@ -331,6 +359,24 @@ class MediaSetController extends Controller
 
         $this->mediaSetService->reorderForRawFile($rawFileId, $request->input('setIds'));
 
+        $this->logMediaSetActivity('media_sets_reordered', null, 'Media sets reordered (raw file)', ['raw_file_id' => $rawFileId, 'count' => count($request->input('setIds'))], $request);
+
         return ApiResponse::success(['message' => 'Sets reordered successfully']);
+    }
+
+    private function logMediaSetActivity(string $action, $subject, string $description, array $properties, Request $request): void
+    {
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                $action,
+                $subject,
+                $description,
+                $properties,
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log media set activity', ['error' => $e->getMessage()]);
+        }
     }
 }

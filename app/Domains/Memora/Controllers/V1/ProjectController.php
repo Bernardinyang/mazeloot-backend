@@ -64,6 +64,19 @@ class ProjectController extends Controller
 
         $project = $this->projectService->create($request->validated(), $user->uuid);
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'created',
+                $project,
+                'Project created',
+                ['project_uuid' => $project->uuid, 'name' => $project->name],
+                $user,
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log project activity', ['error' => $e->getMessage()]);
+        }
+
         return ApiResponse::success(new ProjectResource($project), 201);
     }
 
@@ -75,6 +88,19 @@ class ProjectController extends Controller
     {
         $project = $this->projectService->update($id, $request->validated());
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'updated',
+                $project,
+                'Project updated',
+                ['project_uuid' => $project->uuid, 'name' => $project->name],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log project activity', ['error' => $e->getMessage()]);
+        }
+
         return ApiResponse::success(new ProjectResource($project));
     }
 
@@ -82,9 +108,25 @@ class ProjectController extends Controller
      * Delete a project
      * DELETE /api/v1/projects/:id
      */
-    public function destroy(string $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
+        $project = \App\Domains\Memora\Models\MemoraProject::where('uuid', $id)->where('user_uuid', $request->user()->uuid)->first();
         $this->projectService->delete($id);
+
+        if ($project) {
+            try {
+                app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                    'deleted',
+                    null,
+                    'Project deleted',
+                    ['project_uuid' => $id, 'name' => $project->name],
+                    $request->user(),
+                    $request
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Failed to log project activity', ['error' => $e->getMessage()]);
+            }
+        }
 
         return ApiResponse::success(null, 204);
     }
@@ -104,9 +146,23 @@ class ProjectController extends Controller
      * Toggle star status for a project
      * POST /api/v1/projects/:id/star
      */
-    public function toggleStar(string $id): JsonResponse
+    public function toggleStar(Request $request, string $id): JsonResponse
     {
         $result = $this->projectService->toggleStar($id);
+
+        try {
+            $project = \App\Domains\Memora\Models\MemoraProject::find($id);
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                $result['starred'] ? 'project_starred' : 'project_unstarred',
+                $project,
+                $result['starred'] ? 'Project starred' : 'Project unstarred',
+                ['project_uuid' => $id],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log project activity', ['error' => $e->getMessage()]);
+        }
 
         return ApiResponse::success($result);
     }

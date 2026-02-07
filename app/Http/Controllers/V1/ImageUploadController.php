@@ -9,6 +9,7 @@ use App\Services\Image\ImageUploadService;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class ImageUploadController extends Controller
 {
@@ -72,6 +73,20 @@ class ImageUploadController extends Controller
                 'variants' => $uploadResult['variants'], // Include all variants
                 'uuid' => $uploadResult['uuid'],
             ];
+        }
+
+        $userFileUuids = array_column($results, 'userFileUuid');
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                count($results) === 1 ? 'image_uploaded' : 'images_uploaded',
+                null,
+                count($results) === 1 ? 'Image uploaded' : 'Images uploaded',
+                ['count' => count($results), 'user_file_uuids' => $userFileUuids],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Failed to log image upload activity', ['error' => $e->getMessage()]);
         }
 
         // Return single object if single file, array if multiple

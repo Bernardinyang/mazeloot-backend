@@ -64,6 +64,7 @@ class SelectionController extends Controller
     {
         $selection = $this->selectionService->create($request->validated());
 
+        $this->logSelectionActivity('created', 'Selection phase created', ['selection_uuid' => $selection->uuid ?? $selection['uuid'] ?? null], $request);
         return ApiResponse::success($selection, 201);
     }
 
@@ -74,15 +75,29 @@ class SelectionController extends Controller
     {
         $selection = $this->selectionService->update($id, $request->validated());
 
+        $this->logSelectionActivity('updated', 'Selection phase updated', ['selection_uuid' => $id], $request);
         return ApiResponse::success($selection);
     }
 
     /**
      * Delete a selection
      */
-    public function destroy(string $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
         $this->selectionService->delete($id);
+
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'deleted',
+                null,
+                'Selection phase deleted',
+                ['selection_uuid' => $id],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log selection activity', ['error' => $e->getMessage()]);
+        }
 
         return ApiResponse::success(null, 204);
     }
@@ -90,10 +105,11 @@ class SelectionController extends Controller
     /**
      * Publish a selection (creative can only publish to active, not complete)
      */
-    public function publish(string $id): JsonResponse
+    public function publish(Request $request, string $id): JsonResponse
     {
         $selection = $this->selectionService->publish($id);
 
+        $this->logSelectionActivity('selection_published', 'Selection published', ['selection_uuid' => $id], $request);
         return ApiResponse::success($selection);
     }
 
@@ -104,6 +120,7 @@ class SelectionController extends Controller
     {
         $result = $this->selectionService->recover($id, $request->validated()['mediaIds']);
 
+        $this->logSelectionActivity('selection_media_recovered', 'Selection media recovered', ['selection_uuid' => $id, 'media_count' => count($request->validated()['mediaIds'])], $request);
         return ApiResponse::success($result);
     }
 
@@ -132,11 +149,12 @@ class SelectionController extends Controller
     /**
      * Reset selection limit
      */
-    public function resetSelectionLimit(string $id): JsonResponse
+    public function resetSelectionLimit(Request $request, string $id): JsonResponse
     {
         try {
             $selection = $this->selectionService->resetSelectionLimit($id);
 
+            $this->logSelectionActivity('selection_limit_reset', 'Selection limit reset', ['selection_uuid' => $id], $request);
             return ApiResponse::success($selection);
         } catch (\RuntimeException $e) {
             return ApiResponse::error($e->getMessage(), 'INVALID_OPERATION', 400);
@@ -153,6 +171,7 @@ class SelectionController extends Controller
             $focalPoint = $validated['focal_point'] ?? null;
             $selection = $this->selectionService->setCoverPhotoFromMedia($id, $validated['media_uuid'], $focalPoint);
 
+            $this->logSelectionActivity('selection_cover_photo_set', 'Selection cover photo set', ['selection_uuid' => $id], $request);
             return ApiResponse::success($selection);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ApiResponse::error('Selection or media not found', 'NOT_FOUND', 404);
@@ -172,20 +191,39 @@ class SelectionController extends Controller
     /**
      * Toggle star status for a selection
      */
-    public function toggleStar(string $id): JsonResponse
+    public function toggleStar(Request $request, string $id): JsonResponse
     {
         $result = $this->selectionService->toggleStar($id);
 
+        $action = ($result['starred'] ?? false) ? 'selection_starred' : 'selection_unstarred';
+        $this->logSelectionActivity($action, $result['starred'] ? 'Selection starred' : 'Selection unstarred', ['selection_uuid' => $id], $request);
         return ApiResponse::success($result);
     }
 
     /**
      * Duplicate a selection
      */
-    public function duplicate(string $id): JsonResponse
+    public function duplicate(Request $request, string $id): JsonResponse
     {
         $duplicated = $this->selectionService->duplicate($id);
 
+        $this->logSelectionActivity('selection_duplicated', 'Selection duplicated', ['selection_uuid' => $id, 'new_uuid' => $duplicated->uuid ?? null], $request);
         return ApiResponse::success($duplicated, 201);
+    }
+
+    private function logSelectionActivity(string $action, string $description, array $properties, Request $request): void
+    {
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                $action,
+                null,
+                $description,
+                $properties,
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log selection activity', ['error' => $e->getMessage()]);
+        }
     }
 }

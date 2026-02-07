@@ -6,6 +6,7 @@ use App\Enums\UserRoleEnum;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\UserStatus;
+use App\Services\Notification\NotificationService;
 use App\Services\Pagination\PaginationService;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -16,7 +17,8 @@ use Illuminate\Validation\Rule;
 class UserController extends Controller
 {
     public function __construct(
-        protected PaginationService $paginationService
+        protected PaginationService $paginationService,
+        protected NotificationService $notificationService
     ) {}
 
     /**
@@ -189,6 +191,14 @@ class UserController extends Controller
             causer: Auth::user()
         );
 
+        $this->notifyOtherAdmins(
+            'user_role_updated',
+            'User role updated',
+            "User {$user->first_name} {$user->last_name} ({$user->email}) role changed from {$oldRole} to {$validated['role']->value}.",
+            "/admin/users/{$user->uuid}",
+            ['user_uuid' => $user->uuid, 'user_email' => $user->email]
+        );
+
         return ApiResponse::successOk([
             'message' => 'User role updated successfully',
             'user' => [
@@ -226,6 +236,14 @@ class UserController extends Controller
             causer: Auth::user()
         );
 
+        $this->notifyOtherAdmins(
+            'user_suspended',
+            'User suspended',
+            "User {$user->first_name} {$user->last_name} ({$user->email}) was suspended.",
+            "/admin/users/{$user->uuid}",
+            ['user_uuid' => $user->uuid, 'user_email' => $user->email]
+        );
+
         return ApiResponse::successOk([
             'message' => 'User suspended successfully',
         ]);
@@ -261,8 +279,42 @@ class UserController extends Controller
             causer: Auth::user()
         );
 
+        $this->notifyOtherAdmins(
+            'user_activated',
+            'User activated',
+            "User {$user->first_name} {$user->last_name} ({$user->email}) was activated.",
+            "/admin/users/{$user->uuid}",
+            ['user_uuid' => $user->uuid, 'user_email' => $user->email]
+        );
+
         return ApiResponse::successOk([
             'message' => 'User activated successfully',
         ]);
+    }
+
+    /**
+     * Notify all admins/super_admins except the current actor (in-app, product general).
+     */
+    private function notifyOtherAdmins(string $type, string $title, string $message, string $actionUrl, array $metadata = []): void
+    {
+        $currentUuid = Auth::id();
+        $adminUuids = User::whereIn('role', [UserRoleEnum::ADMIN, UserRoleEnum::SUPER_ADMIN])
+            ->where('uuid', '!=', $currentUuid)
+            ->pluck('uuid')
+            ->toArray();
+
+        foreach ($adminUuids as $adminUuid) {
+            $this->notificationService->create(
+                $adminUuid,
+                'general',
+                $type,
+                $title,
+                $message,
+                null,
+                null,
+                $actionUrl,
+                $metadata
+            );
+        }
     }
 }

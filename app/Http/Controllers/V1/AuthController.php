@@ -12,6 +12,7 @@ use App\Http\Requests\V1\SendMagicLinkRequest;
 use App\Http\Requests\V1\VerifyEmailRequest;
 use App\Http\Requests\V1\VerifyMagicLinkRequest;
 use App\Models\User;
+use App\Models\Waitlist;
 use App\Services\Auth\EmailVerificationService;
 use App\Services\Auth\MagicLinkService;
 use App\Services\Auth\PasswordResetService;
@@ -72,13 +73,15 @@ class AuthController extends Controller
             $user->load('status');
         }
 
-        // Log login activity (password)
+        // Log login activity (password) — pass user as causer (not authenticated yet)
         try {
             app(\App\Services\ActivityLog\ActivityLogService::class)->log(
                 'logged_in',
                 $user,
                 'User logged in',
-                ['auth_method' => 'password']
+                ['auth_method' => 'password'],
+                $user,
+                $request
             );
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Failed to log login activity', [
@@ -133,12 +136,33 @@ class AuthController extends Controller
         // Send verification code
         $this->verificationService->sendVerificationCode($user);
 
-        // Log registration activity
+        // Update waitlist status for ALL products if user was on waitlist
+        // This handles cases where the same email joined waitlist for multiple products
+        try {
+            Waitlist::where('email', $user->email)
+                ->where('status', 'not_registered')
+                ->update([
+                    'status' => 'registered',
+                    'user_uuid' => $user->uuid,
+                    'registered_at' => now(),
+                ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to update waitlist status', [
+                'user_uuid' => $user->uuid ?? null,
+                'email' => $user->email,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // Log registration activity (causer = user, not authenticated yet)
         try {
             app(\App\Services\ActivityLog\ActivityLogService::class)->log(
                 'registered',
                 $user,
-                'User registered'
+                'User registered',
+                null,
+                $user,
+                $request
             );
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Failed to log registration activity', [
@@ -197,12 +221,15 @@ class AuthController extends Controller
         // Create token for login
         $token = $user->createToken('auth-token')->plainTextToken;
 
-        // Log email verification activity
+        // Log email verification activity (causer = user)
         try {
             app(\App\Services\ActivityLog\ActivityLogService::class)->log(
                 'email_verified',
                 $user,
-                'Email verified'
+                'Email verified',
+                null,
+                $user,
+                $request
             );
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Failed to log email verification activity', [
@@ -252,12 +279,15 @@ class AuthController extends Controller
 
         $this->verificationService->sendVerificationCode($user);
 
-        // Log verification code resend activity
+        // Log verification code resend activity (causer = user)
         try {
             app(\App\Services\ActivityLog\ActivityLogService::class)->log(
                 'verification_code_resent',
                 $user,
-                'Verification code resent'
+                'Verification code resent',
+                null,
+                $user,
+                $request
             );
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Failed to log verification resend activity', [
@@ -287,12 +317,15 @@ class AuthController extends Controller
 
         $this->passwordResetService->sendResetCode($user);
 
-        // Log password reset requested activity
+        // Log password reset requested activity (causer = user)
         try {
             app(\App\Services\ActivityLog\ActivityLogService::class)->log(
                 'password_reset_requested',
                 $user,
-                'Password reset requested'
+                'Password reset requested',
+                null,
+                $user,
+                $request
             );
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Failed to log password reset request activity', [
@@ -349,12 +382,15 @@ class AuthController extends Controller
             return ApiResponse::error('Invalid or expired reset code.', 'INVALID_CODE', 400);
         }
 
-        // Log password reset activity
+        // Log password reset activity (causer = user)
         try {
             app(\App\Services\ActivityLog\ActivityLogService::class)->log(
                 'password_reset',
                 $user,
-                'Password reset'
+                'Password reset',
+                null,
+                $user,
+                $request
             );
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Failed to log password reset activity', [
@@ -421,12 +457,30 @@ class AuthController extends Controller
                         'provider' => $provider,
                         'provider_id' => $socialUser->getId(),
                     ]);
+
+                    // Update waitlist status for ALL products if user was on waitlist
+                    // This handles cases where the same email joined waitlist for multiple products
+                    try {
+                        Waitlist::where('email', $user->email)
+                            ->where('status', 'not_registered')
+                            ->update([
+                                'status' => 'registered',
+                                'user_uuid' => $user->uuid,
+                                'registered_at' => now(),
+                            ]);
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::error('Failed to update waitlist status (OAuth link)', [
+                            'user_uuid' => $user->uuid ?? null,
+                            'email' => $user->email,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
                 } else {
                     // Create new user from OAuth
                     $nameParts = $this->splitName($socialUser->getName());
 
                     $user = DB::transaction(function () use ($socialUser, $provider, $nameParts) {
-                        return User::create([
+                        $newUser = User::create([
                             'first_name' => $nameParts['first_name'],
                             'last_name' => $nameParts['last_name'],
                             'email' => $socialUser->getEmail(),
@@ -436,6 +490,26 @@ class AuthController extends Controller
                             'password' => null, // No password for OAuth users
                             'profile_photo' => $socialUser->getAvatar(),
                         ]);
+
+                        // Update waitlist status for ALL products if user was on waitlist
+                        // This handles cases where the same email joined waitlist for multiple products
+                        try {
+                            Waitlist::where('email', $newUser->email)
+                                ->where('status', 'not_registered')
+                                ->update([
+                                    'status' => 'registered',
+                                    'user_uuid' => $newUser->uuid,
+                                    'registered_at' => now(),
+                                ]);
+                        } catch (\Throwable $e) {
+                            \Illuminate\Support\Facades\Log::error('Failed to update waitlist status (OAuth)', [
+                                'user_uuid' => $newUser->uuid ?? null,
+                                'email' => $newUser->email,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+
+                        return $newUser;
                     });
                 }
             } else {
@@ -461,7 +535,7 @@ class AuthController extends Controller
             // Create token
             $token = $user->createToken('auth-token')->plainTextToken;
 
-            // Log OAuth login activity
+            // Log OAuth login activity — pass user as causer (not authenticated yet)
             try {
                 app(\App\Services\ActivityLog\ActivityLogService::class)->log(
                     'logged_in',
@@ -470,7 +544,9 @@ class AuthController extends Controller
                     [
                         'auth_method' => 'oauth',
                         'provider' => $provider,
-                    ]
+                    ],
+                    $user,
+                    request()
                 );
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::error('Failed to log OAuth login activity', [
@@ -521,12 +597,15 @@ class AuthController extends Controller
 
         $this->magicLinkService->sendMagicLink($user);
 
-        // Log magic link sent activity
+        // Log magic link sent activity (causer = user)
         try {
             app(\App\Services\ActivityLog\ActivityLogService::class)->log(
                 'magic_link_sent',
                 $user,
-                'Magic link sent'
+                'Magic link sent',
+                null,
+                $user,
+                $request
             );
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Failed to log magic link sent activity', [
@@ -578,13 +657,15 @@ class AuthController extends Controller
             $user->load('status');
         }
 
-        // Log magic link login activity
+        // Log magic link login activity — pass user as causer (not authenticated yet)
         try {
             app(\App\Services\ActivityLog\ActivityLogService::class)->log(
                 'logged_in',
                 $user,
                 'User logged in via magic link',
-                ['auth_method' => 'magic_link']
+                ['auth_method' => 'magic_link'],
+                $user,
+                $request
             );
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Failed to log magic link login activity', [
@@ -683,6 +764,34 @@ class AuthController extends Controller
                 ] : null,
             ],
         ]);
+    }
+
+    /**
+     * Logout: revoke current token and log activity.
+     */
+    public function logout(\Illuminate\Http\Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if ($user) {
+            try {
+                app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                    'logged_out',
+                    $user,
+                    'User logged out',
+                    null,
+                    $user,
+                    $request
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to log logout activity', [
+                    'user_uuid' => $user->uuid ?? null,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+            $request->user()->currentAccessToken()->delete();
+        }
+
+        return ApiResponse::successOk(['message' => 'Logged out successfully']);
     }
 
     /**

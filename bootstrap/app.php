@@ -43,6 +43,28 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Send errors to Slack (skip validation errors and 404s)
+        $exceptions->report(function (\Throwable $e) {
+            // Skip validation errors and 404s
+            if ($e instanceof \Illuminate\Validation\ValidationException) {
+                return;
+            }
+
+            if ($e instanceof \Symfony\Component\HttpKernel\Exception\NotFoundHttpException) {
+                return;
+            }
+
+            try {
+                $slackService = app(\App\Services\Notification\SlackNotificationService::class);
+                $slackService->sendErrorNotification($e, request());
+            } catch (\Throwable $slackError) {
+                \Illuminate\Support\Facades\Log::error('Failed to send error to Slack', [
+                    'original_error' => $e->getMessage(),
+                    'slack_error' => $slackError->getMessage(),
+                ]);
+            }
+        });
+
         // Handle database connection limit errors (MySQL error 1203)
         $exceptions->render(function (\Illuminate\Database\QueryException $e, \Illuminate\Http\Request $request) {
             $errorCode = $e->getCode();

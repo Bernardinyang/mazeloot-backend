@@ -88,6 +88,19 @@ class ProductSelectionController extends Controller
                 }
             });
 
+            try {
+                app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                    'product_selected',
+                    $user,
+                    'User selected products',
+                    ['product_uuids' => $productUuids],
+                    $user,
+                    $request
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Failed to log product selection activity', ['error' => $e->getMessage()]);
+            }
+
             $selectedProducts = $this->productService->getUserSelectedProducts($user);
 
             return ApiResponse::successCreated($selectedProducts->values());

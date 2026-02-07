@@ -325,6 +325,19 @@ class PublicMediaController extends Controller
         try {
             $feedback = $this->mediaService->updateFeedback($feedbackId, $request->only('content'));
 
+            try {
+                app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                    'proofing_feedback_updated',
+                    $feedback,
+                    'Proofing feedback updated (guest)',
+                    ['proofing_id' => $id, 'media_id' => $mediaId, 'feedback_id' => $feedbackId],
+                    null,
+                    $request
+                );
+            } catch (\Throwable $logEx) {
+                Log::warning('Failed to log feedback activity', ['error' => $logEx->getMessage()]);
+            }
+
             return ApiResponse::success(new MediaFeedbackResource($feedback));
         } catch (\Exception $e) {
             Log::error('Failed to update feedback', [

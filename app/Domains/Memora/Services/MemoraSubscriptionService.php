@@ -5,7 +5,9 @@ namespace App\Domains\Memora\Services;
 use App\Domains\Memora\Models\MemoraByoAddon;
 use App\Domains\Memora\Models\MemoraByoConfig;
 use App\Domains\Memora\Models\MemoraCollection;
+use App\Domains\Memora\Models\MemoraDowngradeRequest;
 use App\Domains\Memora\Models\MemoraPricingTier;
+use App\Domains\Memora\Models\MemoraUpgradeRequest;
 use App\Domains\Memora\Models\MemoraProject;
 use App\Domains\Memora\Models\MemoraSubscription;
 use App\Domains\Memora\Models\MemoraSubscriptionHistory;
@@ -52,19 +54,22 @@ class MemoraSubscriptionService
 
     /**
      * Create a checkout session for a pricing tier
+     *
+     * @param  string|null  $downgradeRequestUuid  When set, metadata is added for webhook to mark downgrade request completed
+     * @param  string|null  $upgradeRequestUuid  When set, metadata is added for webhook to mark upgrade request completed
      */
-    public function createCheckoutSession(User $user, string $tier, string $billingCycle, string $paymentProvider, string $currency, ?array $byoAddons = null): array
+    public function createCheckoutSession(User $user, string $tier, string $billingCycle, string $paymentProvider, string $currency, ?array $byoAddons = null, ?string $downgradeRequestUuid = null, ?string $upgradeRequestUuid = null): array
     {
         if ($paymentProvider === 'stripe') {
-            return $this->createStripeCheckoutSession($user, $tier, $billingCycle, $currency, $byoAddons);
+            return $this->createStripeCheckoutSession($user, $tier, $billingCycle, $currency, $byoAddons, $downgradeRequestUuid, $upgradeRequestUuid);
         }
 
         if ($paymentProvider === 'paystack') {
-            return $this->createPaystackCheckoutSession($user, $tier, $billingCycle, $currency, $byoAddons);
+            return $this->createPaystackCheckoutSession($user, $tier, $billingCycle, $currency, $byoAddons, $downgradeRequestUuid, $upgradeRequestUuid);
         }
 
         if ($paymentProvider === 'flutterwave') {
-            return $this->createFlutterwaveCheckoutSession($user, $tier, $billingCycle, $currency, $byoAddons);
+            return $this->createFlutterwaveCheckoutSession($user, $tier, $billingCycle, $currency, $byoAddons, $downgradeRequestUuid, $upgradeRequestUuid);
         }
 
         if ($paymentProvider === 'paypal') {
@@ -77,6 +82,22 @@ class MemoraSubscriptionService
         }
 
         throw new \RuntimeException("Unknown payment provider: {$paymentProvider}");
+    }
+
+    /**
+     * Create checkout session for admin-initiated downgrade (adds downgrade_request_uuid to metadata).
+     */
+    public function createCheckoutSessionForDowngrade(User $user, string $tier, string $billingCycle, string $paymentProvider, string $currency, string $downgradeRequestUuid): array
+    {
+        return $this->createCheckoutSession($user, $tier, $billingCycle, $paymentProvider, $currency, null, $downgradeRequestUuid, null);
+    }
+
+    /**
+     * Create checkout session for admin-initiated upgrade (adds upgrade_request_uuid to metadata).
+     */
+    public function createCheckoutSessionForUpgrade(User $user, string $tier, string $billingCycle, string $paymentProvider, string $currency, string $upgradeRequestUuid): array
+    {
+        return $this->createCheckoutSession($user, $tier, $billingCycle, $paymentProvider, $currency, null, null, $upgradeRequestUuid);
     }
 
     protected function createPayPalCheckoutSession(User $user, string $tier, string $billingCycle, string $currency, ?array $byoAddons): array
@@ -157,7 +178,7 @@ class MemoraSubscriptionService
         ];
     }
 
-    protected function createFlutterwaveCheckoutSession(User $user, string $tier, string $billingCycle, string $currency, ?array $byoAddons): array
+    protected function createFlutterwaveCheckoutSession(User $user, string $tier, string $billingCycle, string $currency, ?array $byoAddons, ?string $downgradeRequestUuid = null, ?string $upgradeRequestUuid = null): array
     {
         $flutterwave = app()->make(FlutterwaveProvider::class);
         $currencyLower = strtolower($currency);
@@ -188,6 +209,12 @@ class MemoraSubscriptionService
         ];
         if ($byoAddons) {
             $metadata['byo_addons'] = json_encode($byoAddons);
+        }
+        if ($downgradeRequestUuid) {
+            $metadata['downgrade_request_uuid'] = $downgradeRequestUuid;
+        }
+        if ($upgradeRequestUuid) {
+            $metadata['upgrade_request_uuid'] = $upgradeRequestUuid;
         }
 
         $result = $flutterwave->charge([
@@ -225,7 +252,7 @@ class MemoraSubscriptionService
         ];
     }
 
-    protected function createPaystackCheckoutSession(User $user, string $tier, string $billingCycle, string $currency, ?array $byoAddons): array
+    protected function createPaystackCheckoutSession(User $user, string $tier, string $billingCycle, string $currency, ?array $byoAddons, ?string $downgradeRequestUuid = null, ?string $upgradeRequestUuid = null): array
     {
         $paystack = app()->make(PaystackProvider::class);
         $currencyLower = strtolower($currency);
@@ -265,6 +292,12 @@ class MemoraSubscriptionService
         if ($byoAddons) {
             $metadata['byo_addons'] = json_encode($byoAddons);
         }
+        if ($downgradeRequestUuid) {
+            $metadata['downgrade_request_uuid'] = $downgradeRequestUuid;
+        }
+        if ($upgradeRequestUuid) {
+            $metadata['upgrade_request_uuid'] = $upgradeRequestUuid;
+        }
 
         try {
             $result = $paystack->initializeSubscriptionTransaction($user->email, $planCode, $amountSubunits, $currencyUpper, $callbackUrl, $metadata);
@@ -294,7 +327,7 @@ class MemoraSubscriptionService
         ];
     }
 
-    protected function createStripeCheckoutSession(User $user, string $tier, string $billingCycle, string $currency, ?array $byoAddons): array
+    protected function createStripeCheckoutSession(User $user, string $tier, string $billingCycle, string $currency, ?array $byoAddons, ?string $downgradeRequestUuid = null, ?string $upgradeRequestUuid = null): array
     {
         $customer = $this->stripe->getOrCreateCustomer(
             $user->email,
@@ -335,6 +368,12 @@ class MemoraSubscriptionService
         ];
         if ($byoAddons) {
             $metadata['byo_addons'] = json_encode($byoAddons);
+        }
+        if ($downgradeRequestUuid) {
+            $metadata['downgrade_request_uuid'] = $downgradeRequestUuid;
+        }
+        if ($upgradeRequestUuid) {
+            $metadata['upgrade_request_uuid'] = $upgradeRequestUuid;
         }
 
         $session = $this->stripe->createCheckoutSession([
@@ -724,6 +763,16 @@ class MemoraSubscriptionService
         $billingCycle = $metadata['billing_cycle'] ?? 'monthly';
         $byoAddons = isset($metadata['byo_addons']) ? json_decode($metadata['byo_addons'], true) : null;
 
+        $periodStartTs = $this->normalizeStripeTimestamp($stripeSubscription->current_period_start);
+        $periodEndTs = $this->normalizeStripeTimestamp($stripeSubscription->current_period_end);
+        if ($periodEndTs <= $periodStartTs) {
+            $periodEndTs = $billingCycle === 'annual'
+                ? strtotime('+1 year', $periodStartTs)
+                : strtotime('+1 month', $periodStartTs);
+        }
+        $periodStart = date('Y-m-d H:i:s', $periodStartTs);
+        $periodEnd = date('Y-m-d H:i:s', $periodEndTs);
+
         \Illuminate\Support\Facades\Log::info('Stripe checkout.session.completed: processing', [
             'subscription_id' => $subscriptionId,
             'user_uuid' => $userUuid,
@@ -731,7 +780,7 @@ class MemoraSubscriptionService
             'billing_cycle' => $billingCycle,
         ]);
 
-        DB::transaction(function () use ($user, $subscriptionId, $customerId, $stripeSubscription, $tier, $billingCycle, $byoAddons, $data) {
+        DB::transaction(function () use ($user, $subscriptionId, $customerId, $stripeSubscription, $tier, $billingCycle, $byoAddons, $data, $periodStart, $periodEnd) {
             $existingSubscription = $this->getActiveSubscription($user);
             if ($existingSubscription && $existingSubscription->stripe_subscription_id !== $subscriptionId) {
                 try {
@@ -757,8 +806,8 @@ class MemoraSubscriptionService
                 'status' => $stripeSubscription->status,
                 'amount' => $stripeSubscription->items->data[0]->price->unit_amount ?? 0,
                 'currency' => $stripeSubscription->currency,
-                'current_period_start' => date('Y-m-d H:i:s', $stripeSubscription->current_period_start),
-                'current_period_end' => date('Y-m-d H:i:s', $stripeSubscription->current_period_end),
+                'current_period_start' => $periodStart,
+                'current_period_end' => $periodEnd,
                 'metadata' => $byoAddons ? ['byo_addons' => $byoAddons] : null,
             ]);
 
@@ -788,6 +837,36 @@ class MemoraSubscriptionService
         });
 
         $this->notifySubscriptionActivated($user->fresh(), $tier, $billingCycle);
+
+        $this->markDowngradeOrUpgradeRequestCompletedFromMetadata($metadata);
+    }
+
+    /**
+     * Normalize Stripe timestamp (seconds; if value looks like milliseconds, convert).
+     */
+    protected function normalizeStripeTimestamp(int $value): int
+    {
+        return $value > 1e12 ? (int) floor($value / 1000) : $value;
+    }
+
+    protected function markDowngradeOrUpgradeRequestCompletedFromMetadata(array $metadata): void
+    {
+        $downgradeRequestUuid = $metadata['downgrade_request_uuid'] ?? null;
+        if ($downgradeRequestUuid) {
+            $req = MemoraDowngradeRequest::find($downgradeRequestUuid);
+            if ($req && $req->status !== 'completed') {
+                $req->update(['status' => 'completed', 'completed_at' => now()]);
+                \Illuminate\Support\Facades\Log::info('Downgrade request completed via checkout', ['request_uuid' => $downgradeRequestUuid, 'action' => 'downgrade_checkout_completed']);
+            }
+        }
+        $upgradeRequestUuid = $metadata['upgrade_request_uuid'] ?? null;
+        if ($upgradeRequestUuid) {
+            $req = MemoraUpgradeRequest::find($upgradeRequestUuid);
+            if ($req && $req->status !== 'completed') {
+                $req->update(['status' => 'completed', 'completed_at' => now()]);
+                \Illuminate\Support\Facades\Log::info('Upgrade request completed via checkout', ['request_uuid' => $upgradeRequestUuid, 'action' => 'upgrade_checkout_completed']);
+            }
+        }
     }
 
     /**
@@ -805,18 +884,30 @@ class MemoraSubscriptionService
             return;
         }
 
-        $subscription->update([
+        $periodStartTs = isset($data['current_period_start'])
+            ? $this->normalizeStripeTimestamp((int) $data['current_period_start'])
+            : null;
+        $periodEndTs = isset($data['current_period_end'])
+            ? $this->normalizeStripeTimestamp((int) $data['current_period_end'])
+            : null;
+        if ($periodStartTs !== null && $periodEndTs !== null && $periodEndTs <= $periodStartTs) {
+            $periodEndTs = $subscription->billing_cycle === 'annual'
+                ? strtotime('+1 year', $periodStartTs)
+                : strtotime('+1 month', $periodStartTs);
+        }
+        $updates = [
             'status' => $status,
-            'current_period_start' => isset($data['current_period_start'])
-                ? date('Y-m-d H:i:s', $data['current_period_start'])
-                : $subscription->current_period_start,
-            'current_period_end' => isset($data['current_period_end'])
-                ? date('Y-m-d H:i:s', $data['current_period_end'])
-                : $subscription->current_period_end,
             'canceled_at' => isset($data['canceled_at'])
-                ? date('Y-m-d H:i:s', $data['canceled_at'])
+                ? date('Y-m-d H:i:s', $this->normalizeStripeTimestamp((int) $data['canceled_at']))
                 : null,
-        ]);
+        ];
+        if ($periodStartTs !== null) {
+            $updates['current_period_start'] = date('Y-m-d H:i:s', $periodStartTs);
+        }
+        if ($periodEndTs !== null) {
+            $updates['current_period_end'] = date('Y-m-d H:i:s', $periodEndTs);
+        }
+        $subscription->update($updates);
 
         // If subscription is no longer active, downgrade user
         if (! in_array($status, ['active', 'trialing'])) {
@@ -1198,6 +1289,8 @@ class MemoraSubscriptionService
             $user->update(['memora_tier' => $tier]);
         });
         $this->notifySubscriptionActivated($user->fresh(), $tier, $billingCycle);
+
+        $this->markDowngradeOrUpgradeRequestCompletedFromMetadata($metadata);
     }
 
     /**
@@ -1565,6 +1658,27 @@ class MemoraSubscriptionService
             ->whereIn('status', ['active', 'trialing'])
             ->latest()
             ->first();
+    }
+
+    /**
+     * Whether user can self-service upgrade (Starter, never had a paid subscription).
+     */
+    public function canSelfServiceUpgrade(User $user): bool
+    {
+        $tier = $user->memora_tier ?? 'starter';
+        if ($tier !== 'starter') {
+            return false;
+        }
+
+        $paidTiers = ['pro', 'studio', 'business'];
+        if (MemoraSubscription::where('user_uuid', $user->uuid)->whereIn('tier', $paidTiers)->exists()) {
+            return false;
+        }
+        if (MemoraSubscriptionHistory::where('user_uuid', $user->uuid)->whereIn('to_tier', $paidTiers)->exists()) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

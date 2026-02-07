@@ -51,6 +51,19 @@ class EarlyAccessController extends Controller
             $validated['reason'] ?? null
         );
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'early_access_requested',
+                $requestRecord,
+                'Early access requested',
+                ['early_access_request_uuid' => $requestRecord->uuid],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log early access request activity', ['error' => $e->getMessage()]);
+        }
+
         return ApiResponse::successCreated([
             'message' => 'Early access request submitted successfully. You will be notified when approved.',
             'request_uuid' => $requestRecord->uuid,

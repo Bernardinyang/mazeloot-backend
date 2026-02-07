@@ -11,6 +11,7 @@ use App\Services\Video\VideoThumbnailGenerator;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class UploadController extends Controller
@@ -58,6 +59,18 @@ class UploadController extends Controller
                 $responseData['thumbnail'] = $thumbnailUrl;
             }
 
+            try {
+                app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                    'file_uploaded',
+                    null,
+                    'File uploaded',
+                    ['user_file_uuid' => $userFile->uuid],
+                    $request->user(),
+                    $request
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Failed to log upload activity', ['error' => $e->getMessage()]);
+            }
             return ApiResponse::success($responseData);
         }
 
@@ -90,6 +103,19 @@ class UploadController extends Controller
                 $data[] = $fileData;
             }
 
+            $userFileUuids = array_column($data, 'userFileUuid');
+            try {
+                app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                    'files_uploaded',
+                    null,
+                    'Multiple files uploaded',
+                    ['count' => count($userFileUuids), 'user_file_uuids' => $userFileUuids],
+                    $request->user(),
+                    $request
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Failed to log upload activity', ['error' => $e->getMessage()]);
+            }
             return ApiResponse::success($data);
         }
 

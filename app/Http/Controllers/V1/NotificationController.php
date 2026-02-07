@@ -45,9 +45,22 @@ class NotificationController extends Controller
     /**
      * Mark a notification as read
      */
-    public function markAsRead(string $id): JsonResponse
+    public function markAsRead(Request $request, string $id): JsonResponse
     {
         $this->notificationService->markAsRead($id);
+
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'notification_marked_read',
+                null,
+                'Notification marked as read',
+                ['notification_id' => $id],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log notification activity', ['error' => $e->getMessage()]);
+        }
 
         return ApiResponse::success(null, 204);
     }
@@ -60,15 +73,41 @@ class NotificationController extends Controller
         $product = $request->query('product');
         $count = $this->notificationService->markAllAsRead($product);
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'notifications_marked_all_read',
+                null,
+                'All notifications marked as read',
+                ['count' => $count, 'product' => $product],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log notification activity', ['error' => $e->getMessage()]);
+        }
+
         return ApiResponse::success(['count' => $count]);
     }
 
     /**
      * Delete a notification
      */
-    public function destroy(string $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
         $this->notificationService->delete($id);
+
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'notification_deleted',
+                null,
+                'Notification deleted',
+                ['notification_id' => $id],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log notification activity', ['error' => $e->getMessage()]);
+        }
 
         return ApiResponse::success(null, 204);
     }

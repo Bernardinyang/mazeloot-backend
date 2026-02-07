@@ -48,6 +48,18 @@ class OnboardingController extends Controller
         $product = Product::findOrFail($productUuid);
         $token = $this->tokenService->generate($user, $product);
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'onboarding_token_generated',
+                null,
+                'Onboarding token generated',
+                ['product_uuid' => $productUuid],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log onboarding activity', ['error' => $e->getMessage()]);
+        }
         return ApiResponse::success([
             'token' => $token->token,
             'expires_at' => $token->expires_at,
@@ -166,6 +178,19 @@ class OnboardingController extends Controller
         $onboardingData[$step] = $stepData;
         $status->update(['onboarding_data' => $onboardingData]);
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'onboarding_step_completed',
+                $user,
+                'Onboarding step completed',
+                ['product_uuid' => $productUuid, 'step' => $step],
+                $user,
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log onboarding step activity', ['error' => $e->getMessage()]);
+        }
+
         return ApiResponse::success([
             'status' => $status->fresh(),
             'step' => $step,
@@ -223,6 +248,19 @@ class OnboardingController extends Controller
         // Mark as completed
         $status->markCompleted();
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'onboarding_completed',
+                $user,
+                'Onboarding completed',
+                ['product_uuid' => $productUuid],
+                $user,
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log onboarding completed activity', ['error' => $e->getMessage()]);
+        }
+
         return ApiResponse::success([
             'status' => $status->fresh(),
             'completed' => true,
@@ -260,6 +298,18 @@ class OnboardingController extends Controller
             now()->addHours(24)
         );
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'product_selection_token_generated',
+                null,
+                'Product selection token generated',
+                [],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log onboarding activity', ['error' => $e->getMessage()]);
+        }
         return ApiResponse::success([
             'token' => $token,
             'expires_at' => now()->addHours(24)->toIso8601String(),

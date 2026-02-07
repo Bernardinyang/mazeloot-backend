@@ -78,6 +78,19 @@ class PricingController extends Controller
             'is_active' => true,
         ]);
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'created',
+                $tier,
+                'Admin created pricing tier',
+                ['slug' => $tier->slug],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log pricing tier activity', ['error' => $e->getMessage()]);
+        }
+
         return ApiResponse::successCreated($this->tierToArray($tier->fresh()));
     }
 
@@ -132,17 +145,43 @@ class PricingController extends Controller
 
         $tier->update($data);
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'updated',
+                $tier,
+                'Admin updated pricing tier',
+                ['slug' => $tier->slug],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log pricing tier activity', ['error' => $e->getMessage()]);
+        }
+
         return ApiResponse::successOk($this->tierToArray($tier->fresh()));
     }
 
     /**
      * Delete a pricing tier.
      */
-    public function destroyTier(string $slug): JsonResponse
+    public function destroyTier(Request $request, string $slug): JsonResponse
     {
         $tier = MemoraPricingTier::where('slug', $slug)->first();
         if (! $tier) {
             return ApiResponse::errorNotFound('Tier not found.');
+        }
+        $slugVal = $tier->slug;
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'deleted',
+                $tier,
+                'Admin deleted pricing tier',
+                ['slug' => $slugVal],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log pricing tier activity', ['error' => $e->getMessage()]);
         }
         $tier->delete();
 
@@ -228,6 +267,19 @@ class PricingController extends Controller
         }
 
         $config->update($validator->validated());
+
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'updated',
+                $config,
+                'Admin updated BYO config',
+                null,
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log BYO config activity', ['error' => $e->getMessage()]);
+        }
 
         $basePriceMonthly = (int) $config->base_price_monthly_cents;
         $basePriceAnnual = (int) $config->base_price_annual_cents;
@@ -316,6 +368,19 @@ class PricingController extends Controller
 
         $addon = MemoraByoAddon::create($data);
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'created',
+                $addon,
+                'Admin created BYO addon',
+                ['slug' => $addon->slug],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log BYO addon activity', ['error' => $e->getMessage()]);
+        }
+
         return ApiResponse::successCreated($this->addonToArray($addon));
     }
 
@@ -362,17 +427,43 @@ class PricingController extends Controller
 
         $addon->update($data);
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'updated',
+                $addon,
+                'Admin updated BYO addon',
+                ['slug' => $addon->slug],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log BYO addon activity', ['error' => $e->getMessage()]);
+        }
+
         return ApiResponse::successOk($this->addonToArray($addon->fresh()));
     }
 
     /**
      * Delete BYO addon.
      */
-    public function destroyByoAddon(int $id): JsonResponse
+    public function destroyByoAddon(Request $request, int $id): JsonResponse
     {
         $addon = MemoraByoAddon::find($id);
         if (! $addon) {
             return ApiResponse::errorNotFound('Addon not found.');
+        }
+        $slugVal = $addon->slug;
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'deleted',
+                $addon,
+                'Admin deleted BYO addon',
+                ['slug' => $slugVal],
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log BYO addon activity', ['error' => $e->getMessage()]);
         }
         $addon->delete();
 

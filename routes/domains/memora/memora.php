@@ -38,8 +38,14 @@ Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
         Route::post('/complete-test-checkout', [SubscriptionController::class, 'completeTestCheckout']);
         Route::post('/portal', [SubscriptionController::class, 'portal']);
         Route::get('/status', [SubscriptionController::class, 'status']);
+        Route::get('/my-plan-requests', [SubscriptionController::class, 'myPlanRequests']);
+        Route::get('/pending-checkout', [SubscriptionController::class, 'pendingCheckout']);
         Route::get('/can-downgrade', [SubscriptionController::class, 'canDowngrade']);
         Route::post('/cancel', [SubscriptionController::class, 'cancel']);
+        Route::post('/request-downgrade', [SubscriptionController::class, 'requestDowngrade']);
+        Route::post('/request-upgrade', [SubscriptionController::class, 'requestUpgrade']);
+        Route::get('/downgrade-by-token', [SubscriptionController::class, 'downgradeByToken']);
+        Route::post('/confirm-downgrade', [SubscriptionController::class, 'confirmDowngrade']);
         Route::get('/history', [SubscriptionController::class, 'history']);
         Route::get('/usage', [SubscriptionController::class, 'usage']);
     });
@@ -180,6 +186,8 @@ Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
         Route::get('/notifications', [EmailNotificationController::class, 'index']);
         Route::get('/notifications/events', [EmailNotificationController::class, 'events']);
         Route::patch('/notifications', [EmailNotificationController::class, 'update']);
+        Route::get('/notifications/channels', [EmailNotificationController::class, 'channels']);
+        Route::patch('/notifications/channels', [EmailNotificationController::class, 'updateChannels']);
 
         // Social Links
         Route::prefix('social-links')->group(function () {

@@ -40,6 +40,19 @@ class ProofingApprovalRequestController extends Controller
                 userId: Auth::user()->uuid
             );
 
+            try {
+                app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                    'proofing_approval_request_created',
+                    $approvalRequest,
+                    'Proofing approval request created',
+                    ['approval_request_uuid' => $approvalRequest->uuid, 'proofing_id' => $request->input('proofing_id'), 'media_id' => $request->input('media_id')],
+                    $request->user(),
+                    $request
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Failed to log proofing approval request activity', ['error' => $e->getMessage()]);
+            }
+
             return ApiResponse::success([
                 'approval_request' => [
                     'uuid' => $approvalRequest->uuid,
@@ -122,6 +135,19 @@ class ProofingApprovalRequestController extends Controller
                 email: $request->input('email')
             );
 
+            try {
+                app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                    'proofing_approval_request_approved',
+                    $approvalRequest,
+                    'Proofing approval request approved',
+                    ['approval_request_uuid' => $approvalRequest->uuid],
+                    null,
+                    $request
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Failed to log proofing approval request activity', ['error' => $e->getMessage()]);
+            }
+
             return ApiResponse::success([
                 'approval_request' => [
                     'uuid' => $approvalRequest->uuid,
@@ -154,6 +180,19 @@ class ProofingApprovalRequestController extends Controller
                 email: $request->input('email'),
                 reason: $request->input('reason')
             );
+
+            try {
+                app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                    'proofing_approval_request_rejected',
+                    $approvalRequest,
+                    'Proofing approval request rejected',
+                    ['approval_request_uuid' => $approvalRequest->uuid],
+                    null,
+                    $request
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Failed to log proofing approval request activity', ['error' => $e->getMessage()]);
+            }
 
             return ApiResponse::success([
                 'approval_request' => [

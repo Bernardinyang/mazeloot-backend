@@ -16,7 +16,7 @@ class MemoraByoPricingSeeder extends Seeder
             'base_cost_monthly_cents' => 200,
             'base_cost_annual_cents' => 2000,
             'base_storage_bytes' => 5 * 1024 * 1024 * 1024,
-            'base_project_limit' => 1,
+            'base_project_limit' => 3,
             'base_selection_limit' => 1,
             'base_proofing_limit' => 1,
             'base_collection_limit' => 1,

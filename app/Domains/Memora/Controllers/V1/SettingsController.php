@@ -42,6 +42,19 @@ class SettingsController extends Controller
         $settings = $this->settingsService->updateBranding($request->validated());
         $settings->load(['logo', 'favicon']);
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'settings_branding_updated',
+                $settings,
+                'Branding settings updated',
+                null,
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log settings activity', ['error' => $e->getMessage()]);
+        }
+
         return ApiResponse::success(new SettingsResource($settings));
     }
 
@@ -80,6 +93,19 @@ class SettingsController extends Controller
         }
         $settings = $this->settingsService->updatePreference($data);
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'settings_preference_updated',
+                $settings,
+                'Preference settings updated',
+                null,
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log settings activity', ['error' => $e->getMessage()]);
+        }
+
         return ApiResponse::success(new SettingsResource($settings));
     }
 
@@ -94,6 +120,19 @@ class SettingsController extends Controller
         }
         $settings = $this->settingsService->updateHomepage($data);
 
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'settings_homepage_updated',
+                $settings,
+                'Homepage settings updated',
+                null,
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log settings activity', ['error' => $e->getMessage()]);
+        }
+
         return ApiResponse::success(new SettingsResource($settings));
     }
 
@@ -103,6 +142,19 @@ class SettingsController extends Controller
     public function updateEmail(UpdateEmailSettingsRequest $request): JsonResponse
     {
         $settings = $this->settingsService->updateEmailSettings($request->validated());
+
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'settings_email_updated',
+                $settings,
+                'Email settings updated',
+                null,
+                $request->user(),
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log settings activity', ['error' => $e->getMessage()]);
+        }
 
         return ApiResponse::success(new SettingsResource($settings));
     }

@@ -5,6 +5,7 @@ namespace App\Services\Notification;
 use App\Events\NotificationCreated;
 use App\Models\Notification;
 use App\Models\User;
+use App\Notifications\GenericInAppNotificationEmail;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -32,8 +33,9 @@ class NotificationService
             return 'HIGH';
         }
 
-        // MEDIUM: Important workflow milestones
+        // MEDIUM: Important workflow milestones + contact/sales
         if (
+            str_contains($type, 'contact_form') ||
             str_contains($type, 'completed') ||
             str_contains($type, 'published') ||
             str_contains($type, 'approved') ||
@@ -126,7 +128,51 @@ class NotificationService
             ]);
         }
 
+        $this->sendChannelDeliveries($notification);
+
         return $notification;
+    }
+
+    /**
+     * Send notification to email/WhatsApp based on user channel preferences (memora only).
+     */
+    private function sendChannelDeliveries(Notification $notification): void
+    {
+        $product = $notification->product;
+        if ($product !== 'memora' && $product !== 'general') {
+            return;
+        }
+
+        $channelService = app(NotificationChannelPreferenceService::class);
+        $pref = $channelService->getForUserUuid($notification->user_uuid, 'memora');
+        if (! $pref) {
+            return;
+        }
+
+        if ($pref->notify_email) {
+            try {
+                $user = User::where('uuid', $notification->user_uuid)->first();
+                if ($user) {
+                    $user->notify(new GenericInAppNotificationEmail($notification));
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Failed to send notification email', [
+                    'notification_uuid' => $notification->uuid,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        if ($pref->notify_whatsapp && $pref->whatsapp_number) {
+            try {
+                app(WhatsAppNotificationService::class)->sendNotification($notification, $pref->whatsapp_number);
+            } catch (\Throwable $e) {
+                Log::warning('Failed to send notification to WhatsApp', [
+                    'notification_uuid' => $notification->uuid,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     /**
@@ -146,7 +192,8 @@ class NotificationService
         $query = Notification::forUser($user->uuid)
             ->orderBy('created_at', 'desc');
 
-        if ($product) {
+        // Admin/super_admin see combined notifications from all products; others filter by product
+        if ($product && ! $user->isAdmin()) {
             $query->forProduct($product);
         }
 

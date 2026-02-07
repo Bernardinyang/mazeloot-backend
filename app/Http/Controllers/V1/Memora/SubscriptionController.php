@@ -4,19 +4,26 @@ namespace App\Http\Controllers\V1\Memora;
 
 use App\Domains\Memora\Models\MemoraByoConfig;
 use App\Domains\Memora\Models\MemoraCollection;
+use App\Domains\Memora\Models\MemoraDowngradeRequest;
 use App\Domains\Memora\Models\MemoraMedia;
 use App\Domains\Memora\Models\MemoraProject;
 use App\Domains\Memora\Models\MemoraProofing;
 use App\Domains\Memora\Models\MemoraRawFile;
 use App\Domains\Memora\Models\MemoraSelection;
+use App\Domains\Memora\Models\MemoraUpgradeRequest;
 use App\Domains\Memora\Services\MemoraSubscriptionService;
 use App\Http\Controllers\Controller;
+use App\Jobs\NotifyAdminsDowngradeRequest;
+use App\Jobs\NotifyAdminsUpgradeRequest;
+use App\Models\User;
 use App\Services\Currency\CurrencyService;
 use App\Services\Subscription\TierService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SubscriptionController extends Controller
 {
@@ -213,6 +220,19 @@ class SubscriptionController extends Controller
                 $request->byo_addons
             );
 
+            try {
+                app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                    'subscription_checkout_started',
+                    null,
+                    'Subscription checkout started',
+                    ['tier' => $request->tier, 'billing_cycle' => $request->billing_cycle, 'provider' => $request->payment_provider],
+                    $user,
+                    $request
+                );
+            } catch (\Throwable $logEx) {
+                Log::warning('Failed to log subscription activity', ['error' => $logEx->getMessage()]);
+            }
+
             return response()->json([
                 'data' => $result,
             ]);
@@ -280,6 +300,13 @@ class SubscriptionController extends Controller
         $user = Auth::user();
         $subscription = $this->subscriptionService->getActiveSubscription($user);
 
+        if ($subscription) {
+            $effectiveEnd = $subscription->getEffectivePeriodEnd();
+            if ($effectiveEnd && (! $subscription->current_period_end || $subscription->current_period_end->lte($subscription->current_period_start))) {
+                $subscription->update(['current_period_end' => $effectiveEnd]);
+            }
+        }
+
         $data = [
             'has_subscription' => $subscription !== null,
             'subscription' => $subscription ? [
@@ -290,11 +317,14 @@ class SubscriptionController extends Controller
                 'currency' => $subscription->currency,
                 'payment_provider' => $subscription->payment_provider,
                 'current_period_start' => $subscription->current_period_start,
-                'current_period_end' => $subscription->current_period_end,
+                'current_period_end' => $subscription->getEffectivePeriodEnd(),
                 'canceled_at' => $subscription->canceled_at,
                 'on_grace_period' => $subscription->onGracePeriod(),
             ] : null,
             'current_tier' => $user->memora_tier ?? 'starter',
+            'can_self_service_upgrade' => $this->subscriptionService->canSelfServiceUpgrade($user),
+            'has_pending_upgrade_or_downgrade_request' => MemoraUpgradeRequest::where('user_uuid', $user->uuid)->where('status', 'pending')->exists()
+                || MemoraDowngradeRequest::where('user_uuid', $user->uuid)->where('status', 'pending')->exists(),
         ];
         if ($user->memora_tier === 'byo') {
             $byoDisplay = $this->tierService->getByoPlanDisplay($user);
@@ -304,6 +334,95 @@ class SubscriptionController extends Controller
         }
 
         return response()->json(['data' => $data]);
+    }
+
+    /**
+     * List current user's upgrade and downgrade requests.
+     */
+    public function myPlanRequests(Request $request): JsonResponse
+    {
+        $user = Auth::user();
+        $limit = min((int) $request->query('limit', 20), 50);
+
+        $upgradeRequests = MemoraUpgradeRequest::where('user_uuid', $user->uuid)
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($req) => [
+                'uuid' => $req->uuid,
+                'type' => 'upgrade',
+                'current_tier' => $req->current_tier,
+                'target_tier' => $req->target_tier,
+                'status' => $req->status,
+                'requested_at' => $req->requested_at?->toIso8601String(),
+                'completed_at' => $req->completed_at?->toIso8601String(),
+            ]);
+
+        $downgradeRequests = MemoraDowngradeRequest::where('user_uuid', $user->uuid)
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($req) => [
+                'uuid' => $req->uuid,
+                'type' => 'downgrade',
+                'current_tier' => $req->current_tier,
+                'target_tier' => $req->target_tier,
+                'status' => $req->status,
+                'requested_at' => $req->requested_at?->toIso8601String(),
+                'completed_at' => $req->completed_at?->toIso8601String(),
+            ]);
+
+        return response()->json([
+            'data' => [
+                'upgrade_requests' => $upgradeRequests,
+                'downgrade_requests' => $downgradeRequests,
+            ],
+        ]);
+    }
+
+    /**
+     * Get pending checkout URL for Plan Summary (admin-generated upgrade/downgrade).
+     * Returns the first pending request with a checkout_url so user can proceed to payment.
+     */
+    public function pendingCheckout(Request $request): JsonResponse
+    {
+        $user = Auth::user();
+
+        $upgrade = MemoraUpgradeRequest::where('user_uuid', $user->uuid)
+            ->where('status', 'pending')
+            ->whereNotNull('checkout_url')
+            ->orderByDesc('created_at')
+            ->first();
+
+        if ($upgrade) {
+            return response()->json([
+                'data' => [
+                    'checkout_url' => $upgrade->checkout_url,
+                    'type' => 'upgrade',
+                    'tier' => $upgrade->target_tier,
+                    'billing_cycle' => null,
+                ],
+            ]);
+        }
+
+        $downgrade = MemoraDowngradeRequest::where('user_uuid', $user->uuid)
+            ->where('status', 'pending')
+            ->whereNotNull('checkout_url')
+            ->orderByDesc('created_at')
+            ->first();
+
+        if ($downgrade) {
+            return response()->json([
+                'data' => [
+                    'checkout_url' => $downgrade->checkout_url,
+                    'type' => 'downgrade',
+                    'tier' => $downgrade->target_tier,
+                    'billing_cycle' => null,
+                ],
+            ]);
+        }
+
+        return response()->json(['data' => null], 404);
     }
 
     /**
@@ -337,7 +456,7 @@ class SubscriptionController extends Controller
     }
 
     /**
-     * Cancel subscription (marks for cancellation at period end)
+     * Cancel subscription (end-users cannot self-cancel; use request-downgrade flow)
      */
     public function cancel(Request $request): JsonResponse
     {
@@ -351,48 +470,246 @@ class SubscriptionController extends Controller
             ], 404);
         }
 
-        $validation = $this->subscriptionService->validateDowngradeToStarter($user);
-        if (! $validation['valid']) {
+        return response()->json([
+            'error' => 'Downgrades are not self-service. Request a downgrade from Plans & Pricing; we\'ll send you a link to confirm and then switch your plan.',
+            'code' => 'DOWNGRADE_VIA_REQUEST',
+        ], 403);
+    }
+
+    /**
+     * Request a downgrade (creates request, notifies admins)
+     */
+    public function requestDowngrade(Request $request): JsonResponse
+    {
+        $user = Auth::user();
+        $subscription = $this->subscriptionService->getActiveSubscription($user);
+
+        if (! $subscription) {
             return response()->json([
-                'error' => 'Cannot downgrade: your usage exceeds Starter plan limits.',
-                'code' => 'USAGE_EXCEEDS_LIMITS',
-                'errors' => $validation['errors'],
-                'limits' => $validation['limits'],
-                'usage' => $validation['usage'],
-            ], 422);
+                'error' => 'No active subscription found',
+                'code' => 'NO_SUBSCRIPTION',
+            ], 404);
         }
 
-        $portalUrl = config('app.frontend_url').'/memora/pricing';
+        $hasPendingDowngrade = MemoraDowngradeRequest::where('user_uuid', $user->uuid)
+            ->where('status', 'pending')
+            ->exists();
+        $hasPendingUpgrade = MemoraUpgradeRequest::where('user_uuid', $user->uuid)
+            ->where('status', 'pending')
+            ->exists();
+        if ($hasPendingDowngrade || $hasPendingUpgrade) {
+            return response()->json([
+                'error' => 'You already have a pending upgrade or downgrade request.',
+                'code' => 'PENDING_REQUEST',
+            ], 409);
+        }
+
+        $downgradeRequest = MemoraDowngradeRequest::create([
+            'user_uuid' => $user->uuid,
+            'current_tier' => $subscription->tier,
+            'target_tier' => 'starter',
+            'status' => 'pending',
+            'requested_at' => now(),
+        ]);
+
+        $adminUuids = Cache::remember('downgrade_admin_uuids', 600, function () {
+            return User::whereIn('role', [\App\Enums\UserRoleEnum::ADMIN, \App\Enums\UserRoleEnum::SUPER_ADMIN])
+                ->pluck('uuid')
+                ->toArray();
+        });
+
+        if (! empty($adminUuids)) {
+            NotifyAdminsDowngradeRequest::dispatchSync(
+                $adminUuids,
+                $user->first_name,
+                $user->last_name,
+                $user->email,
+                $downgradeRequest->uuid,
+                $subscription->tier
+            );
+        }
 
         try {
-            $provider = $subscription->payment_provider ?? 'stripe';
-            $useDirectCancel = $provider === 'paypal';
-
-            if ($useDirectCancel) {
-                $this->subscriptionService->cancelSubscriptionDirectly($user);
-
-                return response()->json([
-                    'data' => [
-                        'message' => 'Subscription cancelled. You have been downgraded to Starter.',
-                        'portal_url' => $portalUrl,
-                    ],
-                ]);
-            }
-
-            $result = $this->subscriptionService->createPortalSession($user);
-
-            return response()->json([
-                'data' => [
-                    'message' => 'Redirecting to billing portal to manage subscription',
-                    'portal_url' => $result['portal_url'],
-                ],
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Failed to process cancellation',
-                'message' => $e->getMessage(),
-            ], 500);
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'subscription_downgrade_requested',
+                $downgradeRequest,
+                'User requested subscription downgrade',
+                ['current_tier' => $subscription->tier, 'target_tier' => 'starter'],
+                $user,
+                $request
+            );
+        } catch (\Throwable $logEx) {
+            Log::warning('Failed to log subscription activity', ['error' => $logEx->getMessage()]);
         }
+
+        return response()->json([
+            'data' => [
+                'request_uuid' => $downgradeRequest->uuid,
+                'message' => 'Downgrade requested. Support will send you a link to confirm.',
+            ],
+        ], 201);
+    }
+
+    /**
+     * Request an upgrade (creates request, notifies admins)
+     */
+    public function requestUpgrade(Request $request): JsonResponse
+    {
+        $request->validate(['target_tier' => 'required|string|in:pro,studio,business']);
+
+        $user = Auth::user();
+        $subscription = $this->subscriptionService->getActiveSubscription($user);
+        $currentTier = $subscription?->tier ?? $user->memora_tier ?? null;
+
+        $hasPendingUpgrade = MemoraUpgradeRequest::where('user_uuid', $user->uuid)
+            ->where('status', 'pending')
+            ->exists();
+        $hasPendingDowngrade = MemoraDowngradeRequest::where('user_uuid', $user->uuid)
+            ->where('status', 'pending')
+            ->exists();
+        if ($hasPendingUpgrade || $hasPendingDowngrade) {
+            return response()->json([
+                'error' => 'You already have a pending upgrade or downgrade request.',
+                'code' => 'PENDING_REQUEST',
+            ], 409);
+        }
+
+        $upgradeRequest = MemoraUpgradeRequest::create([
+            'user_uuid' => $user->uuid,
+            'current_tier' => $currentTier,
+            'target_tier' => $request->target_tier,
+            'status' => 'pending',
+            'requested_at' => now(),
+        ]);
+
+        $adminUuids = Cache::remember('upgrade_admin_uuids', 600, function () {
+            return User::whereIn('role', [\App\Enums\UserRoleEnum::ADMIN, \App\Enums\UserRoleEnum::SUPER_ADMIN])
+                ->pluck('uuid')
+                ->toArray();
+        });
+
+        if (! empty($adminUuids)) {
+            NotifyAdminsUpgradeRequest::dispatchSync(
+                $adminUuids,
+                $user->first_name,
+                $user->last_name,
+                $user->email,
+                $upgradeRequest->uuid,
+                $currentTier,
+                $request->target_tier
+            );
+        }
+
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'subscription_upgrade_requested',
+                $upgradeRequest,
+                'User requested subscription upgrade',
+                ['current_tier' => $currentTier, 'target_tier' => $request->target_tier],
+                $user,
+                $request
+            );
+        } catch (\Throwable $logEx) {
+            Log::warning('Failed to log subscription activity', ['error' => $logEx->getMessage()]);
+        }
+
+        return response()->json([
+            'data' => [
+                'request_uuid' => $upgradeRequest->uuid,
+                'message' => 'Upgrade requested. Support will send you a checkout link to complete the change.',
+            ],
+        ], 201);
+    }
+
+    /**
+     * Get downgrade request by token (for confirm page)
+     */
+    public function downgradeByToken(Request $request): JsonResponse
+    {
+        $token = $request->query('token');
+        if (! $token) {
+            return response()->json(['error' => 'Token required'], 404);
+        }
+
+        $downgradeRequest = MemoraDowngradeRequest::where('confirm_token', $token)->first();
+        if (! $downgradeRequest || $downgradeRequest->status !== 'pending') {
+            return response()->json(['error' => 'Invalid or expired link'], 404);
+        }
+
+        if ($downgradeRequest->confirm_token_expires_at && $downgradeRequest->confirm_token_expires_at->isPast()) {
+            return response()->json(['error' => 'Link has expired'], 404);
+        }
+
+        $user = $downgradeRequest->user;
+        $currentPlan = $downgradeRequest->current_tier;
+
+        return response()->json([
+            'data' => [
+                'target_tier' => $downgradeRequest->target_tier,
+                'user_display_name' => trim($user->first_name.' '.$user->last_name) ?: $user->email,
+                'current_plan' => $currentPlan,
+                'expires_at' => $downgradeRequest->confirm_token_expires_at?->toIso8601String(),
+            ],
+        ]);
+    }
+
+    /**
+     * Confirm downgrade (token flow for Starter)
+     */
+    public function confirmDowngrade(Request $request): JsonResponse
+    {
+        $request->validate(['token' => 'required|string']);
+
+        $user = Auth::user();
+        $downgradeRequest = MemoraDowngradeRequest::where('confirm_token', $request->token)->first();
+
+        if (! $downgradeRequest || $downgradeRequest->user_uuid !== $user->uuid) {
+            return response()->json(['error' => 'Invalid or expired link'], 404);
+        }
+
+        if ($downgradeRequest->status === 'completed') {
+            return response()->json(['data' => ['message' => 'Downgrade already completed']]);
+        }
+
+        if ($downgradeRequest->confirm_token_expires_at && $downgradeRequest->confirm_token_expires_at->isPast()) {
+            return response()->json(['error' => 'Link has expired'], 404);
+        }
+
+        if ($downgradeRequest->target_tier !== 'starter') {
+            return response()->json(['error' => 'Invalid request'], 422);
+        }
+
+        $this->subscriptionService->cancelSubscriptionDirectly($user);
+
+        $downgradeRequest->update([
+            'status' => 'completed',
+            'completed_at' => now(),
+            'confirm_token' => null,
+            'confirm_token_expires_at' => null,
+        ]);
+
+        Log::info('Downgrade confirmed', [
+            'user_uuid' => $user->uuid,
+            'request_uuid' => $downgradeRequest->uuid,
+            'action' => 'confirm_downgrade',
+        ]);
+
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'subscription_downgrade_confirmed',
+                $downgradeRequest,
+                'User confirmed subscription downgrade to Starter',
+                ['target_tier' => 'starter'],
+                $user,
+                $request
+            );
+        } catch (\Throwable $logEx) {
+            Log::warning('Failed to log subscription activity', ['error' => $logEx->getMessage()]);
+        }
+
+        return response()->json([
+            'data' => ['message' => 'You have been downgraded to Starter.'],
+        ]);
     }
 
     /**
