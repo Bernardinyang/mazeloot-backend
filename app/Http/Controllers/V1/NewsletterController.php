@@ -75,7 +75,7 @@ class NewsletterController extends Controller
             }
 
             $data = json_decode($decoded, true);
-            if (!isset($data['email']) || !isset($data['uuid'])) {
+            if (! isset($data['email']) || ! isset($data['uuid'])) {
                 return ApiResponse::error('Invalid unsubscribe link.', 400);
             }
 
@@ -83,7 +83,7 @@ class NewsletterController extends Controller
                 ->where('email', $data['email'])
                 ->first();
 
-            if (!$newsletter) {
+            if (! $newsletter) {
                 return ApiResponse::error('Newsletter subscription not found.', 404);
             }
 
@@ -113,7 +113,7 @@ class NewsletterController extends Controller
             }
 
             $data = json_decode($decoded, true);
-            if (!isset($data['email']) || !isset($data['uuid'])) {
+            if (! isset($data['email']) || ! isset($data['uuid'])) {
                 return ApiResponse::error('Invalid unsubscribe link.', 400);
             }
 
@@ -121,11 +121,11 @@ class NewsletterController extends Controller
                 ->where('email', $data['email'])
                 ->first();
 
-            if (!$newsletter) {
+            if (! $newsletter) {
                 return ApiResponse::error('Newsletter subscription not found.', 404);
             }
 
-            if (!$newsletter->is_active) {
+            if (! $newsletter->is_active) {
                 return ApiResponse::success([
                     'message' => 'You\'re already unsubscribed from our newsletter.',
                     'email' => $newsletter->email,

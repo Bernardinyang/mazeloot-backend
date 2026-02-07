@@ -1,8 +1,8 @@
 <?php
 
 use App\Http\Controllers\V1\AuthController;
-use App\Http\Controllers\V1\ContactController;
 use App\Http\Controllers\V1\CacheController;
+use App\Http\Controllers\V1\ContactController;
 use App\Http\Controllers\V1\EarlyAccessController;
 use App\Http\Controllers\V1\ImageUploadController;
 use App\Http\Controllers\V1\Memora\SubscriptionController;

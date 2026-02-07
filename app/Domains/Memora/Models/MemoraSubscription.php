@@ -79,6 +79,7 @@ class MemoraSubscription extends Model
         if (! $start) {
             return $end;
         }
+
         return $this->billing_cycle === 'annual'
             ? $start->copy()->addYear()
             : $start->copy()->addMonth();

@@ -11,7 +11,6 @@ use App\Notifications\WaitlistConfirmationNotification;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\Notification;
 
 class WaitlistController extends Controller
 {
@@ -73,12 +72,13 @@ class WaitlistController extends Controller
 
         // Send confirmation email to user
         try {
-            $notifiable = new class($validated['email']) {
+            $notifiable = new class($validated['email'])
+            {
                 use Notifiable;
-                
+
                 public function __construct(public string $email) {}
             };
-            
+
             $notifiable->notify(
                 new WaitlistConfirmationNotification($validated['name'], $productName)
             );

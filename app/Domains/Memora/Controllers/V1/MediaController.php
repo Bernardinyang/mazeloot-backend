@@ -70,6 +70,7 @@ class MediaController extends Controller
         $media = $this->mediaService->markCompleted($id, $request->input('isCompleted'), $userId);
 
         $this->logMediaActivity('media_mark_completed', 'Media completion toggled', ['media_id' => $id, 'is_completed' => $request->input('isCompleted')], $request);
+
         return ApiResponse::success(new MediaResource($media));
     }
 
@@ -85,6 +86,7 @@ class MediaController extends Controller
         );
 
         $this->logMediaActivity('media_uploaded_to_set', 'Media uploaded to set', ['set_uuid' => $setUuid, 'media_uuid' => $media->uuid], $request);
+
         return ApiResponse::success(new MediaResource($media), 201);
     }
 
@@ -96,6 +98,7 @@ class MediaController extends Controller
         $feedback = $this->mediaService->addFeedback($mediaId, $request->validated());
 
         $this->logMediaActivity('media_feedback_added_in_set', 'Feedback added to media in set', ['media_id' => $mediaId, 'set_uuid' => $setUuid], $request);
+
         return ApiResponse::success(new MediaFeedbackResource($feedback), 201);
     }
 
@@ -131,6 +134,7 @@ class MediaController extends Controller
             $feedback = $this->mediaService->addFeedback($mediaId, $request->validated());
 
             $this->logMediaActivity('media_feedback_added', 'Feedback added to media', ['proofing_id' => $proofingId, 'media_id' => $mediaId, 'set_id' => $setId], $request);
+
             return ApiResponse::success(new MediaFeedbackResource($feedback), 201);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             Log::error('Media not found when adding feedback', [
@@ -314,6 +318,7 @@ class MediaController extends Controller
             $deleted = $this->mediaService->deleteFeedback($feedbackId);
             if ($deleted) {
                 $this->logMediaActivity('media_feedback_deleted', 'Feedback deleted', ['proofing_id' => $proofingId, 'media_id' => $mediaId, 'feedback_id' => $feedbackId], $request);
+
                 return ApiResponse::success(['message' => 'Feedback deleted successfully']);
             }
 
@@ -351,6 +356,7 @@ class MediaController extends Controller
 
         if ($deleted) {
             $this->logMediaActivity('media_deleted_from_set', 'Media deleted from set', ['selection_id' => $selectionId, 'set_uuid' => $setUuid, 'media_id' => $mediaId], $request);
+
             return ApiResponse::success([
                 'message' => 'Media deleted successfully',
             ]);
@@ -374,6 +380,7 @@ class MediaController extends Controller
 
             if ($deleted) {
                 $this->logMediaActivity('media_deleted_direct', 'Media deleted', ['media_id' => $mediaId], $request);
+
                 return ApiResponse::success([
                     'message' => 'Media deleted successfully',
                 ]);
@@ -411,6 +418,7 @@ class MediaController extends Controller
             $media = $this->mediaService->renameMedia($mediaId, $validated['filename'], $userId);
 
             $this->logMediaActivity('media_renamed', 'Media renamed', ['media_id' => $mediaId, 'filename' => $validated['filename']], $request);
+
             return ApiResponse::success(new MediaResource($media));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ApiResponse::error('Media not found', 'MEDIA_NOT_FOUND', 404);
@@ -449,6 +457,7 @@ class MediaController extends Controller
             $media = $this->mediaService->replaceMedia($mediaId, $validated['user_file_uuid'], $userId);
 
             $this->logMediaActivity('media_replaced', 'Media file replaced', ['media_id' => $mediaId], $request);
+
             return ApiResponse::success(new MediaResource($media));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ApiResponse::error('Media or file not found', 'NOT_FOUND', 404);
@@ -482,6 +491,7 @@ class MediaController extends Controller
             $media = $this->mediaService->applyWatermark($mediaId, $validated['watermarkUuid'], $userId, $previewStyle);
 
             $this->logMediaActivity('media_watermark_applied', 'Watermark applied to media', ['media_id' => $mediaId, 'watermark_uuid' => $validated['watermarkUuid']], $request);
+
             return ApiResponse::success(new MediaResource($media));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ApiResponse::error('Media or watermark not found', 'NOT_FOUND', 404);
@@ -513,6 +523,7 @@ class MediaController extends Controller
             $media = $this->mediaService->removeWatermark($mediaId, $userId);
 
             $this->logMediaActivity('media_watermark_removed', 'Watermark removed from media', ['media_id' => $mediaId], $request);
+
             return ApiResponse::success(new MediaResource($media));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ApiResponse::error('Media not found', 'NOT_FOUND', 404);
@@ -549,6 +560,7 @@ class MediaController extends Controller
             );
 
             $this->logMediaActivity('media_moved_to_set', 'Media moved to set', ['target_set_uuid' => $validated['target_set_uuid'], 'moved_count' => $movedCount], $request);
+
             return ApiResponse::success([
                 'message' => 'Media moved successfully',
                 'moved_count' => $movedCount,
@@ -587,6 +599,7 @@ class MediaController extends Controller
             );
 
             $this->logMediaActivity('media_copied_to_set', 'Media copied to set', ['source_set_uuid' => $setUuid, 'target_set_uuid' => $validated['target_set_uuid'], 'copied_count' => count($copiedMedia)], $request);
+
             return ApiResponse::success([
                 'message' => 'Media copied successfully',
                 'copied_count' => count($copiedMedia),
@@ -647,6 +660,7 @@ class MediaController extends Controller
 
             $action = ($result['starred'] ?? false) ? 'media_starred' : 'media_unstarred';
             $this->logMediaActivity($action, $result['starred'] ? 'Media starred' : 'Media unstarred', ['media_id' => $mediaId, 'set_uuid' => $setUuid]);
+
             return ApiResponse::success($result);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ApiResponse::error('Media not found', 'MEDIA_NOT_FOUND', 404);
@@ -672,6 +686,7 @@ class MediaController extends Controller
 
             $action = ($result['starred'] ?? false) ? 'media_starred' : 'media_unstarred';
             $this->logMediaActivity($action, $result['starred'] ? 'Media starred' : 'Media unstarred', ['media_id' => $mediaId]);
+
             return ApiResponse::success($result);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ApiResponse::error('Media not found', 'MEDIA_NOT_FOUND', 404);
@@ -1227,6 +1242,7 @@ class MediaController extends Controller
             ]);
 
             $this->logMediaActivity('media_featured_toggled', $isFeatured ? 'Media set as featured' : 'Media unfeatured', ['media_id' => $id]);
+
             return ApiResponse::success(new MediaResource($media->fresh()));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ApiResponse::error('Media not found', 'NOT_FOUND', 404);
@@ -1277,6 +1293,7 @@ class MediaController extends Controller
             ]);
 
             $this->logMediaActivity('media_recommended_toggled', $isRecommended ? 'Media set as recommended' : 'Media unrecommended', ['media_id' => $mediaId, 'selection_id' => $selectionId, 'set_id' => $setId]);
+
             return ApiResponse::success(new MediaResource($media->fresh()));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ApiResponse::error('Media not found', 'NOT_FOUND', 404);

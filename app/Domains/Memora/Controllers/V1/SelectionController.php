@@ -65,6 +65,7 @@ class SelectionController extends Controller
         $selection = $this->selectionService->create($request->validated());
 
         $this->logSelectionActivity('created', 'Selection phase created', ['selection_uuid' => $selection->uuid ?? $selection['uuid'] ?? null], $request);
+
         return ApiResponse::success($selection, 201);
     }
 
@@ -76,6 +77,7 @@ class SelectionController extends Controller
         $selection = $this->selectionService->update($id, $request->validated());
 
         $this->logSelectionActivity('updated', 'Selection phase updated', ['selection_uuid' => $id], $request);
+
         return ApiResponse::success($selection);
     }
 
@@ -110,6 +112,7 @@ class SelectionController extends Controller
         $selection = $this->selectionService->publish($id);
 
         $this->logSelectionActivity('selection_published', 'Selection published', ['selection_uuid' => $id], $request);
+
         return ApiResponse::success($selection);
     }
 
@@ -121,6 +124,7 @@ class SelectionController extends Controller
         $result = $this->selectionService->recover($id, $request->validated()['mediaIds']);
 
         $this->logSelectionActivity('selection_media_recovered', 'Selection media recovered', ['selection_uuid' => $id, 'media_count' => count($request->validated()['mediaIds'])], $request);
+
         return ApiResponse::success($result);
     }
 
@@ -155,6 +159,7 @@ class SelectionController extends Controller
             $selection = $this->selectionService->resetSelectionLimit($id);
 
             $this->logSelectionActivity('selection_limit_reset', 'Selection limit reset', ['selection_uuid' => $id], $request);
+
             return ApiResponse::success($selection);
         } catch (\RuntimeException $e) {
             return ApiResponse::error($e->getMessage(), 'INVALID_OPERATION', 400);
@@ -172,6 +177,7 @@ class SelectionController extends Controller
             $selection = $this->selectionService->setCoverPhotoFromMedia($id, $validated['media_uuid'], $focalPoint);
 
             $this->logSelectionActivity('selection_cover_photo_set', 'Selection cover photo set', ['selection_uuid' => $id], $request);
+
             return ApiResponse::success($selection);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ApiResponse::error('Selection or media not found', 'NOT_FOUND', 404);
@@ -197,6 +203,7 @@ class SelectionController extends Controller
 
         $action = ($result['starred'] ?? false) ? 'selection_starred' : 'selection_unstarred';
         $this->logSelectionActivity($action, $result['starred'] ? 'Selection starred' : 'Selection unstarred', ['selection_uuid' => $id], $request);
+
         return ApiResponse::success($result);
     }
 
@@ -208,6 +215,7 @@ class SelectionController extends Controller
         $duplicated = $this->selectionService->duplicate($id);
 
         $this->logSelectionActivity('selection_duplicated', 'Selection duplicated', ['selection_uuid' => $id, 'new_uuid' => $duplicated->uuid ?? null], $request);
+
         return ApiResponse::success($duplicated, 201);
     }
 

@@ -59,6 +59,7 @@ class CollectionController extends Controller
         $collection = $this->collectionService->create($projectId, $request->validated());
 
         $this->logCollectionActivity('created', 'Collection created', ['collection_uuid' => $collection->uuid], $request);
+
         return ApiResponse::success(new CollectionResource($collection), 201);
     }
 
@@ -72,6 +73,7 @@ class CollectionController extends Controller
         $collection = $this->collectionService->update($projectId, $id, $request->validated());
 
         $this->logCollectionActivity('updated', 'Collection updated', ['collection_uuid' => $id], $request);
+
         return ApiResponse::success(new CollectionResource($collection));
     }
 
@@ -85,6 +87,7 @@ class CollectionController extends Controller
         $this->collectionService->delete($projectId, $id);
 
         $this->logCollectionActivity('deleted', 'Collection deleted', ['collection_uuid' => $id], $request);
+
         return ApiResponse::success(null, 204);
     }
 
@@ -99,6 +102,7 @@ class CollectionController extends Controller
 
         $action = ($result['starred'] ?? false) ? 'collection_starred' : 'collection_unstarred';
         $this->logCollectionActivity($action, $result['starred'] ? 'Collection starred' : 'Collection unstarred', ['collection_uuid' => $id], $request);
+
         return ApiResponse::success($result);
     }
 
@@ -112,6 +116,7 @@ class CollectionController extends Controller
         $duplicated = $this->collectionService->duplicate($projectId, $id);
 
         $this->logCollectionActivity('collection_duplicated', 'Collection duplicated', ['collection_uuid' => $id, 'new_uuid' => $duplicated->uuid], $request);
+
         return ApiResponse::success(new CollectionResource($duplicated), 201);
     }
 

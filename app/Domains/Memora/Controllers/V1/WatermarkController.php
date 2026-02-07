@@ -135,6 +135,7 @@ class WatermarkController extends Controller
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Failed to log watermark activity', ['error' => $e->getMessage()]);
         }
+
         return ApiResponse::success($result);
     }
 
@@ -157,6 +158,7 @@ class WatermarkController extends Controller
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Failed to log watermark activity', ['error' => $e->getMessage()]);
         }
+
         return ApiResponse::success(new WatermarkResource($duplicated), 201);
     }
 

@@ -164,6 +164,7 @@ class PresetController extends Controller
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Failed to log preset activity', ['error' => $e->getMessage()]);
         }
+
         return ApiResponse::success(['message' => 'Preset applied successfully']);
     }
 
@@ -196,6 +197,7 @@ class PresetController extends Controller
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Failed to log preset activity', ['error' => $e->getMessage()]);
         }
+
         return ApiResponse::success(new PresetResource($preset));
     }
 
@@ -224,6 +226,7 @@ class PresetController extends Controller
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Failed to log preset activity', ['error' => $e->getMessage()]);
         }
+
         return ApiResponse::success(['message' => 'Presets reordered successfully']);
     }
 }

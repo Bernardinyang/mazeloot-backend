@@ -60,6 +60,7 @@ class OnboardingController extends Controller
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Failed to log onboarding activity', ['error' => $e->getMessage()]);
         }
+
         return ApiResponse::success([
             'token' => $token->token,
             'expires_at' => $token->expires_at,
@@ -310,6 +311,7 @@ class OnboardingController extends Controller
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Failed to log onboarding activity', ['error' => $e->getMessage()]);
         }
+
         return ApiResponse::success([
             'token' => $token,
             'expires_at' => now()->addHours(24)->toIso8601String(),

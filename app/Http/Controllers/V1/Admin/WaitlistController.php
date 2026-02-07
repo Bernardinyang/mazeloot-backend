@@ -90,7 +90,7 @@ class WaitlistController extends Controller
             'user' => $waitlist->user ? [
                 'uuid' => $waitlist->user->uuid,
                 'email' => $waitlist->user->email,
-                'name' => $waitlist->user->first_name . ' ' . $waitlist->user->last_name,
+                'name' => $waitlist->user->first_name.' '.$waitlist->user->last_name,
             ] : null,
             'registered_at' => $waitlist->registered_at?->toIso8601String(),
             'created_at' => $waitlist->created_at?->toIso8601String(),

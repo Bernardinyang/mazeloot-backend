@@ -40,7 +40,7 @@ class NotifyAdminsNewsletter implements ShouldQueue
 
         $title = 'New newsletter subscription';
         $message = "{$this->email} subscribed to the newsletter";
-        $actionUrl = "/admin/newsletter";
+        $actionUrl = '/admin/newsletter';
 
         foreach ($adminUuids as $adminUuid) {
             $notificationService->create(

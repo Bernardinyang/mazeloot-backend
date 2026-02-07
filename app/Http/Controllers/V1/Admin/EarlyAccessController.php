@@ -578,6 +578,7 @@ class EarlyAccessController extends Controller
                 } catch (\Throwable $e) {
                     \Log::warning('Failed to log early access bulk approve activity', ['error' => $e->getMessage()]);
                 }
+
                 return ApiResponse::successOk([
                     'message' => 'Approved '.count($approved).' request(s), '.count($failed).' failed',
                     'approved' => $approved,
@@ -661,6 +662,7 @@ class EarlyAccessController extends Controller
                 } catch (\Throwable $e) {
                     \Log::warning('Failed to log early access bulk reject activity', ['error' => $e->getMessage()]);
                 }
+
                 return ApiResponse::successOk([
                     'message' => 'Rejected '.count($rejected).' request(s), '.count($failed).' failed',
                     'rejected' => $rejected,

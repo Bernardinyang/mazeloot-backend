@@ -71,6 +71,7 @@ class UploadController extends Controller
             } catch (\Throwable $e) {
                 Log::warning('Failed to log upload activity', ['error' => $e->getMessage()]);
             }
+
             return ApiResponse::success($responseData);
         }
 
@@ -116,6 +117,7 @@ class UploadController extends Controller
             } catch (\Throwable $e) {
                 Log::warning('Failed to log upload activity', ['error' => $e->getMessage()]);
             }
+
             return ApiResponse::success($data);
         }
 
