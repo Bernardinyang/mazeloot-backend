@@ -118,6 +118,18 @@ class SettingsController extends Controller
         if (! $this->tierService->getCapability('homepage_enabled', $request->user()) && ! empty($data['status'])) {
             return ApiResponse::errorForbidden('Homepage is not available on your plan.');
         }
+        
+        // Prevent updates when homepage is disabled (except enabling it)
+        $currentSettings = $this->settingsService->getSettings();
+        $isHomepageDisabled = ! ($currentSettings->homepage_status ?? false);
+        
+        if ($isHomepageDisabled) {
+            // Only allow enabling the homepage, reject all other updates
+            if (! isset($data['status']) || ! $data['status']) {
+                return ApiResponse::errorForbidden('Homepage is disabled. Enable it first to update settings.');
+            }
+        }
+        
         $settings = $this->settingsService->updateHomepage($data);
 
         try {

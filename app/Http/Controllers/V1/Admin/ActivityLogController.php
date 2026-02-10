@@ -236,4 +236,62 @@ class ActivityLogController extends Controller
             'activity_over_time' => $activityOverTime,
         ]);
     }
+
+    private const SENSITIVE_ACTIONS = [
+        'admin_user_updated',
+        'admin_user_role_updated',
+        'admin_user_suspended',
+        'admin_user_activated',
+        'early_access_granted',
+        'early_access_revoked',
+        'early_access_bulk_approved',
+        'early_access_bulk_rejected',
+    ];
+
+    /**
+     * Get sensitive/admin audit activity (role changes, suspend, early access, etc.).
+     */
+    public function getSensitiveActivityLogs(Request $request): JsonResponse
+    {
+        $query = ActivityLog::with(['user:uuid,email,first_name,last_name,role'])
+            ->whereIn('action', self::SENSITIVE_ACTIONS);
+
+        if ($request->has('start_date')) {
+            $query->where('created_at', '>=', $request->query('start_date'));
+        }
+        if ($request->has('end_date')) {
+            $query->where('created_at', '<=', $request->query('end_date'));
+        }
+        if ($request->has('action')) {
+            $query->where('action', $request->query('action'));
+        }
+
+        $perPage = $request->query('per_page', 50);
+        $paginator = $this->paginationService->paginate($query->orderByDesc('created_at'), $perPage);
+
+        $formattedData = $paginator->getCollection()->map(function ($log) {
+            return [
+                'uuid' => $log->uuid,
+                'user' => $log->user ? [
+                    'uuid' => $log->user->uuid,
+                    'email' => $log->user->email,
+                    'name' => trim(($log->user->first_name ?? '').' '.($log->user->last_name ?? '')),
+                    'role' => $log->user->role->value ?? null,
+                ] : null,
+                'action' => $log->action,
+                'description' => $log->description,
+                'properties' => $log->properties,
+                'subject_type' => $log->subject_type,
+                'subject_uuid' => $log->subject_uuid,
+                'route' => $log->route,
+                'method' => $log->method,
+                'ip_address' => $log->ip_address,
+                'created_at' => $log->created_at->toIso8601String(),
+            ];
+        });
+
+        return ApiResponse::successOk($this->paginationService->formatResponse(
+            $paginator->setCollection($formattedData)
+        ));
+    }
 }

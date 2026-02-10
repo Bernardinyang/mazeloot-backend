@@ -2,6 +2,7 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -28,3 +29,7 @@ Schedule::command('activity-logs:cleanup --days=90')
     ->name('cleanup-activity-logs')
     ->withoutOverlapping()
     ->onOneServer();
+
+Schedule::call(function () {
+    Cache::put('admin.scheduler_last_run', now()->toIso8601String(), 600);
+})->everyMinute()->name('scheduler-heartbeat');

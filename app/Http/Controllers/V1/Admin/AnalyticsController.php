@@ -107,4 +107,46 @@ class AnalyticsController extends Controller
 
         return ApiResponse::successOk($stats);
     }
+
+    /**
+     * Get full analytics overview (summary, users, activity, products, early access, etc.).
+     * Query: days (default 30), or from + to (YYYY-MM-DD). compare=1 adds previous period.
+     */
+    public function getOverview(Request $request): JsonResponse
+    {
+        $from = $request->query('from');
+        $to = $request->query('to');
+        $compare = $request->boolean('compare');
+
+        $fromDate = null;
+        $toDate = null;
+
+        if ($from && $to) {
+            $fromDate = \Carbon\Carbon::parse($from)->startOfDay();
+            $toDate = \Carbon\Carbon::parse($to)->endOfDay();
+            if ($fromDate->gt($toDate)) {
+                $fromDate = $toDate->copy()->startOfDay();
+                $toDate = $fromDate->copy()->endOfDay();
+            }
+            $days = (int) $fromDate->diffInDays($toDate) + 1;
+            $days = min(max($days, 1), 365);
+            $data = $this->dashboardService->getAnalyticsOverviewFromTo($fromDate, $toDate);
+        } else {
+            $days = (int) $request->query('days', 30);
+            $days = min(max($days, 7), 90);
+            $data = $this->dashboardService->getAnalyticsOverview($days);
+        }
+
+        if ($compare) {
+            if ($fromDate && $toDate) {
+                $prevTo = $fromDate->copy()->subDay()->endOfDay();
+                $prevFrom = $prevTo->copy()->subDays($days - 1)->startOfDay();
+                $data['comparison'] = $this->dashboardService->getAnalyticsOverviewFromTo($prevFrom, $prevTo, true);
+            } else {
+                $data['comparison'] = $this->dashboardService->getAnalyticsOverviewComparison($days);
+            }
+        }
+
+        return ApiResponse::successOk($data);
+    }
 }

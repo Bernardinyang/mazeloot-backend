@@ -825,8 +825,14 @@ class AuthController extends Controller
             $tierService = app(\App\Services\Subscription\TierService::class);
             $projectLimit = $tierService->getProjectLimit($user);
             $collectionLimit = $tierService->getCollectionLimit($user);
+            $proofingLimit = $tierService->getProofingLimit($user);
+            $selectionLimit = $tierService->getSelectionLimit($user);
+            $rawFileLimit = $tierService->getRawFileLimit($user);
             $projectCount = \App\Domains\Memora\Models\MemoraProject::where('user_uuid', $user->uuid)->count();
             $collectionCount = \App\Domains\Memora\Models\MemoraCollection::where('user_uuid', $user->uuid)->count();
+            $proofingCount = \App\Domains\Memora\Models\MemoraProofing::where('user_uuid', $user->uuid)->count();
+            $selectionCount = \App\Domains\Memora\Models\MemoraSelection::where('user_uuid', $user->uuid)->count();
+            $rawFileCount = \App\Domains\Memora\Models\MemoraRawFile::where('user_uuid', $user->uuid)->count();
 
             return ApiResponse::successOk([
                 'total_used_bytes' => $totalUsed,
@@ -839,12 +845,16 @@ class AuthController extends Controller
                 'memora_features' => $tierService->getFeatures($user),
                 'memora_capabilities' => $tierService->getCapabilities($user),
                 'set_limit_per_phase' => $tierService->getSetLimitPerPhase($user),
-                'selection_limit' => $tierService->getSelectionLimit($user),
-                'proofing_limit' => $tierService->getProofingLimit($user),
+                'selection_limit' => $selectionLimit,
+                'selection_count' => $selectionCount,
+                'proofing_limit' => $proofingLimit,
+                'proofing_count' => $proofingCount,
                 'project_count' => $projectCount,
                 'project_limit' => $projectLimit,
                 'collection_count' => $collectionCount,
                 'collection_limit' => $collectionLimit,
+                'raw_file_limit' => $rawFileLimit,
+                'raw_file_count' => $rawFileCount,
             ]);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Failed to get storage usage', [

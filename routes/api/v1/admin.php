@@ -2,8 +2,12 @@
 
 use App\Http\Controllers\V1\Admin\ActivityLogController;
 use App\Http\Controllers\V1\Admin\AnalyticsController;
+use App\Http\Controllers\V1\Admin\CacheController;
 use App\Http\Controllers\V1\Admin\ContactSubmissionController;
 use App\Http\Controllers\V1\Admin\DashboardController;
+use App\Http\Controllers\V1\Admin\HealthController;
+use App\Http\Controllers\V1\Admin\LogsController;
+use App\Http\Controllers\V1\Admin\SystemController;
 use App\Http\Controllers\V1\Admin\DowngradeRequestController;
 use App\Http\Controllers\V1\Admin\EarlyAccessController;
 use App\Http\Controllers\V1\Admin\PricingController;
@@ -26,6 +30,11 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index']);
+
+    // Health & System (admin-only)
+    Route::get('/health', [HealthController::class, 'index']);
+    Route::get('/system', [SystemController::class, 'index']);
+    Route::get('/logs/recent', [LogsController::class, 'recent']);
     Route::get('/dashboard/products/{slug}', [DashboardController::class, 'getProductStats']);
     Route::get('/dashboard/users', [DashboardController::class, 'getUserStats']);
 
@@ -97,14 +106,20 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::delete('/pricing/byo-addons/{id}', [PricingController::class, 'destroyByoAddon']);
 
     // Analytics
+    Route::get('/analytics/overview', [AnalyticsController::class, 'getOverview']);
     Route::get('/analytics/activity', [AnalyticsController::class, 'getActivityLogs']);
     Route::get('/analytics/users/{uuid}/activity', [AnalyticsController::class, 'getUserActivity']);
     Route::get('/analytics/products/{slug}/activity', [AnalyticsController::class, 'getProductActivity']);
 
-    // Activity Logs (super admin only)
-    Route::middleware('superadmin')->prefix('activity-logs')->group(function () {
+    // Activity Logs: users + admins for any admin; sensitive + statistics for super admin only
+    Route::prefix('activity-logs')->group(function () {
         Route::get('/users', [ActivityLogController::class, 'getUserActivityLogs']);
         Route::get('/admins', [ActivityLogController::class, 'getAdminActivityLogs']);
-        Route::get('/statistics', [ActivityLogController::class, 'getStatistics']);
+        Route::middleware('superadmin')->group(function () {
+            Route::get('/sensitive', [ActivityLogController::class, 'getSensitiveActivityLogs']);
+            Route::get('/statistics', [ActivityLogController::class, 'getStatistics']);
+        });
     });
+
+    Route::post('/cache/clear', [CacheController::class, 'clear']);
 });
