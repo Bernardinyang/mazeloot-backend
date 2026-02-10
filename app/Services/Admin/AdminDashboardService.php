@@ -461,8 +461,10 @@ class AdminDashboardService
         $count = $active->count();
         $mrrCents = $active->sum(function ($s) {
             $monthly = $s->billing_cycle === 'annual' ? (int) round($s->amount / 12) : $s->amount;
+
             return $monthly;
         });
+
         return [
             'active_subscriptions' => $count,
             'mrr_cents' => $mrrCents,
