@@ -35,6 +35,7 @@ class QueueController extends Controller
                     'failed_at' => $row->failed_at,
                 ];
             }
+
             return ApiResponse::successOk([
                 'failed_jobs' => $list,
                 'total' => (int) DB::table('failed_jobs')->count(),
@@ -53,6 +54,7 @@ class QueueController extends Controller
             } else {
                 Artisan::call('queue:retry', ['id' => ['all']]);
             }
+
             return ApiResponse::successOk(['message' => $uuid ? 'Job queued for retry' : 'All failed jobs queued for retry']);
         } catch (\Throwable $e) {
             return ApiResponse::error($e->getMessage(), null, 500);
@@ -63,6 +65,7 @@ class QueueController extends Controller
     {
         try {
             Artisan::call('queue:forget', ['id' => $uuid]);
+
             return ApiResponse::successOk(['message' => 'Failed job removed']);
         } catch (\Throwable $e) {
             return ApiResponse::error($e->getMessage(), null, 500);
@@ -73,6 +76,7 @@ class QueueController extends Controller
     {
         try {
             Artisan::call('queue:flush');
+
             return ApiResponse::successOk(['message' => 'All failed jobs removed']);
         } catch (\Throwable $e) {
             return ApiResponse::error($e->getMessage(), null, 500);
@@ -83,6 +87,7 @@ class QueueController extends Controller
     {
         try {
             Artisan::call('queue:restart');
+
             return ApiResponse::successOk(['message' => 'Queue workers will restart after processing current job']);
         } catch (\Throwable $e) {
             return ApiResponse::error($e->getMessage(), null, 500);

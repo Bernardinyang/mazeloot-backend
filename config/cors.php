@@ -38,12 +38,12 @@ return [
     ],
 
     'allowed_headers' => [
-    'Content-Type',
-    'X-Requested-With',
-    'Authorization',
-    'Origin',
-    'Accept',
-],
+        'Content-Type',
+        'X-Requested-With',
+        'Authorization',
+        'Origin',
+        'Accept',
+    ],
 
     'exposed_headers' => [],
 

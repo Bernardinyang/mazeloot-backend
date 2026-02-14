@@ -35,7 +35,7 @@ class FaqSeeder extends Seeder
                 'answer' => 'Yes. Professional plans include full branding customization. Your logo, colors, and style appear on every client page, so you look polished from first share to final delivery.',
             ],
             [
-                'question' => "What happens to my RAW files? Can clients access them?",
+                'question' => 'What happens to my RAW files? Can clients access them?',
                 'answer' => "RAW files are stored separately in the Raw files phase. You control what's shared and when. Clients only see what you've explicitly shared, with optional PIN protection for extra security.",
             ],
             [

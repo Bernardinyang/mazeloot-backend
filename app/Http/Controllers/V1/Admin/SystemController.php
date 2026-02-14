@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\EarlyAccessUser;
 use App\Models\WebhookEvent;
 use App\Support\Responses\ApiResponse;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -315,6 +315,7 @@ class SystemController extends Controller
                     'failed_at' => $row->failed_at,
                 ];
             }
+
             return $out;
         } catch (\Throwable $e) {
             return [];
@@ -348,6 +349,7 @@ class SystemController extends Controller
                     $usage[$flag] = 0;
                 }
             }
+
             return $usage;
         });
     }
@@ -488,6 +490,7 @@ class SystemController extends Controller
         $services[] = $this->checkService('Redis', function () {
             $start = microtime(true);
             Redis::ping();
+
             return ['ms' => round((microtime(true) - $start) * 1000)];
         }, config('cache.default') === 'redis' || config('queue.default') === 'redis');
 
@@ -495,6 +498,7 @@ class SystemController extends Controller
         $services[] = $this->checkService('Database ('.config('database.default').')', function () {
             $start = microtime(true);
             DB::connection()->selectOne('SELECT 1');
+
             return [
                 'ms' => round((microtime(true) - $start) * 1000),
                 'name' => DB::connection()->getDatabaseName(),
@@ -507,6 +511,7 @@ class SystemController extends Controller
             $services[] = $this->checkService('Storage ('.$s3Disk.')', function () use ($s3Disk) {
                 $start = microtime(true);
                 Storage::disk($s3Disk)->directories('/');
+
                 return ['ms' => round((microtime(true) - $start) * 1000), 'disk' => $s3Disk];
             }, false);
         }
@@ -522,6 +527,7 @@ class SystemController extends Controller
                 if ($response->failed()) {
                     throw new \RuntimeException('HTTP '.$response->status());
                 }
+
                 return ['ms' => round((microtime(true) - $start) * 1000)];
             }, false);
         }
@@ -538,6 +544,7 @@ class SystemController extends Controller
                 if ($response->failed()) {
                     throw new \RuntimeException('HTTP '.$response->status());
                 }
+
                 return ['ms' => round((microtime(true) - $start) * 1000)];
             }, false);
         }
@@ -553,6 +560,7 @@ class SystemController extends Controller
                 if ($response->failed()) {
                     throw new \RuntimeException('HTTP '.$response->status());
                 }
+
                 return ['ms' => round((microtime(true) - $start) * 1000)];
             }, false);
         }
@@ -568,6 +576,7 @@ class SystemController extends Controller
                 if ($response->failed()) {
                     throw new \RuntimeException('HTTP '.$response->status());
                 }
+
                 return ['ms' => round((microtime(true) - $start) * 1000)];
             }, false);
         }
@@ -597,6 +606,7 @@ class SystemController extends Controller
                 if ($response->failed()) {
                     throw new \RuntimeException('HTTP '.$response->status());
                 }
+
                 return ['ms' => round((microtime(true) - $start) * 1000)];
             }, false);
         }
@@ -614,6 +624,7 @@ class SystemController extends Controller
                 if ($transport === null) {
                     throw new \RuntimeException('Mail transport not configured');
                 }
+
                 return ['ms' => round((microtime(true) - $start) * 1000), 'driver' => $mailDriver];
             }, false);
         }
@@ -629,6 +640,7 @@ class SystemController extends Controller
                 if ($response->failed()) {
                     throw new \RuntimeException('HTTP '.$response->status());
                 }
+
                 return ['ms' => round((microtime(true) - $start) * 1000)];
             }, false);
         }
@@ -769,6 +781,7 @@ class SystemController extends Controller
     {
         $v = error_reporting();
         $constants = [E_ALL => 'E_ALL', E_ERROR => 'E_ERROR', E_WARNING => 'E_WARNING', E_PARSE => 'E_PARSE', E_NOTICE => 'E_NOTICE', E_DEPRECATED => 'E_DEPRECATED'];
+
         return array_key_exists($v, $constants) ? $constants[$v] : (string) $v;
     }
 
@@ -776,6 +789,7 @@ class SystemController extends Controller
     {
         if (PHP_OS_FAMILY === 'Darwin') {
             $out = @shell_exec('sw_vers -productVersion 2>/dev/null');
+
             return $out ? trim($out) : null;
         }
         if (is_readable('/etc/os-release')) {
@@ -784,6 +798,7 @@ class SystemController extends Controller
                 return trim($m[1], '"');
             }
         }
+
         return null;
     }
 
@@ -798,6 +813,7 @@ class SystemController extends Controller
         if ($npm !== '') {
             $out['npm_version'] = $npm;
         }
+
         return $out;
     }
 
@@ -827,6 +843,7 @@ class SystemController extends Controller
             ];
         }
         usort($list, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+
         return array_slice($list, 0, 100);
     }
 
@@ -881,6 +898,7 @@ class SystemController extends Controller
             $vars[$k] = $mask ? '*********' : $v;
         }
         ksort($vars);
+
         return $vars;
     }
 
@@ -962,6 +980,7 @@ class SystemController extends Controller
             $out['factories_count'] = count(glob(database_path('factories').'/*.php') ?: []);
         }
         $out['service_providers_count'] = count(config('app.providers', []));
+
         return $out;
     }
 
@@ -971,6 +990,7 @@ class SystemController extends Controller
         if ($stale === null) {
             return 'unknown';
         }
+
         return $stale <= 900 ? 'ok' : 'failed';
     }
 
@@ -988,6 +1008,7 @@ class SystemController extends Controller
         }
         try {
             $sec = (int) now()->parse($heartbeat)->diffInSeconds(now(), false);
+
             return $sec <= 150 ? 'ok' : 'failed';
         } catch (\Throwable) {
             return 'unknown';
@@ -1054,7 +1075,7 @@ class SystemController extends Controller
             }
             if ($driver === 'sqlite') {
                 $v = DB::selectOne('SELECT sqlite_version() AS v');
-                $out['version'] = 'SQLite ' . ($v->v ?? '');
+                $out['version'] = 'SQLite '.($v->v ?? '');
                 $path = config('database.connections.sqlite.database');
                 if ($path && is_readable($path)) {
                     $out['size_bytes'] = filesize($path);
@@ -1063,8 +1084,9 @@ class SystemController extends Controller
                 $out['tables_count'] = (int) DB::selectOne("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")->count;
             }
         } catch (\Throwable $e) {
-            $out['error'] = 'Unable to read metrics: ' . $e->getMessage();
+            $out['error'] = 'Unable to read metrics: '.$e->getMessage();
         }
+
         return $out;
     }
 
@@ -1130,6 +1152,7 @@ class SystemController extends Controller
             $out[] = ['route' => $route, 'severity' => $severity, 'message' => $message, 'fix' => $fix];
         }
         usort($out, fn ($a, $b) => ['critical' => 0, 'high' => 1, 'medium' => 2][$b['severity']] <=> ['critical' => 0, 'high' => 1, 'medium' => 2][$a['severity']]);
+
         return $out;
     }
 
@@ -1154,18 +1177,20 @@ class SystemController extends Controller
         if (empty($tips)) {
             $tips[] = 'Profile with Laravel Telescope or debugbar; check for N+1 queries, missing indexes, and uncached heavy queries.';
         }
+
         return implode(' ', array_slice($tips, 0, 2));
     }
 
     private function formatBytes(int $bytes): string
     {
         if ($bytes < 1024) {
-            return $bytes . ' B';
+            return $bytes.' B';
         }
         if ($bytes < 1024 * 1024) {
-            return number_format($bytes / 1024, 2) . ' KB';
+            return number_format($bytes / 1024, 2).' KB';
         }
-        return number_format($bytes / 1024 / 1024, 2) . ' MB';
+
+        return number_format($bytes / 1024 / 1024, 2).' MB';
     }
 
     private function logFileStats(string $path): array
@@ -1198,6 +1223,7 @@ class SystemController extends Controller
                 }
             }
         }
+
         return $out;
     }
 
@@ -1229,7 +1255,7 @@ class SystemController extends Controller
         $allowedPatterns = config('cors.allowed_origins_patterns', []);
         $origins = is_array($allowedOrigins) ? $allowedOrigins : [];
         $patterns = is_array($allowedPatterns) ? $allowedPatterns : [];
-        $originsList = array_merge($origins, array_map(fn ($p) => $p . ' (pattern)', $patterns));
+        $originsList = array_merge($origins, array_map(fn ($p) => $p.' (pattern)', $patterns));
 
         return [
             'auth' => [
@@ -1293,6 +1319,7 @@ class SystemController extends Controller
         } catch (\Throwable) {
             // leave zeros
         }
+
         return $out;
     }
 
@@ -1305,6 +1332,7 @@ class SystemController extends Controller
         if ($host === null || $host === '') {
             $host = 'N/A';
         }
+
         return [
             'mail_driver' => $driver,
             'mail_host' => $host,
@@ -1337,6 +1365,7 @@ class SystemController extends Controller
         } catch (\Throwable) {
             // leave defaults
         }
+
         return $out;
     }
 
@@ -1374,6 +1403,7 @@ class SystemController extends Controller
         } catch (\Throwable) {
             // leave npm null
         }
+
         return $out;
     }
 
@@ -1394,6 +1424,7 @@ class SystemController extends Controller
                 'formatted' => $size !== null ? $this->formatBytes($size) : 'N/A',
             ];
         }
+
         return $out;
     }
 
@@ -1414,6 +1445,7 @@ class SystemController extends Controller
         } catch (\Throwable) {
             return null;
         }
+
         return $size;
     }
 
@@ -1446,6 +1478,7 @@ class SystemController extends Controller
         } catch (\Throwable) {
             // leave empty
         }
+
         return $out;
     }
 
@@ -1462,6 +1495,7 @@ class SystemController extends Controller
         if ($content === '') {
             return null;
         }
+
         return [
             'last_run' => $content,
             'path' => $path,
@@ -1495,6 +1529,7 @@ class SystemController extends Controller
     {
         try {
             $extra = $check();
+
             return array_merge([
                 'name' => $name,
                 'status' => 'ok',

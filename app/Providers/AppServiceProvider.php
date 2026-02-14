@@ -5,13 +5,13 @@ namespace App\Providers;
 use App\Models\User;
 use App\Policies\UserPolicy;
 use App\Session\DatabaseSessionHandler;
+use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Session;
-use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider

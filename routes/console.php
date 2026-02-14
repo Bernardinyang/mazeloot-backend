@@ -35,7 +35,7 @@ Schedule::call(function () {
     Cache::put('admin.scheduler_last_run', now()->toIso8601String(), 600);
 })->everyMinute()->name('scheduler-heartbeat');
 
-Schedule::job(new WorkerHeartbeatJob())
+Schedule::job(new WorkerHeartbeatJob)
     ->everyMinute()
     ->name('worker-heartbeat')
     ->withoutOverlapping()

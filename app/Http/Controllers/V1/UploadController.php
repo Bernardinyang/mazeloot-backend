@@ -151,7 +151,6 @@ class UploadController extends Controller
      *
      * @param  string|null  $thumbnailPath  Local path from generateThumbnail (or null to skip)
      * @param  \App\Services\Upload\DTOs\UploadResult  $uploadResult
-     * @return string|null
      */
     protected function uploadThumbnailIfReady(?string $thumbnailPath, $uploadResult): ?string
     {

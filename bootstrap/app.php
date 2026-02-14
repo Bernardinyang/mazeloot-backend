@@ -156,6 +156,7 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($request->is('api/*') || $request->expectsJson()) {
                 $headers = $e->getHeaders();
                 $retryAfter = isset($headers['Retry-After']) ? (int) $headers['Retry-After'] : 60;
+
                 return response()->json([
                     'message' => 'Too many attempts. Please try again later.',
                     'code' => 'TOO_MANY_REQUESTS',

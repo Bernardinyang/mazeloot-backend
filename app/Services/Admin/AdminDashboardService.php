@@ -497,6 +497,7 @@ class AdminDashboardService
                 'mrr_cents' => $mrrCents,
             ];
         }
+
         return $months;
     }
 }

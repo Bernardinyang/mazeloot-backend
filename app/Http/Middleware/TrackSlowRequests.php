@@ -40,7 +40,7 @@ class TrackSlowRequests
         $route = $request->route();
         $routeName = $route ? $route->getName() : null;
         $uri = $route ? $route->uri() : $request->path();
-        $label = $routeName ?: ($request->method() . ' /' . $uri);
+        $label = $routeName ?: ($request->method().' /'.$uri);
 
         $entry = [
             'route' => $label,

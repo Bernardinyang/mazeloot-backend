@@ -18,12 +18,12 @@ use App\Notifications\SubscriptionCancelledNotification;
 use App\Notifications\SubscriptionRenewedNotification;
 use App\Services\Currency\CurrencyService;
 use App\Services\Notification\NotificationService;
-use App\Services\ReferralService;
 use App\Services\Payment\Contracts\SubscriptionProviderInterface;
 use App\Services\Payment\Providers\FlutterwaveProvider;
 use App\Services\Payment\Providers\PayPalProvider;
 use App\Services\Payment\Providers\PaystackProvider;
 use App\Services\Payment\Providers\StripeProvider;
+use App\Services\ReferralService;
 use App\Services\Storage\UserStorageService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -1863,8 +1863,10 @@ class MemoraSubscriptionService
         }
         if (is_string($value)) {
             $decoded = json_decode($value, true);
+
             return is_array($decoded) ? $decoded : null;
         }
+
         return is_array($value) ? $value : null;
     }
 

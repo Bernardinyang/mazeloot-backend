@@ -3,20 +3,20 @@
 namespace App\Http\Controllers\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\V1\ChangePasswordRequest;
+use App\Http\Requests\V1\DeleteAccountRequest;
 use App\Http\Requests\V1\ForgotPasswordRequest;
 use App\Http\Requests\V1\LoginRequest;
 use App\Http\Requests\V1\RegisterRequest;
 use App\Http\Requests\V1\ResendVerificationRequest;
 use App\Http\Requests\V1\ResetPasswordRequest;
 use App\Http\Requests\V1\SendMagicLinkRequest;
-use App\Http\Requests\V1\VerifyEmailRequest;
-use App\Http\Requests\V1\ChangePasswordRequest;
-use App\Http\Requests\V1\DeleteAccountRequest;
 use App\Http\Requests\V1\UpdateProfileRequest;
+use App\Http\Requests\V1\VerifyEmailRequest;
 use App\Http\Requests\V1\VerifyMagicLinkRequest;
+use App\Models\Notification;
 use App\Models\User;
 use App\Models\Waitlist;
-use App\Models\Notification;
 use App\Notifications\AccountDeletedNotification;
 use App\Notifications\AccountDeletionCodeNotification;
 use App\Services\Auth\EmailVerificationService;
@@ -928,6 +928,7 @@ class AuthController extends Controller
                 'user_uuid' => $user->uuid ?? null,
                 'error' => $e->getMessage(),
             ]);
+
             return ApiResponse::error('Failed to send code. Please try again.', 'EMAIL_FAILED', 500);
         }
 
