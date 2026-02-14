@@ -18,7 +18,7 @@ class ClosureRequestService
     public function create(string $proofingId, string $mediaId, array $todos, string $userId): MemoraClosureRequest
     {
         $proofing = MemoraProofing::findOrFail($proofingId);
-        $media = MemoraMedia::findOrFail($mediaId);
+        $media = MemoraMedia::with('mediaSet')->findOrFail($mediaId);
 
         // Verify user owns the proofing
         if ($proofing->user_uuid !== $userId) {
@@ -455,15 +455,25 @@ class ClosureRequestService
 
     public function getMediaComments(string $mediaUuid): array
     {
-        $media = MemoraMedia::with(['feedback' => function ($query) {
+        $withReplies = function ($q, $depth = 0) use (&$withReplies) {
+            if ($depth >= 20) {
+                return;
+            }
+            $q->orderBy('created_at', 'asc')
+                ->with(['replies' => function ($q2) use (&$withReplies, $depth) {
+                    $withReplies($q2, $depth + 1);
+                }]);
+        };
+
+        $media = MemoraMedia::with(['feedback' => function ($query) use ($withReplies) {
             $query->whereNull('parent_uuid')
-                ->with(['replies'])
-                ->orderBy('created_at', 'asc');
+                ->orderBy('created_at', 'asc')
+                ->with(['replies' => function ($q) use ($withReplies) {
+                    $withReplies($q, 0);
+                }]);
         }])->findOrFail($mediaUuid);
 
         $mapFeedback = function ($feedback) use (&$mapFeedback) {
-            $feedback->loadNestedReplies();
-
             return [
                 'id' => $feedback->uuid,
                 'content' => $feedback->content,
@@ -483,7 +493,7 @@ class ClosureRequestService
 
     public function getByMedia(string $mediaId, string $userId): array
     {
-        $media = MemoraMedia::findOrFail($mediaId);
+        $media = MemoraMedia::with(['mediaSet.proofing'])->findOrFail($mediaId);
 
         // Verify user owns the media (through proofing)
         $mediaSet = $media->mediaSet;

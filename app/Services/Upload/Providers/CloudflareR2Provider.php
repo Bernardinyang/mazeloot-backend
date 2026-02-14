@@ -60,6 +60,18 @@ class CloudflareR2Provider implements UploadProviderInterface
         $storedPath = null;
         $lastError = null;
 
+        Log::info('R2 upload starting', [
+            'disk' => $this->disk,
+            'path' => $path,
+            'file' => $file->getClientOriginalName(),
+            'r2_endpoint' => config('filesystems.disks.r2.endpoint'),
+            'r2_bucket' => config('filesystems.disks.r2.bucket'),
+            'r2_url' => config('filesystems.disks.r2.url'),
+            'r2_key_set' => ! empty(config('filesystems.disks.r2.key')),
+            'r2_secret_set' => ! empty(config('filesystems.disks.r2.secret')),
+            'upload_provider' => config('upload.default_provider'),
+        ]);
+
         try {
             // Temporarily enable throwing to capture actual AWS errors
             $originalThrow = config("filesystems.disks.{$this->disk}.throw", false);
@@ -106,6 +118,11 @@ class CloudflareR2Provider implements UploadProviderInterface
 
         try {
             $url = Storage::disk($this->disk)->url($storedPath);
+            Log::info('R2 upload URL generated', [
+                'storedPath' => $storedPath,
+                'url' => $url,
+                'url_length' => strlen($url),
+            ]);
         } catch (\Exception $e) {
             throw UploadException::providerError(
                 'Failed to get URL from R2: '.$e->getMessage()

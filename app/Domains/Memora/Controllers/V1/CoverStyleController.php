@@ -8,6 +8,7 @@ use App\Domains\Memora\Resources\V1\CoverStyleResource;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class CoverStyleController extends Controller
 {
@@ -17,14 +18,14 @@ class CoverStyleController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = MemoraCoverStyle::active()->ordered();
+        $includeInactive = (bool) $request->query('include_inactive');
+        $cacheKey = 'memora.cover_styles.'.($includeInactive ? 'all' : 'active');
 
-        // Optionally include inactive styles if requested (for admin)
-        if ($request->query('include_inactive')) {
-            $query = MemoraCoverStyle::ordered();
-        }
+        $coverStyles = Cache::remember($cacheKey, 300, function () use ($includeInactive) {
+            $query = $includeInactive ? MemoraCoverStyle::ordered() : MemoraCoverStyle::active()->ordered();
 
-        $coverStyles = $query->get();
+            return $query->get();
+        });
 
         return ApiResponse::success(CoverStyleResource::collection($coverStyles));
     }

@@ -52,9 +52,17 @@ class MediaService
             return collect();
         }
 
-        // Get media from those sets
+        // Get media from those sets (nested replies to avoid N+1 in MediaFeedbackResource)
         $query = MemoraMedia::whereIn('media_set_uuid', $setUuids)
-            ->with(['feedback.replies', 'file'])
+            ->with([
+                'feedback' => function ($query) {
+                    $query->whereNull('parent_uuid')->orderBy('created_at', 'asc')
+                        ->with(['replies' => function ($q) {
+                            $this->loadRecursiveReplies($q, 0, 20);
+                        }]);
+                },
+                'file',
+            ])
             ->orderBy('order');
 
         return $query->get();
@@ -98,7 +106,7 @@ class MediaService
             'media_set_uuid' => $targetSet->uuid,
         ]);
 
-        $media = MemoraMedia::whereIn('uuid', $mediaIds)->get();
+        $media = MemoraMedia::with('file')->whereIn('uuid', $mediaIds)->get();
 
         return [
             'movedCount' => $moved,
@@ -111,7 +119,7 @@ class MediaService
      */
     public function generateLowResCopy(string $id): MemoraMedia
     {
-        $media = MemoraMedia::findOrFail($id);
+        $media = MemoraMedia::with('file')->findOrFail($id);
 
         // Dispatch job to queue for async processing
         \App\Domains\Memora\Jobs\GenerateLowResCopyJob::dispatch($id);
@@ -125,7 +133,7 @@ class MediaService
      */
     public function processImage(string $mediaId, array $options = []): void
     {
-        $media = MemoraMedia::find($mediaId);
+        $media = MemoraMedia::with('file')->find($mediaId);
 
         if (! $media) {
             \Illuminate\Support\Facades\Log::warning("MemoraMedia not found for image processing: {$mediaId}");
@@ -173,7 +181,7 @@ class MediaService
      */
     public function processLowResCopy(string $mediaId): void
     {
-        $media = MemoraMedia::find($mediaId);
+        $media = MemoraMedia::with('file')->find($mediaId);
 
         if (! $media) {
             \Illuminate\Support\Facades\Log::warning("MemoraMedia not found for low-res copy generation: {$mediaId}");
@@ -217,10 +225,8 @@ class MediaService
      */
     public function markSelected(string $id, bool $isSelected): MemoraMedia
     {
-        $media = MemoraMedia::findOrFail($id);
+        $media = MemoraMedia::with(['mediaSet.selection'])->findOrFail($id);
 
-        // Load media set with appropriate parent relationship (selection, rawFile, proof, or collection)
-        $media->load('mediaSet');
         $set = $media->mediaSet;
 
         if (! $set) {
@@ -249,7 +255,6 @@ class MediaService
                 }
             } elseif ($set->selection_uuid) {
                 // Check if media set belongs to a selection
-                $media->load('mediaSet.selection');
                 $selection = $set->selection;
 
                 if ($selection) {
@@ -345,7 +350,7 @@ class MediaService
      */
     public function markCompleted(string $id, bool $isCompleted, ?string $userId = null): MemoraMedia
     {
-        $media = MemoraMedia::findOrFail($id);
+        $media = MemoraMedia::with(['mediaSet.proofing'])->findOrFail($id);
 
         // If userId is provided, verify user owns the proofing
         if ($userId !== null) {
@@ -363,11 +368,10 @@ class MediaService
             'completed_at' => $isCompleted ? now() : null,
         ]);
 
-        $media = $media->fresh();
+        $media = $media->fresh($isCompleted ? ['mediaSet'] : []);
 
         // Log activity for media approval/rejection (only if not already logged via approval request)
         if ($isCompleted) {
-            $media->load('mediaSet');
             $phaseType = null;
             $phaseUuid = null;
             if ($media->mediaSet) {
@@ -405,7 +409,7 @@ class MediaService
 
     public function markRejected(string $id, bool $isRejected, ?string $userId = null): MemoraMedia
     {
-        $media = MemoraMedia::findOrFail($id);
+        $media = MemoraMedia::with(['mediaSet.proofing'])->findOrFail($id);
 
         // If userId is provided, verify user owns the proofing
         if ($userId !== null) {
@@ -423,11 +427,10 @@ class MediaService
             'rejected_at' => $isRejected ? now() : null,
         ]);
 
-        $media = $media->fresh();
+        $media = $media->fresh($isRejected ? ['mediaSet'] : []);
 
         // Log activity for media rejection (only if not already logged via approval request)
         if ($isRejected) {
-            $media->load('mediaSet');
             $phaseType = null;
             $phaseUuid = null;
             if ($media->mediaSet) {
@@ -588,7 +591,7 @@ class MediaService
      */
     public function updateFeedback(string $feedbackId, array $data): MemoraMediaFeedback
     {
-        $feedback = MemoraMediaFeedback::findOrFail($feedbackId);
+        $feedback = MemoraMediaFeedback::with('media')->findOrFail($feedbackId);
         $media = $feedback->media;
 
         // Block updates if media is already approved/completed
@@ -652,7 +655,7 @@ class MediaService
      */
     public function deleteFeedback(string $feedbackId): bool
     {
-        $feedback = MemoraMediaFeedback::findOrFail($feedbackId);
+        $feedback = MemoraMediaFeedback::with('media')->findOrFail($feedbackId);
         $media = $feedback->media;
 
         // Block deletes if media is already approved/completed
@@ -1089,7 +1092,10 @@ class MediaService
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
-        $media = MemoraMedia::withTrashed()->with('file')->where('uuid', $mediaId)->firstOrFail();
+        $media = MemoraMedia::withTrashed()
+            ->with(['file', 'mediaSet.proofing', 'mediaSet.selection', 'mediaSet.collection'])
+            ->where('uuid', $mediaId)
+            ->firstOrFail();
 
         // First check: verify user owns the media directly
         $isAuthorized = ($media->user_uuid === $userId);
@@ -1232,7 +1238,7 @@ class MediaService
         }
 
         // Verify target set exists and user owns the proofing
-        $targetSet = MemoraMediaSet::query()
+        $targetSet = MemoraMediaSet::with('proofing')
             ->where('uuid', $targetSetUuid)
             ->firstOrFail();
 
@@ -1247,7 +1253,7 @@ class MediaService
         }
 
         // Verify all media items exist and user owns the proofing that contains them
-        $mediaItems = MemoraMedia::whereIn('uuid', $mediaUuids)->get();
+        $mediaItems = MemoraMedia::with(['mediaSet.proofing'])->whereIn('uuid', $mediaUuids)->get();
 
         if ($mediaItems->count() !== count($mediaUuids)) {
             throw new \RuntimeException('One or more media items not found');
@@ -1314,7 +1320,7 @@ class MediaService
         }
 
         // Verify target set exists and user owns the proofing
-        $targetSet = MemoraMediaSet::query()
+        $targetSet = MemoraMediaSet::with('proofing')
             ->where('uuid', $targetSetUuid)
             ->firstOrFail();
 
@@ -1330,7 +1336,7 @@ class MediaService
 
         // Verify all media items exist and user owns the proofing that contains them
         $mediaItems = MemoraMedia::whereIn('uuid', $mediaUuids)
-            ->with('file')
+            ->with(['file', 'mediaSet.proofing'])
             ->get();
 
         if ($mediaItems->count() !== count($mediaUuids)) {
@@ -1676,7 +1682,7 @@ class MediaService
 
         // Find media
         $media = MemoraMedia::where('uuid', $mediaUuid)
-            ->with('file')
+            ->with(['file', 'mediaSet.proofing'])
             ->firstOrFail();
 
         // Verify user owns the proofing that contains this media
@@ -1741,7 +1747,7 @@ class MediaService
         }
 
         // Find media
-        $media = MemoraMedia::where('uuid', $mediaUuid)->firstOrFail();
+        $media = MemoraMedia::with(['mediaSet.proofing'])->where('uuid', $mediaUuid)->firstOrFail();
 
         // Verify user owns the proofing that contains this media
         $mediaSet = $media->mediaSet;

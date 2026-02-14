@@ -57,8 +57,8 @@ Route::middleware(['auth:sanctum', 'memora.feature:selection'])->prefix('selecti
     });
 
     // Media download endpoint (outside of selection/set context)
-    Route::get('/media/{mediaUuid}/download', [MediaController::class, 'download'])->name('memora.media.download');
-    Route::get('/media/{mediaUuid}/serve', [MediaController::class, 'serve'])->name('memora.media.serve');
+    Route::get('/media/{mediaUuid}/download', [MediaController::class, 'download'])->name('memora.selections.media.download');
+    Route::get('/media/{mediaUuid}/serve', [MediaController::class, 'serve'])->name('memora.selections.media.serve');
 
     // Starred media endpoint
     Route::get('/media/starred', [MediaController::class, 'getStarredMedia']);

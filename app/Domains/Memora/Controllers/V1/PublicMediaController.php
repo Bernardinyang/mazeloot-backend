@@ -269,7 +269,7 @@ class PublicMediaController extends Controller
         }
 
         // Verify media belongs to this proofing
-        $media = MemoraMedia::findOrFail($mediaId);
+        $media = MemoraMedia::with('mediaSet')->findOrFail($mediaId);
         $mediaSet = $media->mediaSet;
         if (! $mediaSet || $mediaSet->proof_uuid !== $id) {
             return ApiResponse::error('Media does not belong to this proofing', 'MEDIA_NOT_IN_PROOFING', 403);
@@ -310,7 +310,7 @@ class PublicMediaController extends Controller
         ]);
 
         // Verify feedback belongs to media that belongs to this proofing
-        $feedback = \App\Domains\Memora\Models\MemoraMediaFeedback::findOrFail($feedbackId);
+        $feedback = \App\Domains\Memora\Models\MemoraMediaFeedback::with('media.mediaSet')->findOrFail($feedbackId);
         $media = $feedback->media;
         $mediaSet = $media->mediaSet;
         if (! $mediaSet || $mediaSet->proof_uuid !== $id) {
@@ -362,7 +362,7 @@ class PublicMediaController extends Controller
         }
 
         // Verify feedback belongs to media that belongs to this proofing
-        $feedback = \App\Domains\Memora\Models\MemoraMediaFeedback::findOrFail($feedbackId);
+        $feedback = \App\Domains\Memora\Models\MemoraMediaFeedback::with('media.mediaSet')->findOrFail($feedbackId);
         $media = $feedback->media;
         $mediaSet = $media->mediaSet;
         if (! $mediaSet || $mediaSet->proof_uuid !== $id) {
@@ -405,13 +405,13 @@ class PublicMediaController extends Controller
         }
 
         // Verify proofing is active
-        $proofing = MemoraProofing::query()->where('uuid', $id)->firstOrFail();
+        $proofing = MemoraProofing::where('uuid', $id)->firstOrFail();
         if ($proofing->status->value !== 'active') {
             return ApiResponse::error('Proofing is not active', 'PROOFING_NOT_ACTIVE', 403);
         }
 
         // Verify media belongs to this proofing
-        $media = MemoraMedia::findOrFail($mediaId);
+        $media = MemoraMedia::with('mediaSet')->findOrFail($mediaId);
         $mediaSet = $media->mediaSet;
         if (! $mediaSet || $mediaSet->proof_uuid !== $id) {
             return ApiResponse::error('Media does not belong to this proofing', 'MEDIA_NOT_IN_PROOFING', 403);
@@ -459,7 +459,7 @@ class PublicMediaController extends Controller
         }
 
         try {
-            $media = \App\Domains\Memora\Models\MemoraMedia::findOrFail($mediaId);
+            $media = \App\Domains\Memora\Models\MemoraMedia::with('mediaSet.proofing')->findOrFail($mediaId);
 
             // Verify media belongs to proofing associated with guest token
             $mediaSet = $media->mediaSet;
@@ -657,7 +657,7 @@ class PublicMediaController extends Controller
             }
 
             // Verify media belongs to collection
-            $media = MemoraMedia::findOrFail($mediaId);
+            $media = MemoraMedia::with('mediaSet')->findOrFail($mediaId);
             $mediaSet = $media->mediaSet;
             if (! $mediaSet || $mediaSet->collection_uuid !== $collectionId) {
                 return ApiResponse::error('Media does not belong to this collection', 'MEDIA_NOT_IN_COLLECTION', 403);
@@ -1070,7 +1070,7 @@ class PublicMediaController extends Controller
             }
 
             // Verify media belongs to collection
-            $media = MemoraMedia::findOrFail($mediaId);
+            $media = MemoraMedia::with('mediaSet')->findOrFail($mediaId);
             $mediaSet = $media->mediaSet;
             if (! $mediaSet || $mediaSet->collection_uuid !== $id) {
                 return ApiResponse::error('Media does not belong to this collection', 'MEDIA_NOT_IN_COLLECTION', 403);
@@ -1293,7 +1293,7 @@ class PublicMediaController extends Controller
             }
 
             // Verify media belongs to collection
-            $media = MemoraMedia::findOrFail($mediaId);
+            $media = MemoraMedia::with('mediaSet')->findOrFail($mediaId);
             $mediaSet = $media->mediaSet;
             if (! $mediaSet || $mediaSet->collection_uuid !== $id) {
                 return ApiResponse::error('Media does not belong to this collection', 'MEDIA_NOT_IN_COLLECTION', 403);

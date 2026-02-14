@@ -14,6 +14,7 @@ use App\Support\MemoraFrontendUrls;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -104,6 +105,8 @@ class SelectionService
             ],
             $user
         );
+
+        Cache::forget("memora.dashboard.stats.{$user->uuid}");
 
         return new SelectionResource($this->findModel($selection->uuid));
     }
@@ -508,6 +511,8 @@ class SelectionService
             $user
         );
 
+        Cache::forget("memora.dashboard.stats.{$user->uuid}");
+
         // Return with calculated counts
         return $this->find($id);
     }
@@ -854,6 +859,18 @@ class SelectionService
             throw new \Illuminate\Auth\AuthenticationException('User not authenticated');
         }
 
+        if (! $user->isAdmin()) {
+            $selectionLimit = app(\App\Services\Subscription\TierService::class)->getSelectionLimit($user);
+            if ($selectionLimit !== null) {
+                $currentCount = MemoraSelection::where('user_uuid', $user->uuid)->count();
+                if ($currentCount >= $selectionLimit) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'limit' => ['Selection limit reached. Upgrade your plan for more selections.'],
+                    ]);
+                }
+            }
+        }
+
         // Load the original selection with all relationships
         $original = MemoraSelection::where('uuid', $id)
             ->where('user_uuid', $user->uuid)
@@ -924,6 +941,8 @@ class SelectionService
             ['coverPhoto' => $original->cover_photo_url ?? $duplicated->cover_photo_url]
         );
 
+        Cache::forget("memora.dashboard.stats.{$user->uuid}");
+
         return new SelectionResource($this->findModel($duplicated->uuid));
     }
 
@@ -991,6 +1010,8 @@ class SelectionService
                     $user
                 );
             }
+
+            Cache::forget("memora.dashboard.stats.{$user->uuid}");
 
             return $deleted;
         });

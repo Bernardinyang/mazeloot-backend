@@ -15,6 +15,7 @@ return new class extends Migration
             $table->string('target_tier', 50);
             $table->string('status', 20)->default('pending');
             $table->string('checkout_session_id', 255)->nullable();
+            $table->text('checkout_url')->nullable();
             $table->timestamp('requested_at')->nullable();
             $table->timestamp('completed_at')->nullable();
             $table->foreignUuid('completed_by')->nullable()->constrained('users', 'uuid')->nullOnDelete();

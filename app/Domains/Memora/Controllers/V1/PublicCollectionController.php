@@ -13,6 +13,7 @@ use App\Support\Responses\ApiResponse;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Public Collection Controller
@@ -36,31 +37,36 @@ class PublicCollectionController extends Controller
     public function checkStatus(Request $request, string $id): JsonResponse
     {
         try {
-            $collection = MemoraCollection::query()
-                ->where('uuid', $id)
-                ->select('uuid', 'status', 'user_uuid', 'name')
-                ->firstOrFail();
+            $cacheKey = "public.collection.status:{$id}";
+            $cached = Cache::remember($cacheKey, 120, function () use ($id) {
+                $collection = MemoraCollection::query()
+                    ->where('uuid', $id)
+                    ->select('uuid', 'status', 'user_uuid', 'name', 'settings')
+                    ->firstOrFail();
+                $settings = $collection->settings ?? [];
+                $hasPassword = ! empty($settings['privacy']['collectionPasswordEnabled'] ?? $settings['privacy']['password'] ?? $settings['password'] ?? false);
+                $emailRegistration = $settings['general']['emailRegistration'] ?? $settings['emailRegistration'] ?? false;
+                $status = $collection->status?->value ?? $collection->status;
+
+                return [
+                    'id' => $collection->uuid,
+                    'status' => $status,
+                    'user_uuid' => $collection->user_uuid,
+                    'name' => $collection->name,
+                    'hasPassword' => $hasPassword,
+                    'emailRegistration' => $emailRegistration,
+                ];
+            });
 
             $isOwner = false;
             if (auth()->check()) {
-                $userUuid = auth()->user()->uuid;
-                $isOwner = $collection->user_uuid === $userUuid;
+                $isOwner = auth()->user()->uuid === ($cached['user_uuid'] ?? null);
             }
+            unset($cached['user_uuid']);
+            $cached['isOwner'] = $isOwner;
+            $cached['isAccessible'] = ($cached['status'] === 'active') || (($cached['status'] === 'draft') && $isOwner);
 
-            // Check if collection has password protection and email registration
-            $settings = $collection->settings ?? [];
-            $hasPassword = ! empty($settings['privacy']['collectionPasswordEnabled'] ?? $settings['privacy']['password'] ?? $settings['password'] ?? false);
-            $emailRegistration = $settings['general']['emailRegistration'] ?? $settings['emailRegistration'] ?? false;
-
-            return ApiResponse::success([
-                'id' => $collection->uuid,
-                'status' => $collection->status?->value ?? $collection->status,
-                'name' => $collection->name,
-                'isOwner' => $isOwner,
-                'hasPassword' => $hasPassword,
-                'emailRegistration' => $emailRegistration,
-                'isAccessible' => ($collection->status?->value === 'active' || $collection->status === 'active') || (($collection->status?->value === 'draft' || $collection->status === 'draft') && $isOwner),
-            ]);
+            return ApiResponse::success($cached);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ApiResponse::error('Collection not found', 'NOT_FOUND', 404);
         } catch (\Exception $e) {

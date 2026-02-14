@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 
 class PricingController extends Controller
@@ -367,6 +368,7 @@ class PricingController extends Controller
         }
 
         $addon = MemoraByoAddon::create($data);
+        Cache::forget('api.pricing.byo_addons');
 
         try {
             app(\App\Services\ActivityLog\ActivityLogService::class)->log(
@@ -426,6 +428,7 @@ class PricingController extends Controller
         }
 
         $addon->update($data);
+        Cache::forget('api.pricing.byo_addons');
 
         try {
             app(\App\Services\ActivityLog\ActivityLogService::class)->log(
@@ -466,6 +469,7 @@ class PricingController extends Controller
             \Illuminate\Support\Facades\Log::warning('Failed to log BYO addon activity', ['error' => $e->getMessage()]);
         }
         $addon->delete();
+        Cache::forget('api.pricing.byo_addons');
 
         return ApiResponse::success(null, 204);
     }

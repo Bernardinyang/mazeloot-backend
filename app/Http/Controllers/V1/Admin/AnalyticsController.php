@@ -9,6 +9,7 @@ use App\Services\Pagination\PaginationService;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class AnalyticsController extends Controller
 {
@@ -117,35 +118,44 @@ class AnalyticsController extends Controller
         $from = $request->query('from');
         $to = $request->query('to');
         $compare = $request->boolean('compare');
+        $cacheKey = 'admin.analytics.overview.'.md5(json_encode([$from, $to, $compare, $request->query('days')]));
 
-        $fromDate = null;
-        $toDate = null;
+        $data = Cache::remember($cacheKey, 300, function () use ($request, $from, $to, $compare) {
+            $fromDate = null;
+            $toDate = null;
 
-        if ($from && $to) {
-            $fromDate = \Carbon\Carbon::parse($from)->startOfDay();
-            $toDate = \Carbon\Carbon::parse($to)->endOfDay();
-            if ($fromDate->gt($toDate)) {
-                $fromDate = $toDate->copy()->startOfDay();
-                $toDate = $fromDate->copy()->endOfDay();
-            }
-            $days = (int) $fromDate->diffInDays($toDate) + 1;
-            $days = min(max($days, 1), 365);
-            $data = $this->dashboardService->getAnalyticsOverviewFromTo($fromDate, $toDate);
-        } else {
-            $days = (int) $request->query('days', 30);
-            $days = min(max($days, 7), 90);
-            $data = $this->dashboardService->getAnalyticsOverview($days);
-        }
-
-        if ($compare) {
-            if ($fromDate && $toDate) {
-                $prevTo = $fromDate->copy()->subDay()->endOfDay();
-                $prevFrom = $prevTo->copy()->subDays($days - 1)->startOfDay();
-                $data['comparison'] = $this->dashboardService->getAnalyticsOverviewFromTo($prevFrom, $prevTo, true);
+            if ($from && $to) {
+                $fromDate = \Carbon\Carbon::parse($from)->startOfDay();
+                $toDate = \Carbon\Carbon::parse($to)->endOfDay();
+                if ($fromDate->gt($toDate)) {
+                    $fromDate = $toDate->copy()->startOfDay();
+                    $toDate = $fromDate->copy()->endOfDay();
+                }
+                $days = (int) $fromDate->diffInDays($toDate) + 1;
+                $days = min(max($days, 1), 365);
+                $data = $this->dashboardService->getAnalyticsOverviewFromTo($fromDate, $toDate);
             } else {
-                $data['comparison'] = $this->dashboardService->getAnalyticsOverviewComparison($days);
+                $days = (int) $request->query('days', 30);
+                $days = min(max($days, 7), 90);
+                $data = $this->dashboardService->getAnalyticsOverview($days);
             }
-        }
+
+            if ($compare) {
+                if ($fromDate && $toDate) {
+                    $prevTo = $fromDate->copy()->subDay()->endOfDay();
+                    $prevFrom = $prevTo->copy()->subDays($days - 1)->startOfDay();
+                    $data['comparison'] = $this->dashboardService->getAnalyticsOverviewFromTo($prevFrom, $prevTo, true);
+                } else {
+                    $data['comparison'] = $this->dashboardService->getAnalyticsOverviewComparison($days);
+                }
+            }
+            $revenueOverTime = $this->dashboardService->getRevenueOverTime();
+            if ($revenueOverTime !== null) {
+                $data['revenue_over_time'] = $revenueOverTime;
+            }
+
+            return $data;
+        });
 
         return ApiResponse::successOk($data);
     }

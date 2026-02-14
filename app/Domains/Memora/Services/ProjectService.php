@@ -9,6 +9,7 @@ use App\Services\Pagination\PaginationService;
 use App\Services\Subscription\TierService;
 use App\Support\MemoraFrontendUrls;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
 
 class ProjectService
@@ -36,6 +37,9 @@ class ProjectService
         $user = Auth::user();
         $query = MemoraProject::query()->with([
             'mediaSets',
+            'selection',
+            'proofing',
+            'collection',
             'starredByUsers' => function ($query) use ($user) {
                 if ($user) {
                     $query->where('user_uuid', $user->uuid);
@@ -328,6 +332,8 @@ class ProjectService
             MemoraFrontendUrls::projectDetailPath($project->uuid)
         );
 
+        Cache::forget("memora.dashboard.stats.{$userUuid}");
+
         return $project;
     }
 
@@ -546,6 +552,8 @@ class ProjectService
             MemoraFrontendUrls::projectDetailPath($project->uuid)
         );
 
+        Cache::forget("memora.dashboard.stats.{$user->uuid}");
+
         return $project;
     }
 
@@ -600,6 +608,8 @@ class ProjectService
             );
         }
 
+        Cache::forget("memora.dashboard.stats.{$user->uuid}");
+
         return $deleted;
     }
 
@@ -608,7 +618,7 @@ class ProjectService
      */
     public function getPhases(string $id): array
     {
-        $project = MemoraProject::findOrFail($id);
+        $project = MemoraProject::with(['selection', 'proofing', 'collection'])->findOrFail($id);
 
         $selection = $project->selection;
         $proofing = $project->proofing;

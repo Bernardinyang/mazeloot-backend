@@ -471,4 +471,32 @@ class AdminDashboardService
             'mrr_formatted' => '$'.number_format($mrrCents / 100, 2),
         ];
     }
+
+    /**
+     * Revenue/subscription over time (last 12 months). Returns null if table missing.
+     */
+    public function getRevenueOverTime(): ?array
+    {
+        if (! Schema::hasTable('memora_subscriptions')) {
+            return null;
+        }
+        $months = [];
+        for ($i = 11; $i >= 0; $i--) {
+            $start = now()->subMonths($i)->startOfMonth();
+            $end = $start->copy()->endOfMonth();
+            $subs = MemoraSubscription::whereIn('status', ['active', 'trialing'])
+                ->where('created_at', '<=', $end)
+                ->where(function ($q) use ($start) {
+                    $q->whereNull('canceled_at')->orWhere('canceled_at', '>=', $start);
+                })
+                ->get();
+            $mrrCents = $subs->sum(fn ($s) => $s->billing_cycle === 'annual' ? (int) round($s->amount / 12) : $s->amount);
+            $months[] = [
+                'month' => $start->format('Y-m'),
+                'active_subscriptions' => $subs->count(),
+                'mrr_cents' => $mrrCents,
+            ];
+        }
+        return $months;
+    }
 }

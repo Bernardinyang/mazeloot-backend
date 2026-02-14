@@ -14,6 +14,7 @@ use App\Support\MemoraFrontendUrls;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -98,6 +99,8 @@ class RawFileService
             ],
             causer: $user
         );
+
+        Cache::forget("memora.dashboard.stats.{$user->uuid}");
 
         return new RawFileResource($this->findModel($rawFile->uuid));
     }
@@ -352,6 +355,8 @@ class RawFileService
             causer: $user
         );
 
+        Cache::forget("memora.dashboard.stats.{$user->uuid}");
+
         return new RawFileResource($rawFile);
     }
 
@@ -521,6 +526,8 @@ class RawFileService
             ],
             causer: $user
         );
+
+        Cache::forget("memora.dashboard.stats.{$user->uuid}");
 
         // Return with calculated counts
         return $this->find($id);
@@ -925,6 +932,8 @@ class RawFileService
             }
         }
 
+        Cache::forget("memora.dashboard.stats.{$user->uuid}");
+
         return new RawFileResource($this->findModel($duplicated->uuid));
     }
 
@@ -992,6 +1001,8 @@ class RawFileService
                     causer: $user
                 );
             }
+
+            Cache::forget("memora.dashboard.stats.{$user->uuid}");
 
             return $deleted;
         });

@@ -11,6 +11,7 @@ use App\Http\Controllers\V1\OnboardingController;
 use App\Http\Controllers\V1\PricingController;
 use App\Http\Controllers\V1\ProductController;
 use App\Http\Controllers\V1\ProductSelectionController;
+use App\Http\Controllers\V1\ReferralController;
 use App\Http\Controllers\V1\UploadController;
 use App\Http\Controllers\V1\Webhooks\FlutterwaveWebhookController;
 use App\Http\Controllers\V1\Webhooks\PayPalWebhookController;
@@ -34,6 +35,9 @@ Route::prefix('cache')->group(function () {
 
 // Products (public or authenticated)
 Route::get('/products', [ProductController::class, 'index']);
+
+// FAQ (public)
+Route::get('/faqs', [\App\Http\Controllers\V1\FaqController::class, 'index']);
 
 // Contact form (public)
 Route::post('/contact', [ContactController::class, 'submit'])->middleware('throttle:5,60');
@@ -84,8 +88,15 @@ Route::prefix('auth')->group(function () {
 // Note: API key auth middleware (ApiKeyAuth) can be added to support programmatic access
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/auth/user', [AuthController::class, 'user']);
+    Route::patch('/auth/user', [AuthController::class, 'updateProfile']);
+    Route::post('/auth/change-password', [AuthController::class, 'changePassword']);
+    Route::post('/auth/account/send-deletion-code', [AuthController::class, 'sendDeletionCode'])->middleware('throttle:3,15');
+    Route::delete('/auth/account', [AuthController::class, 'deleteAccount']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/storage', [AuthController::class, 'storage']);
+    Route::get('/referral', [ReferralController::class, 'index']);
+    Route::get('/referral/list', [ReferralController::class, 'referrals']);
+    Route::post('/referral/invite', [ReferralController::class, 'sendInvite'])->middleware('throttle:10,60');
     Route::post('/uploads', [UploadController::class, 'upload']);
     Route::post('/images/upload', [ImageUploadController::class, 'upload']);
 

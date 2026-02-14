@@ -82,8 +82,6 @@ class ProofingApprovalRequestController extends Controller
                 return ApiResponse::error('Approval request not found', 404);
             }
 
-            $approvalRequest->load('user');
-
             return ApiResponse::success([
                 'approval_request' => [
                     'uuid' => $approvalRequest->uuid,
@@ -244,7 +242,7 @@ class ProofingApprovalRequestController extends Controller
         }
 
         try {
-            $media = MemoraMedia::findOrFail($mediaId);
+            $media = MemoraMedia::with(['mediaSet.proofing'])->findOrFail($mediaId);
 
             // Verify media belongs to proofing associated with guest token
             $mediaSet = $media->mediaSet;

@@ -12,6 +12,7 @@ use App\Services\Notification\NotificationService;
 use App\Services\Pagination\PaginationService;
 use App\Support\MemoraFrontendUrls;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class CollectionService
 {
@@ -524,6 +525,8 @@ class CollectionService
             $user
         );
 
+        Cache::forget("memora.dashboard.stats.{$user->uuid}");
+
         return $collection;
     }
 
@@ -927,6 +930,8 @@ class CollectionService
 
         // Preserve existing sets when preset changes - do not delete/recreate sets
 
+        Cache::forget("memora.dashboard.stats.{$user->uuid}");
+
         return $collection->fresh()->load(['preset', 'watermark', 'mediaSets' => function ($query) {
             $query->withCount('media')->orderBy('order', 'asc');
         }]);
@@ -1022,6 +1027,8 @@ class CollectionService
                 $user
             );
         }
+
+        Cache::forget("memora.dashboard.stats.{$user->uuid}");
 
         return $deleted;
     }
@@ -1140,6 +1147,8 @@ class CollectionService
         $duplicated->load(['preset', 'watermark', 'mediaSets' => function ($query) {
             $query->withCount('media')->orderBy('order', 'asc');
         }]);
+
+        Cache::forget("memora.dashboard.stats.{$user->uuid}");
 
         return $duplicated;
     }

@@ -33,6 +33,12 @@ class GlobalServicesProvider extends ServiceProvider
         $this->app->bind(UploadProviderInterface::class, function ($app) {
             $provider = config('upload.default_provider', 'local');
 
+            \Illuminate\Support\Facades\Log::info('Upload provider resolved', [
+                'provider' => $provider,
+                'env_upload_provider' => env('UPLOAD_PROVIDER'),
+                'filesystem_disk' => config('filesystems.default'),
+            ]);
+
             return match ($provider) {
                 'local' => $app->make(LocalProvider::class),
                 's3' => $app->make(S3Provider::class),

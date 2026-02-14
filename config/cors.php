@@ -15,30 +15,39 @@ return [
     |
     */
 
-    'paths' => ['api/*', 'sanctum/csrf-cookie', 'broadcasting/*'],
+    'paths' => ['api/*', 'sanctum/csrf-cookie', 'broadcasting/*', 'up'],
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => array_values(array_filter([
-        env('FRONTEND_URL'),
-        'https://mazeloott.vercel.app',
-        'https://mazeloot.com',
-        'http://localhost:5173',
-        'http://localhost:3000',
-        'http://127.0.0.1:5173',
-        'http://127.0.0.1:3000',
-    ], fn ($value) => ! empty($value))),
+    'allowed_origins' => array_values(array_filter(array_merge(
+        [env('FRONTEND_URL')],
+        [
+            'https://mazeloott.vercel.app',
+            'https://www.mazeloot.com',
+            'https://mazeloot.com',
+            'http://localhost:5173',
+            'http://localhost:3000',
+            'http://127.0.0.1:5173',
+            'http://127.0.0.1:3000',
+        ]
+    ), fn ($value) => is_string($value) && $value !== '')),
 
     'allowed_origins_patterns' => [
-        '#^https://.*\.vercel\.app$#',
-        '#^https://.*\.mazeloot\.com$#',
+        '#^https://.*\\.vercel\\.app$#',
+        '#^https://.*\\.mazeloot\\.com$#',
     ],
 
-    'allowed_headers' => ['*'],
+    'allowed_headers' => [
+    'Content-Type',
+    'X-Requested-With',
+    'Authorization',
+    'Origin',
+    'Accept',
+],
 
     'exposed_headers' => [],
 
-    'max_age' => 0,
+    'max_age' => 86400,
 
     'supports_credentials' => true,
 

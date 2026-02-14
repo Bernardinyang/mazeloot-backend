@@ -87,14 +87,24 @@ class HealthController extends Controller
             $checks['storage'] = ['status' => 'error', 'message' => $e->getMessage()];
         }
 
+        $diskPath = storage_path();
+        if (is_dir($diskPath)) {
+            $total = @disk_total_space($diskPath);
+            $free = @disk_free_space($diskPath);
+            if ($total && $free && $total > 0) {
+                $usedPct = (($total - $free) / $total) * 100;
+                if ($usedPct >= 90) {
+                    $checks['disk_space'] = ['status' => 'error', 'message' => round($usedPct, 1).'% used (≥90% is critical)'];
+                } elseif ($usedPct >= 70) {
+                    $checks['disk_space'] = ['status' => 'ok', 'message' => round($usedPct, 1).'% used (consider freeing space)'];
+                } else {
+                    $checks['disk_space'] = ['status' => 'ok', 'message' => round($usedPct, 1).'% used'];
+                }
+            }
+        }
+
         $stats['memory_usage_mb'] = round(memory_get_usage(true) / 1024 / 1024, 2);
         $stats['memory_peak_mb'] = round(memory_get_peak_usage(true) / 1024 / 1024, 2);
-        $stats['php_memory_limit'] = ini_get('memory_limit');
-        $stats['php_max_execution_time'] = ini_get('max_execution_time');
-        $keyExtensions = ['pdo', 'pdo_mysql', 'json', 'mbstring', 'openssl', 'curl', 'fileinfo', 'tokenizer', 'ctype', 'bcmath'];
-        $stats['php_extensions_loaded'] = array_values(array_intersect($keyExtensions, array_map('strtolower', get_loaded_extensions())));
-        $stats['php_extensions_count'] = count(get_loaded_extensions());
-
         $stats['health_check_ms'] = (int) round((microtime(true) - $start) * 1000);
         $allOk = collect($checks)->every(fn ($c) => ($c['status'] ?? '') === 'ok');
         $timestamp = now()->toIso8601String();
@@ -106,14 +116,25 @@ class HealthController extends Controller
             'timestamp' => $timestamp,
             'version' => config('app.version'),
         ];
+        $schedulerLastRun = Cache::get('admin.scheduler_last_run');
+        if ($schedulerLastRun) {
+            $payload['scheduler_last_run'] = $schedulerLastRun;
+            $payload['scheduler_stale'] = (now()->parse($schedulerLastRun)->diffInSeconds(now(), false) > 900);
+        }
         if (! $allOk) {
             $payload['last_failed_at'] = $timestamp;
             $webhookUrl = config('admin.health_webhook_url');
             if ($webhookUrl) {
-                try {
-                    Http::timeout(5)->post($webhookUrl, array_merge($payload, ['event' => 'health_degraded']));
-                } catch (\Throwable $e) {
-                    // do not fail response
+                $body = array_merge($payload, ['event' => 'health_degraded']);
+                for ($attempt = 0; $attempt < 3; $attempt++) {
+                    try {
+                        Http::timeout(5)->post($webhookUrl, $body);
+                        break;
+                    } catch (\Throwable $e) {
+                        if ($attempt < 2) {
+                            usleep(2000000);
+                        }
+                    }
                 }
             }
         }

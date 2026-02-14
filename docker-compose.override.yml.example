@@ -1,0 +1,16 @@
+# Optional: copy to docker-compose.override.yml to use database instead of Redis
+# for cache/queue/session (e.g. if Redis is not running or you prefer database).
+
+services:
+  app:
+    environment:
+      - CACHE_STORE=database
+      - QUEUE_CONNECTION=database
+      - SESSION_DRIVER=database
+      - BROADCAST_DRIVER=log
+  queue:
+    environment:
+      - QUEUE_CONNECTION=database
+  scheduler:
+    environment:
+      - CACHE_STORE=database

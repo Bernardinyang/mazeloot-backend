@@ -7,8 +7,10 @@ use App\Http\Controllers\V1\Admin\ContactSubmissionController;
 use App\Http\Controllers\V1\Admin\DashboardController;
 use App\Http\Controllers\V1\Admin\DowngradeRequestController;
 use App\Http\Controllers\V1\Admin\EarlyAccessController;
+use App\Http\Controllers\V1\Admin\FaqController;
 use App\Http\Controllers\V1\Admin\HealthController;
 use App\Http\Controllers\V1\Admin\LogsController;
+use App\Http\Controllers\V1\Admin\QueueController;
 use App\Http\Controllers\V1\Admin\PricingController;
 use App\Http\Controllers\V1\Admin\ProductController;
 use App\Http\Controllers\V1\Admin\SystemController;
@@ -34,7 +36,15 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     // Health & System (admin-only)
     Route::get('/health', [HealthController::class, 'index']);
     Route::get('/system', [SystemController::class, 'index']);
-    Route::get('/logs/recent', [LogsController::class, 'recent']);
+    Route::get('/system/connectivity', [SystemController::class, 'connectivity']);
+    Route::get('/system/webhooks', [SystemController::class, 'webhooks']);
+    Route::get('/queue/failed', [QueueController::class, 'failed']);
+    Route::post('/queue/failed/retry', [QueueController::class, 'retryFailed']);
+    Route::delete('/queue/failed/{uuid}', [QueueController::class, 'forgetFailed']);
+    Route::post('/queue/failed/flush', [QueueController::class, 'flushFailed']);
+    Route::post('/queue/restart', [QueueController::class, 'restart']);
+    Route::get('/logs/recent', [LogsController::class, 'recent'])->middleware('throttle:30,1');
+    Route::post('/logs/clear', [LogsController::class, 'clear']);
     Route::get('/dashboard/products/{slug}', [DashboardController::class, 'getProductStats']);
     Route::get('/dashboard/users', [DashboardController::class, 'getUserStats']);
 
@@ -71,6 +81,13 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     // Contact form submissions
     Route::get('/contact-submissions', [ContactSubmissionController::class, 'index']);
     Route::get('/contact-submissions/{uuid}', [ContactSubmissionController::class, 'show']);
+
+    // FAQ
+    Route::get('/faqs', [FaqController::class, 'index']);
+    Route::post('/faqs', [FaqController::class, 'store']);
+    Route::get('/faqs/{uuid}', [FaqController::class, 'show']);
+    Route::patch('/faqs/{uuid}', [FaqController::class, 'update']);
+    Route::delete('/faqs/{uuid}', [FaqController::class, 'destroy']);
 
     // Waitlist
     Route::get('/waitlist', [WaitlistController::class, 'index']);
@@ -122,4 +139,5 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     });
 
     Route::post('/cache/clear', [CacheController::class, 'clear']);
+    Route::post('/cache/clear-all-optimize', [CacheController::class, 'clearAllAndOptimize']);
 });

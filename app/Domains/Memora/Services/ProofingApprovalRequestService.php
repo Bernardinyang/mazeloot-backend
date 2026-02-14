@@ -23,7 +23,7 @@ class ProofingApprovalRequestService
     public function create(string $proofingId, string $mediaId, ?string $message, string $userId): MemoraProofingApprovalRequest
     {
         $proofing = MemoraProofing::findOrFail($proofingId);
-        $media = MemoraMedia::findOrFail($mediaId);
+        $media = MemoraMedia::with('mediaSet')->findOrFail($mediaId);
 
         // Verify user owns the proofing
         if ($proofing->user_uuid !== $userId) {
@@ -412,16 +412,16 @@ class ProofingApprovalRequestService
 
     public function getByMedia(string $mediaId, string $userId): array
     {
-        $media = MemoraMedia::findOrFail($mediaId);
+        $media = MemoraMedia::with(['mediaSet.proofing'])->findOrFail($mediaId);
         $mediaSet = $media->mediaSet;
 
         if (! $mediaSet) {
             throw new \Exception('Media does not belong to a proofing');
         }
 
-        $proofing = MemoraProofing::findOrFail($mediaSet->proof_uuid);
+        $proofing = $mediaSet->proofing;
 
-        if ($proofing->user_uuid !== $userId) {
+        if (! $proofing || $proofing->user_uuid !== $userId) {
             throw new \Exception('Unauthorized: You do not own this proofing');
         }
 

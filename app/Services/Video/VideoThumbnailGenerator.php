@@ -25,9 +25,9 @@ class VideoThumbnailGenerator
             return null;
         }
 
-        // Check if FFmpeg is available
+        // Check if FFmpeg is available; skip thumbnail only, upload continues
         if (! $this->isFFmpegAvailable()) {
-            Log::warning('FFmpeg is not available. Video thumbnail generation skipped.');
+            Log::info('FFmpeg is not available. Video thumbnail generation skipped; file will be uploaded without thumbnail.');
 
             return null;
         }

@@ -8,6 +8,7 @@ use App\Domains\Memora\Resources\V1\CoverLayoutResource;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class CoverLayoutController extends Controller
 {
@@ -17,14 +18,14 @@ class CoverLayoutController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = MemoraCoverLayout::active()->ordered();
+        $includeInactive = (bool) $request->query('include_inactive');
+        $cacheKey = 'memora.cover_layouts.'.($includeInactive ? 'all' : 'active');
 
-        // Optionally include inactive layouts if requested (for admin)
-        if ($request->query('include_inactive')) {
-            $query = MemoraCoverLayout::ordered();
-        }
+        $coverLayouts = Cache::remember($cacheKey, 300, function () use ($includeInactive) {
+            $query = $includeInactive ? MemoraCoverLayout::ordered() : MemoraCoverLayout::active()->ordered();
 
-        $coverLayouts = $query->get();
+            return $query->get();
+        });
 
         return ApiResponse::success(CoverLayoutResource::collection($coverLayouts));
     }

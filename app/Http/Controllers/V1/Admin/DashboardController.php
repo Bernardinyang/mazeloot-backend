@@ -7,6 +7,7 @@ use App\Services\Admin\AdminDashboardService;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class DashboardController extends Controller
 {
@@ -20,8 +21,9 @@ class DashboardController extends Controller
     public function index(Request $request): JsonResponse
     {
         $productSlug = $request->query('product');
+        $cacheKey = 'admin.dashboard.stats.'.($productSlug ?? 'all');
 
-        $stats = $this->dashboardService->getDashboardStats($productSlug);
+        $stats = Cache::remember($cacheKey, 60, fn () => $this->dashboardService->getDashboardStats($productSlug));
 
         return ApiResponse::successOk($stats);
     }

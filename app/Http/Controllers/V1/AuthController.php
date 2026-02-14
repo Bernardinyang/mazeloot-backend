@@ -10,15 +10,23 @@ use App\Http\Requests\V1\ResendVerificationRequest;
 use App\Http\Requests\V1\ResetPasswordRequest;
 use App\Http\Requests\V1\SendMagicLinkRequest;
 use App\Http\Requests\V1\VerifyEmailRequest;
+use App\Http\Requests\V1\ChangePasswordRequest;
+use App\Http\Requests\V1\DeleteAccountRequest;
+use App\Http\Requests\V1\UpdateProfileRequest;
 use App\Http\Requests\V1\VerifyMagicLinkRequest;
 use App\Models\User;
 use App\Models\Waitlist;
+use App\Models\Notification;
+use App\Notifications\AccountDeletedNotification;
+use App\Notifications\AccountDeletionCodeNotification;
 use App\Services\Auth\EmailVerificationService;
 use App\Services\Auth\MagicLinkService;
 use App\Services\Auth\PasswordResetService;
+use App\Services\ReferralService;
 use App\Services\Storage\UserStorageService;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -30,6 +38,7 @@ class AuthController extends Controller
         protected EmailVerificationService $verificationService,
         protected PasswordResetService $passwordResetService,
         protected MagicLinkService $magicLinkService,
+        protected ReferralService $referralService,
         protected UserStorageService $storageService
     ) {}
 
@@ -41,6 +50,7 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {
+            $this->recordFailedLogin($request->email, $request->ip());
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);
@@ -125,13 +135,31 @@ class AuthController extends Controller
      */
     public function register(RegisterRequest $request): JsonResponse
     {
+        $referrer = $request->filled('referral_code')
+            ? $this->referralService->resolveReferrerByCode($request->referral_code)
+            : null;
+        if ($referrer && $referrer->email === $request->email) {
+            $referrer = null;
+        }
+
         $user = User::create([
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
             'middle_name' => $request->middle_name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'referred_by_user_uuid' => $referrer?->uuid,
         ]);
+
+        if ($referrer) {
+            \App\Models\ReferralInvite::firstOrCreate(
+                [
+                    'referrer_user_uuid' => $referrer->uuid,
+                    'email' => $user->email,
+                ],
+                ['sent_at' => now()],
+            );
+        }
 
         // Send verification code
         $this->verificationService->sendVerificationCode($user);
@@ -732,6 +760,83 @@ class AuthController extends Controller
                 'email' => $user->email,
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
+                'middle_name' => $user->middle_name,
+                'profile_photo' => $user->profile_photo,
+                'email_verified_at' => $user->email_verified_at,
+                'has_password' => ! empty($user->password),
+                'role' => $user->role->value,
+                'memora_tier' => $user->memora_tier ?? 'starter',
+                'memora_features' => $tierService->getFeatures($user),
+                'memora_capabilities' => $tierService->getCapabilities($user),
+                'set_limit_per_phase' => $tierService->getSetLimitPerPhase($user),
+                'watermark_limit' => $tierService->getWatermarkLimit($user),
+                'preset_limit' => $tierService->getPresetLimit($user),
+                'selection_limit' => $tierService->getSelectionLimit($user),
+                'proofing_limit' => $tierService->getProofingLimit($user),
+                'status' => $user->status ? [
+                    'uuid' => $user->status->uuid,
+                    'name' => $user->status->name,
+                    'description' => $user->status->description,
+                    'color' => $user->status->color,
+                ] : null,
+                'early_access' => $user->earlyAccess && $user->earlyAccess->isActive() ? [
+                    'is_active' => true,
+                    'discount_percentage' => $user->earlyAccess->discount_percentage,
+                    'discount_rules' => $user->earlyAccess->discount_rules,
+                    'feature_flags' => $user->earlyAccess->feature_flags ?? [],
+                    'storage_multiplier' => $user->earlyAccess->storage_multiplier,
+                    'priority_support' => $user->earlyAccess->priority_support,
+                    'exclusive_badge' => $user->earlyAccess->exclusive_badge,
+                    'trial_extension_days' => $user->earlyAccess->trial_extension_days,
+                    'custom_branding_enabled' => $user->earlyAccess->custom_branding_enabled,
+                    'release_version' => $user->earlyAccess->release_version,
+                    'expires_at' => $user->earlyAccess->expires_at?->toIso8601String(),
+                ] : null,
+            ],
+        ]);
+    }
+
+    /**
+     * Update authenticated user profile.
+     */
+    public function updateProfile(UpdateProfileRequest $request): JsonResponse
+    {
+        $user = auth()->user();
+        if (! $user) {
+            return ApiResponse::errorUnauthorized('User not authenticated.');
+        }
+
+        $data = $request->validated();
+        if (array_key_exists('first_name', $data)) {
+            $user->first_name = $data['first_name'];
+        }
+        if (array_key_exists('last_name', $data)) {
+            $user->last_name = $data['last_name'];
+        }
+        if (array_key_exists('middle_name', $data)) {
+            $user->middle_name = $data['middle_name'];
+        }
+        if (array_key_exists('profile_photo', $data)) {
+            $user->profile_photo = $data['profile_photo'];
+        }
+        $user->save();
+
+        if (! $user->relationLoaded('status')) {
+            $user->load('status');
+        }
+        if (! $user->relationLoaded('earlyAccess')) {
+            $user->load('earlyAccess');
+        }
+
+        $tierService = app(\App\Services\Subscription\TierService::class);
+
+        return ApiResponse::successOk([
+            'user' => [
+                'uuid' => $user->uuid,
+                'email' => $user->email,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'middle_name' => $user->middle_name,
                 'profile_photo' => $user->profile_photo,
                 'email_verified_at' => $user->email_verified_at,
                 'role' => $user->role->value,
@@ -764,6 +869,146 @@ class AuthController extends Controller
                 ] : null,
             ],
         ]);
+    }
+
+    /**
+     * Change password for authenticated user.
+     */
+    public function changePassword(ChangePasswordRequest $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return ApiResponse::errorUnauthorized('User not authenticated.');
+        }
+
+        $user->password = Hash::make($request->validated('password'));
+        $user->save();
+
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'password_changed',
+                $user,
+                'User changed password',
+                null,
+                $user,
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to log password change', [
+                'user_uuid' => $user->uuid ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return ApiResponse::successOk(['message' => 'Password updated successfully.']);
+    }
+
+    /**
+     * Send account deletion confirmation code to authenticated user's email (for accounts without password).
+     */
+    public function sendDeletionCode(\Illuminate\Http\Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return ApiResponse::errorUnauthorized('User not authenticated.');
+        }
+        if ($user->password) {
+            return ApiResponse::error('Use your password to delete your account.', 'HAS_PASSWORD', 400);
+        }
+
+        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $key = 'account_deletion_code:'.$user->uuid;
+        Cache::put($key, $code, now()->addMinutes(15));
+
+        try {
+            $user->notify(new AccountDeletionCodeNotification($code));
+        } catch (\Throwable $e) {
+            Cache::forget($key);
+            \Illuminate\Support\Facades\Log::error('Failed to send account deletion code email', [
+                'user_uuid' => $user->uuid ?? null,
+                'error' => $e->getMessage(),
+            ]);
+            return ApiResponse::error('Failed to send code. Please try again.', 'EMAIL_FAILED', 500);
+        }
+
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'account_deletion_code_sent',
+                $user,
+                'Account deletion confirmation code sent',
+                null,
+                $user,
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to log account deletion code sent', [
+                'user_uuid' => $user->uuid ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return ApiResponse::successOk(['message' => 'Confirmation code sent to your email.']);
+    }
+
+    /**
+     * Delete authenticated user account (soft delete).
+     */
+    public function deleteAccount(DeleteAccountRequest $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return ApiResponse::errorUnauthorized('User not authenticated.');
+        }
+
+        $userEmail = $user->email;
+        $userName = trim($user->first_name.' '.$user->last_name) ?: null;
+
+        try {
+            Notification::create([
+                'user_uuid' => $user->uuid,
+                'product' => 'general',
+                'type' => 'account_deleted',
+                'title' => 'Account deleted',
+                'message' => 'Your Mazeloot account has been permanently deleted.',
+                'description' => 'This confirms that your account and associated data have been removed.',
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to create account-deleted in-app notification', [
+                'user_uuid' => $user->uuid ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        try {
+            \Illuminate\Support\Facades\Notification::route('mail', $userEmail)
+                ->notify(new AccountDeletedNotification($userName));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send account-deleted email', [
+                'user_uuid' => $user->uuid ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        $user->tokens()->delete();
+        $user->delete();
+
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'account_deleted',
+                $user,
+                'User deleted account',
+                null,
+                $user,
+                $request
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to log account deletion', [
+                'user_uuid' => $user->uuid ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return ApiResponse::successOk(['message' => 'Account deleted successfully.']);
     }
 
     /**
@@ -882,5 +1127,20 @@ class AuthController extends Controller
             'first_name' => $parts[0] ?: 'User',
             'last_name' => $parts[1] ?? '',
         ];
+    }
+
+    private function recordFailedLogin(string $identifier, ?string $ip): void
+    {
+        try {
+            $entries = Cache::get('admin.failed_logins', []);
+            array_unshift($entries, [
+                'identifier' => $identifier,
+                'ip' => $ip,
+                'attempted_at' => now()->toIso8601String(),
+            ]);
+            Cache::put('admin.failed_logins', array_slice($entries, 0, 20), 86400);
+        } catch (\Throwable $e) {
+            // ignore
+        }
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\V1\Webhooks;
 
 use App\Domains\Memora\Services\MemoraSubscriptionService;
 use App\Http\Controllers\Controller;
+use App\Models\WebhookEvent;
 use App\Services\Payment\Providers\FlutterwaveProvider;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -48,17 +49,20 @@ class FlutterwaveWebhookController extends Controller
                 Log::warning('Flutterwave webhook: No signature in test mode - accepting payload (use signature in production)');
             } else {
                 Log::warning('Flutterwave webhook: Missing signature (header and verif_hash)', ['has_payload' => ! empty($payload)]);
+                WebhookEvent::record('flutterwave', 'failed', 400, null, null, 'Missing signature');
 
                 return response('Missing signature', 400);
             }
         } elseif (! $this->flutterwave->verifyWebhookSignature($payload, $signature)) {
             Log::warning('Flutterwave webhook: Invalid signature', ['payload_length' => strlen($payload)]);
+            WebhookEvent::record('flutterwave', 'failed', 400, null, null, 'Invalid signature');
 
             return response('Invalid signature', 400);
         }
 
         if (empty($body)) {
             Log::warning('Flutterwave webhook: Invalid payload (empty or non-array JSON)', ['payload_preview' => substr($payload, 0, 200)]);
+            WebhookEvent::record('flutterwave', 'failed', 400, null, null, 'Invalid payload');
 
             return response('Invalid payload', 400);
         }
@@ -92,16 +96,19 @@ class FlutterwaveWebhookController extends Controller
             if ($handled) {
                 Log::info('Flutterwave webhook: handler completed', ['event' => $event]);
             }
+            $eventId = $ctx['tx_ref'] ?? $ctx['id'] ?? null;
+            WebhookEvent::record('flutterwave', 'processed', 200, $event, is_string($eventId) ? $eventId : (is_scalar($eventId) ? (string) $eventId : null));
+
+            return response('Webhook handled', 200);
         } catch (\Throwable $e) {
             Log::error('Flutterwave webhook: Error handling event', array_merge($ctx, [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]));
+            WebhookEvent::record('flutterwave', 'failed', 500, $event ?? null, $ctx['tx_ref'] ?? null, $e->getMessage());
 
             return response('Webhook processing failed', 500);
         }
-
-        return response('Webhook handled', 200);
     }
 
     protected function handleChargeCompleted(array $data): void

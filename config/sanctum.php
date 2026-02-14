@@ -2,6 +2,12 @@
 
 use Laravel\Sanctum\Sanctum;
 
+$stateful = array_filter(explode(',', env('SANCTUM_STATEFUL_DOMAINS', 'localhost,localhost:3000,localhost:5173,127.0.0.1,127.0.0.1:8000,127.0.0.1:5173,::1')));
+$frontendHost = parse_url(env('FRONTEND_URL', ''), PHP_URL_HOST);
+if ($frontendHost) {
+    $stateful[] = $frontendHost;
+}
+
 return [
 
     /*
@@ -15,7 +21,7 @@ return [
     |
     */
 
-    'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', 'localhost,localhost:3000,localhost:5173,127.0.0.1,127.0.0.1:8000,127.0.0.1:5173,::1')),
+    'stateful' => array_values(array_unique($stateful)),
 
     /*
     |--------------------------------------------------------------------------

@@ -84,8 +84,6 @@ class ClosureRequestController extends Controller
                 return ApiResponse::error('Closure request not found', 404);
             }
 
-            $closureRequest->load('user');
-
             return ApiResponse::success([
                 'closure_request' => [
                     'uuid' => $closureRequest->uuid,
@@ -315,7 +313,7 @@ class ClosureRequestController extends Controller
         }
 
         try {
-            $media = MemoraMedia::findOrFail($mediaId);
+            $media = MemoraMedia::with(['mediaSet.proofing'])->findOrFail($mediaId);
 
             // Verify media belongs to proofing associated with guest token
             $mediaSet = $media->mediaSet;

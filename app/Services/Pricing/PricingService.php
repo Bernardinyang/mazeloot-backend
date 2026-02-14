@@ -54,7 +54,7 @@ class PricingService
 
         // Apply early access discount if user UUID provided
         if ($userUuid) {
-            $user = \App\Models\User::find($userUuid);
+            $user = \App\Models\User::with('earlyAccess')->find($userUuid);
             if ($user && $user->hasEarlyAccess()) {
                 $discount = $user->getEarlyAccessDiscount($productId);
                 if ($discount > 0) {

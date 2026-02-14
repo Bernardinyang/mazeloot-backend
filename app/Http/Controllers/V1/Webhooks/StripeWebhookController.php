@@ -5,6 +5,7 @@ namespace App\Http\Controllers\V1\Webhooks;
 use App\Domains\Memora\Models\MemoraSubscription;
 use App\Domains\Memora\Services\MemoraSubscriptionService;
 use App\Http\Controllers\Controller;
+use App\Models\WebhookEvent;
 use App\Services\Payment\Providers\StripeProvider;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -30,6 +31,7 @@ class StripeWebhookController extends Controller
 
         if (! $signature) {
             Log::warning('Stripe webhook: Missing signature');
+            WebhookEvent::record('stripe', 'failed', 400, null, null, 'Missing signature');
 
             return response('Missing signature', 400);
         }
@@ -38,6 +40,7 @@ class StripeWebhookController extends Controller
             $event = $this->stripe->constructWebhookEvent($payload, $signature);
         } catch (\Exception $e) {
             Log::warning('Stripe webhook: Invalid signature', ['error' => $e->getMessage()]);
+            WebhookEvent::record('stripe', 'failed', 400, null, null, $e->getMessage());
 
             return response('Invalid signature', 400);
         }
@@ -78,16 +81,18 @@ class StripeWebhookController extends Controller
             if ($handled) {
                 Log::info('Stripe webhook: handler completed', ['event' => $event->type]);
             }
+            WebhookEvent::record('stripe', 'processed', 200, $event->type, $event->id ?? null);
+
+            return response('Webhook handled', 200);
         } catch (\Throwable $e) {
             Log::error('Stripe webhook: Error handling event', array_merge($ctx, [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]));
+            WebhookEvent::record('stripe', 'failed', 200, $ctx['type'] ?? null, $ctx['id'] ?? null, $e->getMessage());
 
             return response('Error logged', 200);
         }
-
-        return response('Webhook handled', 200);
     }
 
     protected function handleCheckoutCompleted($session): void

@@ -87,4 +87,31 @@ class LogsController extends Controller
 
         return implode("\n", $last);
     }
+
+    /**
+     * Truncate the Laravel log file (requires admin).
+     */
+    public function clear(): JsonResponse
+    {
+        $path = storage_path('logs/laravel.log');
+        if (File::exists($path) && is_writable($path)) {
+            file_put_contents($path, '');
+        }
+        try {
+            app(\App\Services\ActivityLog\ActivityLogService::class)->log(
+                'admin_log_cleared',
+                request()->user(),
+                'Admin cleared application log file',
+                [],
+                request()->user(),
+                request()
+            );
+        } catch (\Throwable $e) {
+            // do not fail response
+        }
+
+        return ApiResponse::successOk([
+            'message' => 'Log file cleared',
+        ]);
+    }
 }

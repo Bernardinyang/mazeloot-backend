@@ -22,7 +22,11 @@ class TierService
             return 'starter';
         }
 
-        $tier = $user->memora_tier ?? 'starter';
+        $active = MemoraSubscription::where('user_uuid', $user->uuid)
+            ->whereIn('status', ['active', 'trialing'])
+            ->latest()
+            ->first();
+        $tier = $active?->tier ?? $user->memora_tier ?? 'starter';
         $validTiers = ['starter', 'pro', 'studio', 'business', 'byo'];
 
         return in_array($tier, $validTiers, true) ? $tier : 'starter';

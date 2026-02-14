@@ -4,6 +4,7 @@ namespace App\Http\Controllers\V1\Webhooks;
 
 use App\Domains\Memora\Services\MemoraSubscriptionService;
 use App\Http\Controllers\Controller;
+use App\Models\WebhookEvent;
 use App\Services\Payment\Providers\PaystackProvider;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -38,12 +39,14 @@ class PaystackWebhookController extends Controller
 
         if (! $signature) {
             Log::warning('Paystack webhook: Missing signature', ['has_payload' => ! empty($payload)]);
+            WebhookEvent::record('paystack', 'failed', 400, null, null, 'Missing signature');
 
             return response('Missing signature', 400);
         }
 
         if (! $this->paystack->verifyWebhookSignature($payload, $signature)) {
             Log::warning('Paystack webhook: Invalid signature', ['payload_length' => strlen($payload)]);
+            WebhookEvent::record('paystack', 'failed', 400, null, null, 'Invalid signature');
 
             return response('Invalid signature', 400);
         }
@@ -51,6 +54,7 @@ class PaystackWebhookController extends Controller
         $body = json_decode($payload, true);
         if (! is_array($body)) {
             Log::warning('Paystack webhook: Invalid payload (non-array JSON)', ['payload_preview' => substr($payload, 0, 200)]);
+            WebhookEvent::record('paystack', 'failed', 400, null, null, 'Invalid payload');
 
             return response('Invalid payload', 400);
         }
@@ -97,16 +101,19 @@ class PaystackWebhookController extends Controller
             if ($handled) {
                 Log::info('Paystack webhook: handler completed', ['event' => $event]);
             }
+            $eventId = $ctx['reference'] ?? $ctx['subscription_code'] ?? null;
+            WebhookEvent::record('paystack', 'processed', 200, $event, is_string($eventId) ? $eventId : null);
+
+            return response('Webhook handled', 200);
         } catch (\Throwable $e) {
             Log::error('Paystack webhook: Error handling event', array_merge($ctx, [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]));
+            WebhookEvent::record('paystack', 'failed', 500, $event ?? null, $ctx['reference'] ?? null, $e->getMessage());
 
             return response('Webhook processing failed', 500);
         }
-
-        return response('Webhook handled', 200);
     }
 
     protected function handleChargeSuccess(array $data): void

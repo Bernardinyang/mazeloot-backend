@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Domains\Memora\Models\MemoraByoAddon;
 use App\Domains\Memora\Models\MemoraByoConfig;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class MemoraByoPricingSeeder extends Seeder
 {
@@ -32,6 +33,11 @@ class MemoraByoPricingSeeder extends Seeder
         }
 
         MemoraByoAddon::whereIn('slug', ['extra_10_revisions', 'extra_5_projects'])->delete();
+
+        $driver = DB::connection()->getDriverName();
+        if ($driver === 'mysql') {
+            DB::statement('ALTER TABLE memora_byo_addons MODIFY storage_bytes BIGINT UNSIGNED NULL');
+        }
 
         // Order: workflow first (Projects → Selections → Proofing → Collections → Raw files), then branding, then storage
         // [slug, label, type, monthly, annual, bytes, order, default, selGranted, proofGranted, collGranted, projGranted, rawFileGranted, maxRevGranted, costMonthly, costAnnual]

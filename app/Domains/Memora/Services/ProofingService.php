@@ -15,6 +15,7 @@ use App\Services\Upload\UploadService;
 use App\Support\MemoraFrontendUrls;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -110,6 +111,8 @@ class ProofingService
             ],
             $user
         );
+
+        Cache::forget("memora.dashboard.stats.{$user->uuid}");
 
         return $proofing;
     }
@@ -520,6 +523,8 @@ class ProofingService
             }
         }
 
+        Cache::forget('memora.dashboard.stats.'.Auth::user()->uuid);
+
         return $proofing;
     }
 
@@ -790,6 +795,8 @@ class ProofingService
             ],
             $user
         );
+
+        Cache::forget("memora.dashboard.stats.{$user->uuid}");
 
         return $updated;
     }
@@ -1105,6 +1112,8 @@ class ProofingService
             }
         }
 
+        Cache::forget("memora.dashboard.stats.{$user->uuid}");
+
         return $duplicated->fresh()->load(['mediaSets' => function ($query) {
             $query->withCount('media')->orderBy('order', 'asc');
         }]);
@@ -1184,6 +1193,8 @@ class ProofingService
                 );
             }
 
+            Cache::forget("memora.dashboard.stats.{$user->uuid}");
+
             return $deleted;
         });
     }
@@ -1250,6 +1261,8 @@ class ProofingService
             ],
             causer: $user
         );
+
+        Cache::forget("memora.dashboard.stats.{$user->uuid}");
 
         return $proofing;
     }

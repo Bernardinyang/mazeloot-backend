@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\ProductService;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 
 class ProductController extends Controller
 {
@@ -19,7 +20,7 @@ class ProductController extends Controller
      */
     public function index(): JsonResponse
     {
-        $products = $this->productService->getAllProducts();
+        $products = Cache::remember('api.products.index', 300, fn () => $this->productService->getAllProducts());
 
         return ApiResponse::success($products);
     }
@@ -29,7 +30,7 @@ class ProductController extends Controller
      */
     public function show(string $slug): JsonResponse
     {
-        $product = $this->productService->getProductBySlug($slug);
+        $product = Cache::remember("api.products.show:{$slug}", 300, fn () => $this->productService->getProductBySlug($slug));
 
         if (! $product) {
             return ApiResponse::errorNotFound('Product not found');

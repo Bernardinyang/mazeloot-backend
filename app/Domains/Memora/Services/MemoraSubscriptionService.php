@@ -18,6 +18,7 @@ use App\Notifications\SubscriptionCancelledNotification;
 use App\Notifications\SubscriptionRenewedNotification;
 use App\Services\Currency\CurrencyService;
 use App\Services\Notification\NotificationService;
+use App\Services\ReferralService;
 use App\Services\Payment\Contracts\SubscriptionProviderInterface;
 use App\Services\Payment\Providers\FlutterwaveProvider;
 use App\Services\Payment\Providers\PayPalProvider;
@@ -35,7 +36,8 @@ class MemoraSubscriptionService
         protected NotificationService $notificationService,
         protected EmailNotificationService $emailNotificationService,
         protected CurrencyService $currencyService,
-        protected UserStorageService $storageService
+        protected UserStorageService $storageService,
+        protected ReferralService $referralService
     ) {}
 
     protected function getSubscriptionProvider(string $name): SubscriptionProviderInterface
@@ -836,7 +838,15 @@ class MemoraSubscriptionService
             ]);
         });
 
-        $this->notifySubscriptionActivated($user->fresh(), $tier, $billingCycle);
+        $user = $user->fresh();
+        $this->notifySubscriptionActivated($user, $tier, $billingCycle);
+        $this->referralService->markConverted($user);
+
+        \Illuminate\Support\Facades\Log::info('Stripe checkout.session.completed: subscription activated', [
+            'user_uuid' => $user->uuid,
+            'tier' => $tier,
+            'subscription_id' => $subscriptionId,
+        ]);
 
         $this->markDowngradeOrUpgradeRequestCompletedFromMetadata($metadata);
     }
@@ -1141,7 +1151,9 @@ class MemoraSubscriptionService
             $user->update(['memora_tier' => $tier]);
         });
 
-        $this->notifySubscriptionActivated($user->fresh(), $tier, $billingCycle);
+        $user = $user->fresh();
+        $this->notifySubscriptionActivated($user, $tier, $billingCycle);
+        $this->referralService->markConverted($user);
         Cache::forget('paystack_pending:'.$email);
     }
 
@@ -1288,8 +1300,9 @@ class MemoraSubscriptionService
             );
             $user->update(['memora_tier' => $tier]);
         });
-        $this->notifySubscriptionActivated($user->fresh(), $tier, $billingCycle);
-
+        $user = $user->fresh();
+        $this->notifySubscriptionActivated($user, $tier, $billingCycle);
+        $this->referralService->markConverted($user);
         $this->markDowngradeOrUpgradeRequestCompletedFromMetadata($metadata);
     }
 
@@ -1397,7 +1410,9 @@ class MemoraSubscriptionService
             $user->update(['memora_tier' => $tier]);
         });
 
-        $this->notifySubscriptionActivated($user->fresh(), $tier, $billingCycle);
+        $user = $user->fresh();
+        $this->notifySubscriptionActivated($user, $tier, $billingCycle);
+        $this->referralService->markConverted($user);
         Cache::forget('flutterwave_pending:'.$txRef);
     }
 
@@ -1536,7 +1551,9 @@ class MemoraSubscriptionService
             $user->update(['memora_tier' => $tier]);
         });
 
-        $this->notifySubscriptionActivated($user->fresh(), $tier, $billingCycle);
+        $user = $user->fresh();
+        $this->notifySubscriptionActivated($user, $tier, $billingCycle);
+        $this->referralService->markConverted($user);
         if ($customId) {
             Cache::forget("paypal_pending:{$customId}");
         }
@@ -1834,6 +1851,21 @@ class MemoraSubscriptionService
     protected function totalWithVat(int $subtotalCents): int
     {
         return $subtotalCents + $this->vatCents($subtotalCents);
+    }
+
+    /**
+     * Normalize byo_addons from metadata (may be JSON string or array) to [slug => quantity].
+     */
+    protected function normalizeByoAddons(mixed $value): ?array
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            return is_array($decoded) ? $decoded : null;
+        }
+        return is_array($value) ? $value : null;
     }
 
     /**

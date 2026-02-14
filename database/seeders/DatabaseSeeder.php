@@ -58,6 +58,11 @@ class DatabaseSeeder extends Seeder
             EmailNotificationTypeSeeder::class,
         ]);
 
+        // Seed FAQs
+        $this->call([
+            FaqSeeder::class,
+        ]);
+
         // Seed products
         $this->call([
             ProductSeeder::class,

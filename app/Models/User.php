@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Log;
@@ -18,7 +19,7 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
     /**
      * The primary key for the model.
@@ -60,6 +61,8 @@ class User extends Authenticatable
         'profile_photo',
         'memora_tier',
         'stripe_customer_id',
+        'referral_code',
+        'referred_by_user_uuid',
     ];
 
     /**
@@ -162,6 +165,16 @@ class User extends Authenticatable
     public function magicLinkTokens(): HasMany
     {
         return $this->hasMany(MagicLinkToken::class, 'user_uuid', 'uuid');
+    }
+
+    public function referralInvites(): HasMany
+    {
+        return $this->hasMany(ReferralInvite::class, 'referrer_user_uuid', 'uuid');
+    }
+
+    public function referrer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'referred_by_user_uuid', 'uuid');
     }
 
     /**

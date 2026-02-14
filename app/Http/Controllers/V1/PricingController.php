@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Currency\CurrencyService;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 
 class PricingController extends Controller
 {
@@ -53,7 +54,7 @@ class PricingController extends Controller
     public function buildYourOwn(): JsonResponse
     {
         $config = MemoraByoConfig::getConfig();
-        $addons = MemoraByoAddon::active()->ordered()->get();
+        $addons = Cache::remember('api.pricing.byo_addons', 300, fn () => MemoraByoAddon::active()->ordered()->get());
 
         if (! $config) {
             return ApiResponse::errorNotFound('Build Your Own pricing not configured');

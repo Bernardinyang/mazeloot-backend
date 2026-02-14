@@ -19,6 +19,7 @@ return new class extends Migration
             $table->foreignUuid('status_uuid')->nullable()->constrained('user_statuses', 'uuid')->nullOnDelete();
             $table->enum('role', UserRoleEnum::values())->default(UserRoleEnum::USER->value);
             $table->string('memora_tier', 32)->default('starter');
+            $table->string('referral_code', 32)->nullable()->unique();
             $table->string('first_name');
             $table->string('last_name');
             $table->string('middle_name')->nullable();
@@ -43,6 +44,11 @@ return new class extends Migration
             $table->index(['provider', 'provider_id']);
             $table->rememberToken();
             $table->timestamps();
+            $table->softDeletes();
+        });
+
+        Schema::table('users', function (Blueprint $table) {
+            $table->foreignUuid('referred_by_user_uuid')->nullable()->after('referral_code')->constrained('users', 'uuid')->nullOnDelete();
         });
 
         Schema::create('password_reset_tokens', static function (Blueprint $table) {
@@ -66,6 +72,17 @@ return new class extends Migration
             $table->longText('payload');
             $table->integer('last_activity')->index();
         });
+
+        Schema::create('referral_invites', function (Blueprint $table) {
+            $table->uuid('uuid')->primary();
+            $table->foreignUuid('referrer_user_uuid')->constrained('users', 'uuid')->cascadeOnDelete();
+            $table->string('email');
+            $table->timestamp('sent_at');
+            $table->timestamp('converted_at')->nullable();
+            $table->timestamps();
+
+            $table->index(['referrer_user_uuid', 'email']);
+        });
     }
 
     /**
@@ -73,8 +90,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
-        Schema::dropIfExists('password_reset_tokens');
+        Schema::dropIfExists('referral_invites');
         Schema::dropIfExists('sessions');
+        Schema::dropIfExists('password_reset_tokens');
+        Schema::dropIfExists('users');
     }
 };

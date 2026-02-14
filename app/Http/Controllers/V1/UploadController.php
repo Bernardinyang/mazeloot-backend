@@ -41,15 +41,24 @@ class UploadController extends Controller
         // Handle single file upload
         if ($request->hasFile('file')) {
             $file = $request->file('file');
-            $result = $this->uploadService->upload($file, $options);
-
-            // Generate thumbnail for videos
-            $thumbnailUrl = null;
+            $thumbnailPath = null;
             if (str_starts_with($file->getMimeType(), 'video/')) {
-                $thumbnailUrl = $this->generateVideoThumbnail($file, $result);
+                try {
+                    $thumbnailPath = $this->thumbnailGenerator->generateThumbnail($file);
+                } catch (\Throwable $e) {
+                    Log::warning('Video thumbnail generation failed, continuing without thumbnail', ['error' => $e->getMessage()]);
+                }
+            }
+            $thumbnailUrl = null;
+            try {
+                $result = $this->uploadService->upload($file, $options);
+                $thumbnailUrl = $this->uploadThumbnailIfReady($thumbnailPath, $result);
+            } finally {
+                if ($thumbnailPath) {
+                    $this->thumbnailGenerator->cleanup($thumbnailPath);
+                }
             }
 
-            // Store file information in user_files table
             $userFile = $this->storeUserFile($userUuid, $file, $result, $thumbnailUrl);
 
             // Include user_file UUID and thumbnail in response
@@ -78,20 +87,32 @@ class UploadController extends Controller
         // Handle multiple file uploads
         if ($request->hasFile('files')) {
             $files = $request->file('files');
-            // Ensure files is an array
             if (! is_array($files)) {
                 $files = [$files];
+            }
+            // Generate video thumbnails before upload (files are moved by upload)
+            $thumbnailPaths = [];
+            foreach ($files as $index => $file) {
+                if (str_starts_with($file->getMimeType(), 'video/')) {
+                    try {
+                        $path = $this->thumbnailGenerator->generateThumbnail($file);
+                        if ($path) {
+                            $thumbnailPaths[$index] = $path;
+                        }
+                    } catch (\Throwable $e) {
+                        Log::warning('Video thumbnail generation failed, continuing without thumbnail', ['error' => $e->getMessage()]);
+                    }
+                }
             }
             $results = $this->uploadService->uploadMultiple($files, $options);
 
             $data = [];
             foreach ($results as $index => $result) {
                 $file = $files[$index];
-
-                // Generate thumbnail for videos
-                $thumbnailUrl = null;
-                if (str_starts_with($file->getMimeType(), 'video/')) {
-                    $thumbnailUrl = $this->generateVideoThumbnail($file, $result);
+                $thumbnailPath = $thumbnailPaths[$index] ?? null;
+                $thumbnailUrl = $this->uploadThumbnailIfReady($thumbnailPath, $result);
+                if ($thumbnailPath) {
+                    $this->thumbnailGenerator->cleanup($thumbnailPath);
                 }
 
                 $userFile = $this->storeUserFile($userUuid, $file, $result, $thumbnailUrl);
@@ -126,29 +147,21 @@ class UploadController extends Controller
     }
 
     /**
-     * Generate thumbnail for video file
+     * Upload generated thumbnail to storage and return URL.
      *
-     * @param  \Illuminate\Http\UploadedFile  $file
+     * @param  string|null  $thumbnailPath  Local path from generateThumbnail (or null to skip)
      * @param  \App\Services\Upload\DTOs\UploadResult  $uploadResult
-     * @return string|null Thumbnail URL or null if failed
+     * @return string|null
      */
-    protected function generateVideoThumbnail($file, $uploadResult): ?string
+    protected function uploadThumbnailIfReady(?string $thumbnailPath, $uploadResult): ?string
     {
+        if (! $thumbnailPath) {
+            return null;
+        }
         try {
-            // Generate thumbnail
-            $thumbnailPath = $this->thumbnailGenerator->generateThumbnail($file);
-
-            if (! $thumbnailPath) {
-                return null;
-            }
-
-            // Extract UUID from path or generate one
-            // The path format is usually: uploads/YYYY/MM/DD/{uuid}.ext
             $pathParts = explode('/', $uploadResult->path);
             $filename = end($pathParts);
             $videoUuid = pathinfo($filename, PATHINFO_FILENAME);
-
-            // Determine storage disk based on provider
             $provider = config('upload.default_provider', 'local');
             $disk = match ($provider) {
                 'local' => config('upload.providers.local.disk', 'public'),
@@ -157,15 +170,9 @@ class UploadController extends Controller
                 default => 'public',
             };
 
-            // Upload thumbnail to storage
-            $thumbnailUrl = $this->thumbnailGenerator->uploadThumbnail($thumbnailPath, $videoUuid, $disk);
-
-            // Cleanup temporary thumbnail
-            $this->thumbnailGenerator->cleanup($thumbnailPath);
-
-            return $thumbnailUrl;
+            return $this->thumbnailGenerator->uploadThumbnail($thumbnailPath, $videoUuid, $disk);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Failed to generate video thumbnail: '.$e->getMessage());
+            Log::error('Failed to upload video thumbnail: '.$e->getMessage());
 
             return null;
         }

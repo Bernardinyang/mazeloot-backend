@@ -56,8 +56,8 @@ Route::middleware(['auth:sanctum', 'memora.feature:raw_files'])->prefix('raw-fil
     });
 
     // Media download endpoint (outside of raw file/set context)
-    Route::get('/media/{mediaUuid}/download', [MediaController::class, 'download'])->name('memora.media.download');
-    Route::get('/media/{mediaUuid}/serve', [MediaController::class, 'serve'])->name('memora.media.serve');
+    Route::get('/media/{mediaUuid}/download', [MediaController::class, 'download'])->name('memora.raw-files.media.download');
+    Route::get('/media/{mediaUuid}/serve', [MediaController::class, 'serve'])->name('memora.raw-files.media.serve');
 
     // Starred media endpoint
     Route::get('/media/starred', [MediaController::class, 'getStarredMedia']);

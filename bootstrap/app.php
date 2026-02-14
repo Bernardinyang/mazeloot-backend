@@ -13,6 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
+            'track.slow_requests' => \App\Http\Middleware\TrackSlowRequests::class,
             'api-key' => \App\Http\Middleware\ApiKeyAuth::class,
             'guest.token' => \App\Http\Middleware\GuestTokenAuth::class,
             'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
@@ -36,6 +37,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->api(prepend: [
             \Illuminate\Http\Middleware\HandleCors::class,
             \App\Http\Middleware\CacheSanctumToken::class,
+        ]);
+        $middleware->api(append: [
+            \App\Http\Middleware\TrackSlowRequests::class,
         ]);
 
         $middleware->web(prepend: [
@@ -144,6 +148,19 @@ return Application::configure(basePath: dirname(__DIR__))
                     'status' => 422,
                     'code' => 'VALIDATION_ERROR',
                 ], 422);
+            }
+        });
+
+        // API 429: include retry_after_seconds for frontend cooldown
+        $exceptions->render(function (\Illuminate\Http\Exceptions\ThrottleRequestsException $e, \Illuminate\Http\Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                $headers = $e->getHeaders();
+                $retryAfter = isset($headers['Retry-After']) ? (int) $headers['Retry-After'] : 60;
+                return response()->json([
+                    'message' => 'Too many attempts. Please try again later.',
+                    'code' => 'TOO_MANY_REQUESTS',
+                    'retry_after_seconds' => $retryAfter,
+                ], 429)->withHeaders($headers);
             }
         });
     })->create();

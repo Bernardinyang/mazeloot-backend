@@ -13,6 +13,7 @@ use App\Domains\Memora\Models\MemoraWatermark;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class DashboardController extends Controller
 {
@@ -28,7 +29,15 @@ class DashboardController extends Controller
         }
 
         $userId = $user->uuid;
+        $data = Cache::remember("memora.dashboard.stats.{$userId}", 60, function () use ($userId) {
+            return $this->computeStats($userId);
+        });
 
+        return ApiResponse::success($data);
+    }
+
+    private function computeStats(string $userId): array
+    {
         // Basic counts
         $collections = MemoraCollection::where('user_uuid', $userId)->count();
         $publishedCollections = MemoraCollection::where('user_uuid', $userId)
@@ -74,7 +83,7 @@ class DashboardController extends Controller
         // Recent activity (last 5 items from each type)
         $recentActivity = $this->getRecentActivity($userId);
 
-        return ApiResponse::success([
+        return [
             'stats' => [
                 'collections' => $collections,
                 'publishedCollections' => $publishedCollections,
@@ -95,7 +104,7 @@ class DashboardController extends Controller
             ],
             'activity' => $activityData,
             'recentActivity' => $recentActivity,
-        ]);
+        ];
     }
 
     /**
