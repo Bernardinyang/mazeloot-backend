@@ -52,9 +52,9 @@ class WebPushService
         return false;
     }
 
-    public function sendForNotification(Notification $notification): void
+    public function sendForNotification(Notification $notification, bool $force = false): void
     {
-        if (! static::shouldPush($notification)) {
+        if (! $force && ! static::shouldPush($notification)) {
             return;
         }
 

@@ -22,13 +22,14 @@ class SendWebPushJob implements ShouldQueue
     public $tries = 2;
 
     public function __construct(
-        public Notification $notification
+        public Notification $notification,
+        public bool $force = false
     ) {
         $this->onQueue('notifications');
     }
 
     public function handle(WebPushService $webPushService): void
     {
-        $webPushService->sendForNotification($this->notification);
+        $webPushService->sendForNotification($this->notification, $this->force);
     }
 }

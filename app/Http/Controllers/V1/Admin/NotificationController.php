@@ -60,7 +60,7 @@ class NotificationController extends Controller
             return ApiResponse::errorNotFound('Notification not found');
         }
 
-        SendWebPushJob::dispatch($notification);
+        SendWebPushJob::dispatch($notification, true);
 
         $this->activityLogService->log(
             'admin_notification_push_resent',
