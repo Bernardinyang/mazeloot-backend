@@ -543,6 +543,16 @@ class RawFileService
     }
 
     /**
+     * Get storage used by raw file (lightweight, for badge refresh).
+     */
+    public function getStorageUsed(string $id): int
+    {
+        $rawFile = $this->findModel($id);
+
+        return app(\App\Services\Storage\UserStorageService::class)->getPhaseStorageUsed($rawFile->uuid, 'raw_file');
+    }
+
+    /**
      * Complete a raw file (only for guests)
      * Marks the provided media UUIDs as selected when completing
      */

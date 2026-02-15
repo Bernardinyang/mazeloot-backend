@@ -987,6 +987,16 @@ class CollectionService
     }
 
     /**
+     * Get storage used by collection (lightweight, for badge refresh).
+     */
+    public function getStorageUsed(?string $projectId, string $id): int
+    {
+        $collection = $this->find($projectId, $id);
+
+        return app(\App\Services\Storage\UserStorageService::class)->getPhaseStorageUsed($collection->uuid, 'collection');
+    }
+
+    /**
      * Delete a collection (standalone or project-based)
      *
      * @param  string|null  $projectId  If provided, validates collection belongs to that project. If null, finds any collection by ID.

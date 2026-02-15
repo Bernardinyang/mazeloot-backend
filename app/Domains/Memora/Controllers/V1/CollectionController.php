@@ -78,6 +78,18 @@ class CollectionController extends Controller
     }
 
     /**
+     * Get storage used by this collection (lightweight, for badge refresh after upload).
+     * For project-based: pass ?projectId=xxx as query parameter
+     */
+    public function storage(Request $request, string $id): JsonResponse
+    {
+        $projectId = $request->query('projectId');
+        $bytes = $this->collectionService->getStorageUsed($projectId, $id);
+
+        return ApiResponse::success(['storageUsedBytes' => $bytes]);
+    }
+
+    /**
      * Delete collection (unified for standalone and project-based)
      * For project-based: pass ?projectId=xxx as query parameter
      */

@@ -61,6 +61,7 @@ Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
         Route::get('/proofing', [ProofingController::class, 'index']);
         Route::post('/proofing', [ProofingController::class, 'store']);
         Route::get('/proofing/{id}', [ProofingController::class, 'show']);
+        Route::get('/proofing/{id}/storage', [ProofingController::class, 'storage']);
         Route::patch('/proofing/{id}', [ProofingController::class, 'update']);
         Route::delete('/proofing/{id}', [ProofingController::class, 'destroy']);
         Route::post('/proofing/{id}/publish', [ProofingController::class, 'publish']);
@@ -122,6 +123,7 @@ Route::middleware(['auth:sanctum'])->prefix('memora')->group(function () {
     Route::get('/collections', [CollectionController::class, 'index']);
     Route::post('/collections', [CollectionController::class, 'store']);
     Route::get('/collections/{id}', [CollectionController::class, 'show']);
+    Route::get('/collections/{id}/storage', [CollectionController::class, 'storage']);
     Route::patch('/collections/{id}', [CollectionController::class, 'update']);
     Route::delete('/collections/{id}', [CollectionController::class, 'destroy']);
     Route::post('/collections/{id}/star', [CollectionController::class, 'toggleStar']);

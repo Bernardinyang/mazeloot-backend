@@ -20,6 +20,7 @@ Route::middleware(['auth:sanctum', 'memora.feature:raw_files'])->prefix('raw-fil
     Route::get('/', [RawFileController::class, 'index']);
     Route::post('/', [RawFileController::class, 'store']);
     Route::get('/{id}', [RawFileController::class, 'show']);
+    Route::get('/{id}/storage', [RawFileController::class, 'storage']);
     Route::patch('/{id}', [RawFileController::class, 'update']);
     Route::delete('/{id}', [RawFileController::class, 'destroy']);
     Route::post('/{id}/publish', [RawFileController::class, 'publish']);

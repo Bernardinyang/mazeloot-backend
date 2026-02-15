@@ -58,6 +58,18 @@ class ProofingController extends Controller
     }
 
     /**
+     * Get storage used by this proofing (lightweight, for badge refresh after upload).
+     * For project-based: pass ?projectId=xxx as query parameter
+     */
+    public function storage(Request $request, string $id): JsonResponse
+    {
+        $projectId = $request->query('projectId');
+        $bytes = $this->proofingService->getStorageUsed($projectId, $id);
+
+        return ApiResponse::success(['storageUsedBytes' => $bytes]);
+    }
+
+    /**
      * Create proofing (unified for standalone and project-based)
      * For project-based: pass projectId in request body or ?projectId=xxx as query parameter
      */

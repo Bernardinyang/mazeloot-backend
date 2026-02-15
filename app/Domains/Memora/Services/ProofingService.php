@@ -344,6 +344,16 @@ class ProofingService
     }
 
     /**
+     * Get storage used by proofing (lightweight, for badge refresh).
+     */
+    public function getStorageUsed(?string $projectId, string $id): int
+    {
+        $proofing = $this->find($projectId, $id);
+
+        return app(\App\Services\Storage\UserStorageService::class)->getPhaseStorageUsed($proofing->uuid, 'proofing');
+    }
+
+    /**
      * Complete proofing (requires authentication)
      */
     public function complete(?string $projectId, string $id): MemoraProofing

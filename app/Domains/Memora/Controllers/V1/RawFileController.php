@@ -59,6 +59,16 @@ class RawFileController extends Controller
     }
 
     /**
+     * Get storage used by this raw file (lightweight, for badge refresh after upload).
+     */
+    public function storage(string $id): JsonResponse
+    {
+        $bytes = $this->rawFileService->getStorageUsed($id);
+
+        return ApiResponse::success(['storageUsedBytes' => $bytes]);
+    }
+
+    /**
      * Create a raw file (standalone if project_uuid is null, project-based if provided)
      */
     public function store(StoreRawFileRequest $request): JsonResponse

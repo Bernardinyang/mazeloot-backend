@@ -527,6 +527,16 @@ class SelectionService
     }
 
     /**
+     * Get storage used by selection (lightweight, for badge refresh).
+     */
+    public function getStorageUsed(string $id): int
+    {
+        $selection = $this->findModel($id);
+
+        return app(\App\Services\Storage\UserStorageService::class)->getPhaseStorageUsed($selection->uuid, 'selection');
+    }
+
+    /**
      * Complete a selection (only for guests)
      * Marks the provided media UUIDs as selected when completing
      */

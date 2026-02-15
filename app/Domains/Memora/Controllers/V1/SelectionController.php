@@ -58,6 +58,16 @@ class SelectionController extends Controller
     }
 
     /**
+     * Get storage used by this selection (lightweight, for badge refresh after upload).
+     */
+    public function storage(string $id): JsonResponse
+    {
+        $bytes = $this->selectionService->getStorageUsed($id);
+
+        return ApiResponse::success(['storageUsedBytes' => $bytes]);
+    }
+
+    /**
      * Create a selection (standalone if project_uuid is null, project-based if provided)
      */
     public function store(StoreSelectionRequest $request): JsonResponse

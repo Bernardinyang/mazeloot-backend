@@ -20,6 +20,7 @@ Route::middleware(['auth:sanctum', 'memora.feature:selection'])->prefix('selecti
     Route::get('/', [SelectionController::class, 'index']);
     Route::post('/', [SelectionController::class, 'store']);
     Route::get('/{id}', [SelectionController::class, 'show']);
+    Route::get('/{id}/storage', [SelectionController::class, 'storage']);
     Route::patch('/{id}', [SelectionController::class, 'update']);
     Route::delete('/{id}', [SelectionController::class, 'destroy']);
     Route::post('/{id}/publish', [SelectionController::class, 'publish']);
