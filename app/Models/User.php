@@ -139,6 +139,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the push subscriptions for the user.
+     */
+    public function pushSubscriptions(): HasMany
+    {
+        return $this->hasMany(PushSubscription::class, 'user_uuid', 'uuid');
+    }
+
+    /**
      * Get the user's status.
      */
     public function status(): BelongsTo

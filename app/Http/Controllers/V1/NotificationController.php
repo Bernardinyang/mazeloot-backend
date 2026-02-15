@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\PushSubscription;
 use App\Resources\V1\NotificationResource;
 use App\Services\Notification\NotificationService;
 use App\Support\Responses\ApiResponse;
@@ -108,6 +109,60 @@ class NotificationController extends Controller
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Failed to log notification activity', ['error' => $e->getMessage()]);
         }
+
+        return ApiResponse::success(null, 204);
+    }
+
+    /**
+     * Get VAPID public key for push subscription (client uses this to subscribe).
+     */
+    public function pushVapidPublic(): JsonResponse
+    {
+        $key = config('services.webpush.vapid_public');
+        if (! $key) {
+            return ApiResponse::error('Web push is not configured', 503);
+        }
+
+        return ApiResponse::success(['publicKey' => $key]);
+    }
+
+    /**
+     * Store push subscription for the authenticated user.
+     */
+    public function storePushSubscription(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'endpoint' => ['required', 'string', 'max:500'],
+            'keys' => ['required', 'array'],
+            'keys.p256dh' => ['required', 'string'],
+            'keys.auth' => ['required', 'string'],
+            'contentEncoding' => ['nullable', 'string', 'in:aesgcm,aes128gcm'],
+        ]);
+
+        $user = $request->user();
+        $encoding = $validated['contentEncoding'] ?? 'aesgcm';
+
+        PushSubscription::updateOrCreate(
+            ['endpoint' => $validated['endpoint']],
+            [
+                'user_uuid' => $user->uuid,
+                'public_key' => $validated['keys']['p256dh'],
+                'auth_token' => $validated['keys']['auth'],
+                'content_encoding' => $encoding,
+            ]
+        );
+
+        return ApiResponse::success(null, 204);
+    }
+
+    /**
+     * Delete push subscription by endpoint.
+     */
+    public function destroyPushSubscription(Request $request): JsonResponse
+    {
+        $request->validate(['endpoint' => ['required', 'string']]);
+
+        $request->user()->pushSubscriptions()->where('endpoint', $request->input('endpoint'))->delete();
 
         return ApiResponse::success(null, 204);
     }

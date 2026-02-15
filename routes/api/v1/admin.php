@@ -10,6 +10,7 @@ use App\Http\Controllers\V1\Admin\EarlyAccessController;
 use App\Http\Controllers\V1\Admin\FaqController;
 use App\Http\Controllers\V1\Admin\HealthController;
 use App\Http\Controllers\V1\Admin\LogsController;
+use App\Http\Controllers\V1\Admin\NotificationController as AdminNotificationController;
 use App\Http\Controllers\V1\Admin\PricingController;
 use App\Http\Controllers\V1\Admin\ProductController;
 use App\Http\Controllers\V1\Admin\QueueController;
@@ -51,10 +52,14 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     // Users
     Route::get('/users', [UserController::class, 'index']);
     Route::get('/users/{uuid}', [UserController::class, 'show']);
+    Route::get('/users/{uuid}/notifications', [AdminNotificationController::class, 'indexForUser']);
     Route::patch('/users/{uuid}', [UserController::class, 'update']);
     Route::patch('/users/{uuid}/role', [UserController::class, 'updateRole'])->middleware('superadmin');
     Route::patch('/users/{uuid}/suspend', [UserController::class, 'suspend']);
     Route::patch('/users/{uuid}/activate', [UserController::class, 'activate']);
+
+    // Notifications (superadmin: resend web push)
+    Route::post('/notifications/{uuid}/resend-push', [AdminNotificationController::class, 'resendPush'])->middleware(['superadmin', 'throttle:10,1']);
 
     // Products
     Route::get('/products', [ProductController::class, 'index']);

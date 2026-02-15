@@ -71,4 +71,10 @@ return [
         'whatsapp_from' => env('TWILIO_WHATSAPP_FROM'), // e.g. whatsapp:+14155238886
     ],
 
+    'webpush' => [
+        'vapid_public' => env('VAPID_PUBLIC_KEY'),
+        'vapid_private' => env('VAPID_PRIVATE_KEY'),
+        'vapid_subject' => env('VAPID_SUBJECT', 'mailto:'.env('MAIL_FROM_ADDRESS', 'noreply@example.com')),
+    ],
+
 ];

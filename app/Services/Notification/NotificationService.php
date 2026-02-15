@@ -3,6 +3,7 @@
 namespace App\Services\Notification;
 
 use App\Events\NotificationCreated;
+use App\Jobs\SendWebPushJob;
 use App\Models\Notification;
 use App\Models\User;
 use App\Notifications\GenericInAppNotificationEmail;
@@ -130,6 +131,8 @@ class NotificationService
 
         $this->sendChannelDeliveries($notification);
 
+        SendWebPushJob::dispatch($notification);
+
         return $notification;
     }
 
@@ -194,6 +197,30 @@ class NotificationService
 
         // Admin/super_admin see combined notifications from all products; others filter by product
         if ($product && ! $user->isAdmin()) {
+            $query->forProduct($product);
+        }
+
+        if ($unread === true) {
+            $query->unread();
+        } elseif ($unread === false) {
+            $query->read();
+        }
+
+        if ($limit) {
+            $query->limit($limit);
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * Get notifications for a user by user UUID (admin only).
+     */
+    public function getForUserUuid(string $userUuid, ?string $product = null, ?bool $unread = null, ?int $limit = 50): Collection
+    {
+        $query = Notification::forUser($userUuid)->orderBy('created_at', 'desc');
+
+        if ($product) {
             $query->forProduct($product);
         }
 

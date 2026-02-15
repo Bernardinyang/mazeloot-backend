@@ -76,7 +76,7 @@ class UserController extends Controller
      */
     public function show(string $uuid): JsonResponse
     {
-        $user = User::with(['status', 'earlyAccess', 'productSelections.product'])
+        $user = User::with(['status', 'earlyAccess', 'productSelections.product', 'pushSubscriptions'])
             ->find($uuid);
 
         if (! $user) {
@@ -110,6 +110,11 @@ class UserController extends Controller
                     'name' => $selection->product->name,
                 ],
                 'selected_at' => $selection->selected_at?->toIso8601String(),
+            ]),
+            'push_subscriptions' => $user->pushSubscriptions->map(fn ($sub) => [
+                'id' => $sub->id,
+                'endpoint_hint' => strlen($sub->endpoint) > 48 ? '…'.substr($sub->endpoint, -48) : $sub->endpoint,
+                'created_at' => $sub->created_at->toIso8601String(),
             ]),
             'created_at' => $user->created_at->toIso8601String(),
         ]);

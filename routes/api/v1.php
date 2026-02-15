@@ -104,6 +104,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::prefix('notifications')->group(function () {
         Route::get('/', [NotificationController::class, 'index']);
         Route::get('/unread-count', [NotificationController::class, 'unreadCount']);
+        Route::get('/push-vapid-public', [NotificationController::class, 'pushVapidPublic']);
+        Route::post('/push-subscription', [NotificationController::class, 'storePushSubscription']);
+        Route::delete('/push-subscription', [NotificationController::class, 'destroyPushSubscription']);
         Route::patch('/{id}/read', [NotificationController::class, 'markAsRead']);
         Route::patch('/read-all', [NotificationController::class, 'markAllAsRead']);
         Route::delete('/{id}', [NotificationController::class, 'destroy']);
