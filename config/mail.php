@@ -127,4 +127,14 @@ return [
 
     'template' => env('MAIL_TEMPLATE', 'default'),
 
+    'footer' => [
+        'address' => array_filter(array_map('trim', explode("\n", env('MAIL_FOOTER_ADDRESS', '')))),
+        'social' => [
+            'facebook' => env('MAIL_SOCIAL_FACEBOOK'),
+            'twitter' => env('MAIL_SOCIAL_TWITTER'),
+            'instagram' => env('MAIL_SOCIAL_INSTAGRAM'),
+            'linkedin' => env('MAIL_SOCIAL_LINKEDIN'),
+        ],
+    ],
+
 ];

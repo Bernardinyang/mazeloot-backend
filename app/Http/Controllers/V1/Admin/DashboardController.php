@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\V1\Admin;
 
+use App\Enums\UserRoleEnum;
 use App\Http\Controllers\Controller;
 use App\Services\Admin\AdminDashboardService;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 
 class DashboardController extends Controller
@@ -21,9 +23,10 @@ class DashboardController extends Controller
     public function index(Request $request): JsonResponse
     {
         $productSlug = $request->query('product');
-        $cacheKey = 'admin.dashboard.stats.'.($productSlug ?? 'all');
+        $excludeSuperAdmin = ! (Auth::user()?->hasRole(UserRoleEnum::SUPER_ADMIN) ?? false);
+        $cacheKey = 'admin.dashboard.stats.'.($productSlug ?? 'all').'.'.($excludeSuperAdmin ? 'admin' : 'sa');
 
-        $stats = Cache::remember($cacheKey, 60, fn () => $this->dashboardService->getDashboardStats($productSlug));
+        $stats = Cache::remember($cacheKey, 60, fn () => $this->dashboardService->getDashboardStats($productSlug, $excludeSuperAdmin));
 
         return ApiResponse::successOk($stats);
     }
@@ -48,8 +51,9 @@ class DashboardController extends Controller
     public function getUserStats(Request $request): JsonResponse
     {
         $productSlug = $request->query('product');
+        $excludeSuperAdmin = ! (Auth::user()?->hasRole(UserRoleEnum::SUPER_ADMIN) ?? false);
 
-        $stats = $this->dashboardService->getUserStats($productSlug);
+        $stats = $this->dashboardService->getUserStats($productSlug, $excludeSuperAdmin);
 
         return ApiResponse::successOk($stats);
     }

@@ -3,6 +3,7 @@
 namespace App\Services\Admin;
 
 use App\Domains\Memora\Models\MemoraSubscription;
+use App\Enums\UserRoleEnum;
 use App\Models\ActivityLog;
 use App\Models\ContactSubmission;
 use App\Models\EarlyAccessUser;
@@ -20,13 +21,18 @@ class AdminDashboardService
     /**
      * Get overall dashboard statistics.
      */
-    public function getDashboardStats(?string $productSlug = null): array
+    public function getDashboardStats(?string $productSlug = null, bool $excludeSuperAdmin = false): array
     {
+        $userQuery = User::query();
+        if ($excludeSuperAdmin) {
+            $userQuery->where('role', '!=', UserRoleEnum::SUPER_ADMIN);
+        }
         $stats = [
-            'total_users' => User::count(),
-            'active_users' => User::whereHas('status', function ($query) {
-                $query->where('name', 'active');
-            })->orWhereDoesntHave('status')->count(),
+            'total_users' => (clone $userQuery)->count(),
+            'active_users' => (clone $userQuery)->where(function ($q) {
+                $q->whereHas('status', fn ($query) => $query->where('name', 'active'))
+                    ->orWhereDoesntHave('status');
+            })->count(),
             'total_products' => Product::count(),
             'active_products' => Product::where('is_active', true)->count(),
             'early_access_users' => EarlyAccessUser::where('is_active', true)->count(),
@@ -46,9 +52,12 @@ class AdminDashboardService
     /**
      * Get user statistics.
      */
-    public function getUserStats(?string $productSlug = null): array
+    public function getUserStats(?string $productSlug = null, bool $excludeSuperAdmin = false): array
     {
         $query = User::query();
+        if ($excludeSuperAdmin) {
+            $query->where('role', '!=', UserRoleEnum::SUPER_ADMIN);
+        }
 
         if ($productSlug) {
             $product = Product::where('slug', $productSlug)->first();
@@ -181,15 +190,18 @@ class AdminDashboardService
     /**
      * Get analytics overview for admin dashboard (users, activity, products, etc.).
      */
-    public function getAnalyticsOverview(int $days = 30): array
+    public function getAnalyticsOverview(int $days = 30, bool $excludeSuperAdmin = false): array
     {
-        $dashboard = $this->getDashboardStats(null);
-        $userStats = $this->getUserStats(null);
+        $dashboard = $this->getDashboardStats(null, $excludeSuperAdmin);
+        $userStats = $this->getUserStats(null, $excludeSuperAdmin);
         $earlyAccess = $this->getEarlyAccessStats();
         $activityStats = $this->getActivityStats(null, $days);
 
-        $usersByDay = User::query()
-            ->where('created_at', '>=', now()->subDays($days))
+        $usersByDayQuery = User::query()->where('created_at', '>=', now()->subDays($days));
+        if ($excludeSuperAdmin) {
+            $usersByDayQuery->where('role', '!=', UserRoleEnum::SUPER_ADMIN);
+        }
+        $usersByDay = $usersByDayQuery
             ->select(DB::raw('DATE(created_at) as date'), DB::raw('count(*) as count'))
             ->groupBy('date')
             ->orderBy('date')
@@ -309,7 +321,7 @@ class AdminDashboardService
     /**
      * Get analytics overview for a specific date range.
      */
-    public function getAnalyticsOverviewFromTo(Carbon $from, Carbon $to, bool $summaryOnly = false): array
+    public function getAnalyticsOverviewFromTo(Carbon $from, Carbon $to, bool $summaryOnly = false, bool $excludeSuperAdmin = false): array
     {
         $from = $from->copy()->startOfDay();
         $to = $to->copy()->endOfDay();
@@ -319,13 +331,21 @@ class AdminDashboardService
             $dates->push($from->copy()->addDays($i)->format('Y-m-d'));
         }
 
-        $usersInPeriod = User::whereBetween('created_at', [$from, $to])->count();
+        $usersInPeriodQuery = User::whereBetween('created_at', [$from, $to]);
+        if ($excludeSuperAdmin) {
+            $usersInPeriodQuery->where('role', '!=', UserRoleEnum::SUPER_ADMIN);
+        }
+        $usersInPeriod = $usersInPeriodQuery->count();
         $activityInPeriod = ActivityLog::whereBetween('created_at', [$from, $to])->count();
         $contactInPeriod = ContactSubmission::whereBetween('created_at', [$from, $to])->count();
         $waitlistInPeriod = Waitlist::whereBetween('created_at', [$from, $to])->count();
         $newsletterInPeriod = Newsletter::whereBetween('created_at', [$from, $to])->count();
 
-        $usersByDay = User::whereBetween('created_at', [$from, $to])
+        $usersByDayQuery = User::whereBetween('created_at', [$from, $to]);
+        if ($excludeSuperAdmin) {
+            $usersByDayQuery->where('role', '!=', UserRoleEnum::SUPER_ADMIN);
+        }
+        $usersByDay = $usersByDayQuery
             ->select(DB::raw('DATE(created_at) as date'), DB::raw('count(*) as count'))
             ->groupBy('date')
             ->orderBy('date')
@@ -406,7 +426,7 @@ class AdminDashboardService
                 'created_at' => $log->created_at->toIso8601String(),
             ])->all();
 
-        $userStats = $this->getUserStats(null);
+        $userStats = $this->getUserStats(null, $excludeSuperAdmin);
         $earlyAccess = $this->getEarlyAccessStats();
         $products = Product::select('uuid', 'slug', 'name', 'is_active')->get();
         $productStats = $products->map(fn ($p) => $this->getProductStats($p->slug))->filter(fn ($s) => ! empty($s))->values()->all();
@@ -441,12 +461,12 @@ class AdminDashboardService
     /**
      * Get analytics for previous period (same length as current days) for comparison.
      */
-    public function getAnalyticsOverviewComparison(int $days): array
+    public function getAnalyticsOverviewComparison(int $days, bool $excludeSuperAdmin = false): array
     {
         $prevTo = now()->subDays($days)->endOfDay();
         $prevFrom = now()->subDays(2 * $days - 1)->startOfDay();
 
-        return $this->getAnalyticsOverviewFromTo($prevFrom, $prevTo, true);
+        return $this->getAnalyticsOverviewFromTo($prevFrom, $prevTo, true, $excludeSuperAdmin);
     }
 
     /**

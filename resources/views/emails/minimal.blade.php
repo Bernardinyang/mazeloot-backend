@@ -1,12 +1,5 @@
 <x-mail::message>
-    {{-- Minimal Template - Simplified layout --}}
-
-    {{-- Logo --}}
-    @if(!empty($logo))
-        <div style="text-align: center; margin-bottom: 30px;">
-            <img src="{{ $logo }}" alt="{{ config('app.name') }}" style="height: 40px; max-width: 200px;">
-        </div>
-    @endif
+    {{-- Minimal Template - Logo is in the header --}}
 
     {{-- Greeting --}}
     @if (! empty($greeting))

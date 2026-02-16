@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\V1\Admin;
 
+use App\Enums\UserRoleEnum;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Services\Admin\AdminDashboardService;
@@ -9,6 +10,7 @@ use App\Services\Pagination\PaginationService;
 use App\Support\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 
 class AnalyticsController extends Controller
@@ -118,9 +120,10 @@ class AnalyticsController extends Controller
         $from = $request->query('from');
         $to = $request->query('to');
         $compare = $request->boolean('compare');
-        $cacheKey = 'admin.analytics.overview.'.md5(json_encode([$from, $to, $compare, $request->query('days')]));
+        $excludeSuperAdmin = ! (Auth::user()?->hasRole(UserRoleEnum::SUPER_ADMIN) ?? false);
+        $cacheKey = 'admin.analytics.overview.'.md5(json_encode([$from, $to, $compare, $request->query('days'), $excludeSuperAdmin]));
 
-        $data = Cache::remember($cacheKey, 300, function () use ($request, $from, $to, $compare) {
+        $data = Cache::remember($cacheKey, 300, function () use ($request, $from, $to, $compare, $excludeSuperAdmin) {
             $fromDate = null;
             $toDate = null;
 
@@ -133,20 +136,20 @@ class AnalyticsController extends Controller
                 }
                 $days = (int) $fromDate->diffInDays($toDate) + 1;
                 $days = min(max($days, 1), 365);
-                $data = $this->dashboardService->getAnalyticsOverviewFromTo($fromDate, $toDate);
+                $data = $this->dashboardService->getAnalyticsOverviewFromTo($fromDate, $toDate, false, $excludeSuperAdmin);
             } else {
                 $days = (int) $request->query('days', 30);
                 $days = min(max($days, 7), 90);
-                $data = $this->dashboardService->getAnalyticsOverview($days);
+                $data = $this->dashboardService->getAnalyticsOverview($days, $excludeSuperAdmin);
             }
 
             if ($compare) {
                 if ($fromDate && $toDate) {
                     $prevTo = $fromDate->copy()->subDay()->endOfDay();
                     $prevFrom = $prevTo->copy()->subDays($days - 1)->startOfDay();
-                    $data['comparison'] = $this->dashboardService->getAnalyticsOverviewFromTo($prevFrom, $prevTo, true);
+                    $data['comparison'] = $this->dashboardService->getAnalyticsOverviewFromTo($prevFrom, $prevTo, true, $excludeSuperAdmin);
                 } else {
-                    $data['comparison'] = $this->dashboardService->getAnalyticsOverviewComparison($days);
+                    $data['comparison'] = $this->dashboardService->getAnalyticsOverviewComparison($days, $excludeSuperAdmin);
                 }
             }
             $revenueOverTime = $this->dashboardService->getRevenueOverTime();

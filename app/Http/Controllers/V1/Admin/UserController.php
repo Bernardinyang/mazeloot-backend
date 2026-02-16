@@ -28,9 +28,19 @@ class UserController extends Controller
     {
         $query = User::with(['status', 'earlyAccess']);
 
+        $isSuperAdmin = Auth::user()?->hasRole(UserRoleEnum::SUPER_ADMIN) ?? false;
+        if (! $isSuperAdmin) {
+            $query->where('role', '!=', UserRoleEnum::SUPER_ADMIN);
+        }
+
         // Filter by role
         if ($request->has('role')) {
-            $query->where('role', $request->query('role'));
+            $role = $request->query('role');
+            if (! $isSuperAdmin && $role === UserRoleEnum::SUPER_ADMIN->value) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->where('role', $role);
+            }
         }
 
         // Filter by product
@@ -80,6 +90,11 @@ class UserController extends Controller
             ->find($uuid);
 
         if (! $user) {
+            return ApiResponse::errorNotFound('User not found');
+        }
+
+        $isSuperAdmin = Auth::user()?->hasRole(UserRoleEnum::SUPER_ADMIN) ?? false;
+        if (! $isSuperAdmin && $user->hasRole(UserRoleEnum::SUPER_ADMIN)) {
             return ApiResponse::errorNotFound('User not found');
         }
 
@@ -224,6 +239,16 @@ class UserController extends Controller
             return ApiResponse::errorNotFound('User not found');
         }
 
+        $isSuperAdmin = Auth::user()?->hasRole(UserRoleEnum::SUPER_ADMIN) ?? false;
+        if (! $isSuperAdmin && $user->hasRole(UserRoleEnum::SUPER_ADMIN)) {
+            return ApiResponse::errorForbidden('Cannot suspend a super admin user.');
+        }
+
+        $validated = $request->validate([
+            'reason' => 'sometimes|nullable|string|max:2000',
+        ]);
+        $reason = $validated['reason'] ?? null;
+
         $suspendedStatus = UserStatus::where('name', 'suspended')->first();
         if ($suspendedStatus) {
             $user->update(['status_uuid' => $suspendedStatus->uuid]);
@@ -237,9 +262,12 @@ class UserController extends Controller
             properties: [
                 'user_uuid' => $user->uuid,
                 'user_email' => $user->email,
+                'reason' => $reason,
             ],
             causer: Auth::user()
         );
+
+        $user->notify(new \App\Notifications\UserSuspendedNotification($reason));
 
         $this->notifyOtherAdmins(
             'user_suspended',
@@ -265,12 +293,19 @@ class UserController extends Controller
             return ApiResponse::errorNotFound('User not found');
         }
 
+        $isSuperAdmin = Auth::user()?->hasRole(UserRoleEnum::SUPER_ADMIN) ?? false;
+        if (! $isSuperAdmin && $user->hasRole(UserRoleEnum::SUPER_ADMIN)) {
+            return ApiResponse::errorForbidden('Cannot activate a super admin user.');
+        }
+
         $activeStatus = UserStatus::where('name', 'active')->first();
         if ($activeStatus) {
             $user->update(['status_uuid' => $activeStatus->uuid]);
         } else {
             $user->update(['status_uuid' => null]);
         }
+
+        $user->notify(new \App\Notifications\UserActivatedNotification());
 
         // Log activity for user activation
         app(\App\Services\ActivityLog\ActivityLogService::class)->logQueued(

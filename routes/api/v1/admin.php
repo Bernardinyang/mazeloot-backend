@@ -34,11 +34,13 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index']);
 
-    // Health & System (admin-only)
-    Route::get('/health', [HealthController::class, 'index']);
-    Route::get('/system', [SystemController::class, 'index']);
-    Route::get('/system/connectivity', [SystemController::class, 'connectivity']);
-    Route::get('/system/webhooks', [SystemController::class, 'webhooks']);
+    // Health & System (super admin only)
+    Route::middleware('superadmin')->group(function () {
+        Route::get('/health', [HealthController::class, 'index']);
+        Route::get('/system', [SystemController::class, 'index']);
+        Route::get('/system/connectivity', [SystemController::class, 'connectivity']);
+        Route::get('/system/webhooks', [SystemController::class, 'webhooks']);
+    });
     Route::get('/queue/failed', [QueueController::class, 'failed']);
     Route::post('/queue/failed/retry', [QueueController::class, 'retryFailed']);
     Route::delete('/queue/failed/{uuid}', [QueueController::class, 'forgetFailed']);
